@@ -1,0 +1,31 @@
+name: Build and Syntax Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate package.json
+        run: node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('package.json OK')"
+      - name: JavaScript syntax
+        run: |
+          node --check src/main.js
+          node --check src/preload.js
+          node --check src/renderer/app.js
+      - name: Required files
+        run: |
+          test -f src/renderer/index.html
+          test -f src/renderer/styles.css
+          test -f README.md
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
