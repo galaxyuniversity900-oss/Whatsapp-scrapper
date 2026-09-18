@@ -22,6 +22,7 @@ const { MultiAccountOrchestrator } = require('./15-multi-account-orchestrator');
 const { ContactDirectory, normPhone } = require('./16-contact-directory');
 const { sendCloud } = require('./17-cloud-api');
 const { SecretStore } = require('./18-secret-store');
+const { TelegramAdapter } = require('./28-telegram-adapter');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -45,6 +46,7 @@ const groupJobs = new Map();
 const accountOrchestrator = new MultiAccountOrchestrator(path.join(dataDir, 'account-schedules.json'));
 const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'));
 const secretStore = new SecretStore(path.join(dataDir, 'secrets.json'));
+const telegram = new TelegramAdapter({ dataDir: path.join(dataDir, 'telegram'), audit });
 const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 
@@ -645,6 +647,67 @@ async function route(req, res) {
   }
 
   try {
+    if (req.method === 'GET' && p === '/api/telegram/capabilities') return json(res, 200, telegram.capabilities());
+    if (req.method === 'GET' && p === '/api/telegram/accounts') return json(res, 200, telegram.listAccounts());
+    if (req.method === 'GET' && p === '/api/telegram/auth/status') return json(res, 200, telegram.authStatus(url.searchParams.get('id')));
+    if (req.method === 'GET' && p === '/api/telegram/me') return json(res, 200, await telegram.me(url.searchParams.get('id')));
+    if (req.method === 'GET' && p === '/api/telegram/dialogs') return json(res, 200, await telegram.dialogs(url.searchParams.get('id'), url.searchParams.get('limit')));
+    if (req.method === 'POST' && p === '/api/telegram/auth/start') {
+      const x = await parseBody(req);
+      return json(res, 200, await telegram.startLogin(x));
+    }
+    if (req.method === 'POST' && p === '/api/telegram/auth/code') {
+      const x = await parseBody(req);
+      return json(res, 200, telegram.submitCode(x.id, x.code));
+    }
+    if (req.method === 'POST' && p === '/api/telegram/auth/password') {
+      const x = await parseBody(req);
+      return json(res, 200, telegram.submitPassword(x.id, x.password));
+    }
+    if (req.method === 'POST' && p === '/api/telegram/auth/restore') {
+      const x = await parseBody(req);
+      return json(res, 200, await telegram.restore(x.id, x.apiId, x.apiHash));
+    }
+    if (req.method === 'POST' && p === '/api/telegram/disconnect') {
+      const x = await parseBody(req);
+      return json(res, 200, await telegram.disconnect(x.id, !!x.forget));
+    }
+    if (req.method === 'POST' && p === '/api/telegram/public/search') {
+      const x = await parseBody(req);
+      const rows = await telegram.searchPublic(x.id, x.query, x.limit);
+      audit.append('telegram_public_search', { accountId: String(x.id), query: String(x.query || '').slice(0, 200), count: rows.length });
+      return json(res, 200, { ok: true, rows, count: rows.length });
+    }
+    if (req.method === 'POST' && p === '/api/telegram/resolve') {
+      const x = await parseBody(req);
+      return json(res, 200, { ok: true, entity: await telegram.resolve(x.id, x.target) });
+    }
+    if (req.method === 'POST' && p === '/api/telegram/messages') {
+      const x = await parseBody(req);
+      const rows = await telegram.messages(x.id, x.target, x.options || {});
+      return json(res, 200, { ok: true, rows, count: rows.length });
+    }
+    if (req.method === 'POST' && p === '/api/telegram/public/members') {
+      const x = await parseBody(req);
+      const rows = await telegram.publicMembers(x.id, x.target, x.limit);
+      audit.append('telegram_public_members_listed', { accountId: String(x.id), target: String(x.target || ''), count: rows.length });
+      return json(res, 200, { ok: true, rows, count: rows.length });
+    }
+    if (req.method === 'POST' && p === '/api/telegram/media/download') {
+      const x = await parseBody(req);
+      return json(res, 200, await telegram.downloadMedia(x.id, x.target, x.messageId, path.join(ROOT, 'exports', 'telegram-media')));
+    }
+    if (req.method === 'POST' && p === '/api/telegram/export') {
+      const x = await parseBody(req);
+      return json(res, 200, await telegram.exportRows(x.rows || [], x.format || 'json', path.join(ROOT, 'exports', 'telegram-' + Date.now() + '.' + (x.format === 'excel' ? 'xls' : String(x.format || 'json')))));
+    }
+    if (req.method === 'POST' && p === '/api/telegram/send') {
+      const x = await parseBody(req);
+      const result = await telegram.sendText(x.id, x.target, x.text);
+      audit.append('telegram_message_sent', { accountId: String(x.id), target: String(x.target || '') });
+      return json(res, 200, { ok: true, result });
+    }
+
     if (req.method === 'GET' && p === '/api/health') {
       return json(res, 200, {
         ok: true, platform: process.platform, node: process.version,
@@ -1008,6 +1071,7 @@ server.listen(port, host, () => {
 });
 
 async function shutdown() {
+  try { await telegram.shutdown(); } catch {}
   for (const s of [...sessions.values()]) {
     try { await s.client.destroy(); } catch {}
   }
