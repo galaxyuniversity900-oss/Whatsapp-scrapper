@@ -4,66 +4,241 @@ const {Client,LocalAuth,MessageMedia}=require('whatsapp-web.js');
 const {ContactStateManager}=require('./1-state-persistence-fix');
 const {ParallelCampaignExecutor}=require('./2-parallel-processing-fix');
 const {BrowserManager}=require('./3-browser-selection-fix');
+const {ContactPolicy}=require('./5-contact-policy');
+const {AuditLog}=require('./6-audit-log');
+const {CampaignScheduler}=require('./7-scheduler');
+const {DeliveryTracker}=require('./8-delivery-tracker');
+const {AccountRegistry}=require('./9-account-registry');
 
-const sessions=new Map();const dataDir=path.join(app.getPath('userData'),'data');const contactsFile=path.join(dataDir,'contacts.json');const settingsFile=path.join(dataDir,'settings.json');
+const sessions=new Map();
+const dataDir=path.join(app.getPath('userData'),'data');
+const contactsFile=path.join(dataDir,'contacts.json');
+const settingsFile=path.join(dataDir,'settings.json');
 fs.mkdirSync(dataDir,{recursive:true});
-const DEFAULT_SETTINGS={minDelay:10,maxDelay:30,perAccountLimit:100,headless:false,parallel:false,concurrency:3,browser:'chromium',maxRetries:1,retryDelay:1000};
+
+const DEFAULT_SETTINGS={
+  minDelay:10,maxDelay:30,perAccountLimit:100,headless:false,parallel:false,concurrency:3,
+  browser:'chromium',maxRetries:1,retryDelay:1000,ackTimeoutSec:15,maxConsecutiveFailures:5,
+  templates:Array.from({length:10},(_,i)=>({id:i+1,name:`M${i+1}`,text:''})),
+  browserPaths:{}
+};
 function readJson(file,fallback){try{return fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):fallback}catch{return fallback}}
-function writeJson(file,value){const tmp=file+'.tmp-'+process.pid+'-'+Date.now();fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\\n');fs.renameSync(tmp,file)}
+function writeJson(file,value){const tmp=file+'.tmp-'+process.pid+'-'+Date.now();fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n','utf8');fs.renameSync(tmp,file)}
 function settings(){return {...DEFAULT_SETTINGS,...readJson(settingsFile,{})}}
-const stateManager=new ContactStateManager(contactsFile);let win;
-function createWindow(){win=new BrowserWindow({width:1400,height:900,minWidth:1100,minHeight:700,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false}});win.loadFile(path.join(__dirname,'renderer','index.html'))}
+
+const stateManager=new ContactStateManager(contactsFile);
+const policy=new ContactPolicy(contactsFile);
+const audit=new AuditLog(path.join(dataDir,'audit.log'));
+const scheduler=new CampaignScheduler(path.join(dataDir,'scheduled-campaigns.json'));
+const delivery=new DeliveryTracker(path.join(dataDir,'delivery.json'));
+const registry=new AccountRegistry(path.join(dataDir,'accounts.json'));
+let win=null;
+
+function createWindow(){
+  win=new BrowserWindow({
+    width:1400,height:900,minWidth:1100,minHeight:700,
+    webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false}
+  });
+  win.loadFile(path.join(__dirname,'renderer','index.html'));
+}
 function emit(channel,payload){if(win&&!win.isDestroyed())win.webContents.send(channel,payload)}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function randomDelay(min,max){const lo=Math.max(0,Number(min)||0),hi=Math.max(lo,Number(max)||lo);return Math.floor((Math.random()*(hi-lo+1)+lo)*1000)}
+function normalizeId(id){return String(id||'').trim().replace(/[^A-Za-z0-9_-]/g,'-').slice(0,64)}
+function parseBool(v){return /^(1|true|yes|y)$/i.test(String(v||'').trim())}
 
-async function createSession(id,headless=false,browser='chromium'){
-  if(sessions.has(id))return {ok:true,id};
-  const browserManager=new BrowserManager({browser,headless,userDataDir:path.join(dataDir,'profiles',id)});
-  const puppeteer=browserManager.puppeteerOptions();
-  const client=new Client({authStrategy:new LocalAuth({clientId:id,dataPath:path.join(dataDir,'auth')}),puppeteer});
-  const state={id,client,status:'initializing',sent:0,paused:false,stopped:false,browserManager,executor:null};
+async function createSession(rawId,headless=false,browser='chromium'){
+  const id=normalizeId(rawId);
+  if(!id)throw new Error('A valid account ID is required');
+  if(sessions.has(id))return {ok:true,id,existing:true};
+  if(!['chromium','chrome','edge'].includes(browser))throw new Error('Unsupported browser');
+  const cfg=settings();
+  const executablePath=cfg.browserPaths?.[browser]||null;
+  const browserManager=new BrowserManager({browser,headless,executablePath});
+  const client=new Client({
+    authStrategy:new LocalAuth({clientId:id,dataPath:path.join(dataDir,'auth')}),
+    puppeteer:browserManager.puppeteerOptions()
+  });
+  const state={id,client,status:'initializing',sent:0,paused:false,stopped:false,consecutiveFailures:0,browserManager,executor:null};
   sessions.set(id,state);
+  registry.upsert({id,browser,headless,enabled:true});
+
   client.on('qr',async qr=>emit('session:qr',{id,qr:await qrcode.toDataURL(qr)}));
-  client.on('authenticated',()=>{state.status='authenticated';emit('session:status',{id,status:state.status,browser})});
-  client.on('ready',()=>{state.status='ready';emit('session:status',{id,status:state.status,browser})});
-  client.on('disconnected',reason=>{state.status='disconnected';emit('session:status',{id,status:state.status,reason});sessions.delete(id)});
-  client.on('auth_failure',reason=>{state.status='auth_failure';emit('session:status',{id,status:state.status,reason})});
-  await client.initialize();return {ok:true,id};
+  client.on('authenticated',()=>{state.status='authenticated';audit.append('account_authenticated',{accountId:id});emit('session:status',{id,status:state.status,browser})});
+  client.on('ready',()=>{state.status='ready';state.consecutiveFailures=0;audit.append('account_ready',{accountId:id,browser});emit('session:status',{id,status:state.status,browser})});
+  client.on('change_state',waState=>{state.waState=waState;emit('session:status',{id,status:state.status,waState,browser})});
+  client.on('message_ack',(message,ack)=>{
+    const messageId=message?.id?._serialized;
+    if(messageId){
+      const row=delivery.ack(messageId,ack);
+      audit.append('message_ack',{accountId:id,messageId,ack});
+      emit('delivery:ack',{accountId:id,messageId,ack,status:row?.status||'acknowledged'});
+    }
+  });
+  client.on('message',(message)=>{
+    audit.append('message_received',{accountId:id,from:message?.from||'',messageId:message?.id?._serialized||''});
+    emit('message:received',{accountId:id,from:message?.from||'',body:message?.body||'',messageId:message?.id?._serialized||''});
+  });
+  client.on('disconnected',reason=>{
+    state.status='disconnected';audit.append('account_disconnected',{accountId:id,reason:String(reason)});
+    emit('session:status',{id,status:state.status,reason});sessions.delete(id);
+  });
+  client.on('auth_failure',reason=>{
+    state.status='auth_failure';audit.append('account_auth_failure',{accountId:id,error:String(reason)});
+    emit('session:status',{id,status:state.status,reason});
+  });
+  try{await client.initialize();return {ok:true,id}}
+  catch(e){sessions.delete(id);audit.append('account_initialize_error',{accountId:id,error:String(e.message||e)});throw e}
 }
 
-async function sendCampaign(payload){
-  const s=sessions.get(payload.accountId);if(!s||s.status!=='ready')throw new Error('Account is not ready');
-  const cfg=settings();const min=Number(payload.minDelay??cfg.minDelay),max=Number(payload.maxDelay??cfg.maxDelay);
+async function sendMediaSet(s,chatId,mediaPaths,body){
+  const paths=(Array.isArray(mediaPaths)?mediaPaths:mediaPaths?[mediaPaths]:[]).filter(p=>typeof p==='string'&&fs.existsSync(p));
+  if(!paths.length){return s.client.sendMessage(chatId,body)}
+  let first=true;
+  for(const p of paths){
+    const media=MessageMedia.fromFilePath(p);
+    await s.client.sendMessage(chatId,media,first?{caption:body}:undefined);
+    first=false;
+  }
+}
+async function sendCampaign(payload={}){
+  const accountId=String(payload.accountId||'');
+  const s=sessions.get(accountId);
+  if(!s||s.status!=='ready')throw new Error('Account is not ready');
+  if(s.executor&&!s.stopped)throw new Error('A campaign is already running for this account');
+  const cfg=settings();
+  const min=Math.max(0,Number(payload.minDelay??cfg.minDelay)||0);
+  const max=Math.max(min,Number(payload.maxDelay??cfg.maxDelay)||min);
   const limit=Math.max(0,Number(payload.limit??cfg.perAccountLimit)||cfg.perAccountLimit);
   const all=await stateManager.readContacts();
-  const batch=all.map((c,index)=>({contact:c,index})).filter(x=>x.contact?.consent===true&&x.contact?.status!=='sent'&&x.contact?.phone).slice(0,limit);
-  s.paused=false;s.stopped=false;s.sent=0;
-  s.executor=new ParallelCampaignExecutor({concurrency:cfg.parallel?Math.max(1,cfg.concurrency):1,maxRetries:cfg.maxRetries,retryDelay:cfg.retryDelay});
+  const batch=policy.filterEligible(all).slice(0,limit);
+  const text=String(payload.template||'').trim();
+  if(!text&&!payload.mediaPaths&&!payload.mediaPath)throw new Error('Campaign message is empty');
+  s.paused=false;s.stopped=false;s.sent=0;s.consecutiveFailures=0;
+  audit.append('campaign_started',{accountId:s.id,total:batch.length,limit,minDelay:min,maxDelay:max});
+  if(!batch.length){emit('campaign:done',{accountId:s.id,sent:0,total:0,results:[]});return[]}
+
+  s.executor=new ParallelCampaignExecutor({
+    concurrency:cfg.parallel?Math.max(1,Number(cfg.concurrency)||1):1,
+    maxRetries:Math.max(0,Number(cfg.maxRetries)||0),
+    retryDelay:Math.max(0,Number(cfg.retryDelay)||0)
+  });
   s.executor.on('progress',d=>emit('campaign:progress',{accountId:s.id,overall:d}));
+  const mediaPaths=Array.isArray(payload.mediaPaths)?payload.mediaPaths:(payload.mediaPath?[payload.mediaPath]:[]);
   const results=await s.executor.sendMessagesParallel(batch,async item=>{
-    while(s.paused&&!s.stopped)await sleep(250);if(s.stopped)throw new Error('Campaign stopped');
-    const c=item.contact;const number=String(c.phone).replace(/\\D/g,'');if(!number)throw new Error('Invalid phone');
-    const chatId=number+'@c.us';const body=String(payload.template||'').replace(/\\{name\\}/gi,c.name||'').replace(/\\{phone\\}/gi,c.phone||'');
-    if(payload.mediaPath&&fs.existsSync(payload.mediaPath))await s.client.sendMessage(chatId,MessageMedia.fromFilePath(payload.mediaPath),{caption:body});else await s.client.sendMessage(chatId,body);
-    await stateManager.updateContactStatus(item.index,'sent',{lastSentAt:new Date().toISOString(),error:undefined});s.sent++;
-    emit('campaign:progress',{accountId:s.id,phone:c.phone,status:'sent',sent:s.sent,total:batch.length});await sleep(randomDelay(min,max));return true;
+    while(s.paused&&!s.stopped)await sleep(250);
+    if(s.stopped)throw new Error('Campaign stopped');
+    const c=item.contact;
+    const number=policy.normalizePhone(c.phone);
+    if(!/^\d{7,15}$/.test(number))throw new Error('Invalid phone number');
+    const chatId=number+'@c.us';
+    const body=text.replace(/\{name\}/gi,c.name||'').replace(/\{phone\}/gi,c.phone||'');
+    let sentMessage=null;
+    try{
+      const paths=mediaPaths.filter(p=>fs.existsSync(p));
+      if(paths.length){
+        let first=true;
+        for(const p of paths){
+          const media=MessageMedia.fromFilePath(p);
+          sentMessage=await s.client.sendMessage(chatId,media,first?{caption:body}:undefined);
+          first=false;
+        }
+      }else{
+        sentMessage=await s.client.sendMessage(chatId,body);
+      }
+      const messageId=sentMessage?.id?._serialized||`local-${s.id}-${item.index}-${Date.now()}`;
+      delivery.create({id:messageId,accountId:s.id,phone:c.phone,contactIndex:item.index});
+      await stateManager.updateContactStatus(item.index,'sent',{lastSentAt:new Date().toISOString(),error:undefined});
+      s.sent++;s.consecutiveFailures=0;
+      audit.append('message_sent',{accountId:s.id,phone:c.phone,messageId});
+      emit('campaign:progress',{accountId:s.id,phone:c.phone,status:'sent',sent:s.sent,total:batch.length,messageId});
+      await sleep(randomDelay(min,max));
+      return {messageId};
+    }catch(e){
+      s.consecutiveFailures++;
+      audit.append('message_failed',{accountId:s.id,phone:c.phone,error:String(e.message||e),consecutiveFailures:s.consecutiveFailures});
+      if(s.consecutiveFailures>=Math.max(1,Number(cfg.maxConsecutiveFailures)||5)){s.stopped=true;s.executor.stop();audit.append('campaign_circuit_breaker',{accountId:s.id,reason:'consecutive_failures',count:s.consecutiveFailures})}
+      throw e;
+    }
   });
   for(const r of results)if(r.status==='failed'){const item=batch[r.index];if(item)await stateManager.updateContactStatus(item.index,'failed',{error:r.error,lastFailedAt:new Date().toISOString()})}
-  emit('campaign:done',{accountId:s.id,sent:s.sent,total:batch.length,results});return results;
+  audit.append('campaign_completed',{accountId:s.id,sent:s.sent,total:batch.length,failed:results.filter(x=>x.status==='failed').length});
+  emit('campaign:done',{accountId:s.id,sent:s.sent,total:batch.length,results});
+  s.executor=null;
+  return results;
+}
+
+function parseCsvLine(line){
+  const out=[];let cur='',quoted=false;
+  for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(quoted&&line[i+1]==='"'){cur+='"';i++}else quoted=!quoted}else if(ch===','&&!quoted){out.push(cur);cur=''}else cur+=ch}out.push(cur);return out;
 }
 
 ipcMain.handle('settings:get',()=>settings());
 ipcMain.handle('settings:set',(_,value)=>{const s={...settings(),...value};writeJson(settingsFile,s);return s});
 ipcMain.handle('contacts:get',()=>stateManager.readContacts());
 ipcMain.handle('contacts:set',(_,value)=>stateManager.writeContacts(value));
-ipcMain.handle('contacts:import',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'CSV/JSON',extensions:['csv','json']}]});if(r.canceled)return [];const raw=fs.readFileSync(r.filePaths[0],'utf8');let rows=[];if(r.filePaths[0].toLowerCase().endsWith('.json'))rows=JSON.parse(raw);else rows=raw.split(/\\r?\\n/).filter(Boolean).slice(1).map(line=>{const [phone,name='']=line.split(',');return {phone:phone.trim(),name:name.trim(),consent:false,status:'pending'}});const merged=[...await stateManager.readContacts(),...rows].filter((v,i,a)=>v.phone&&a.findIndex(x=>x.phone===v.phone)===i);await stateManager.writeContacts(merged);return merged});
+ipcMain.handle('contacts:suppress',async(_,p)=>{const phone=policy.normalizePhone(p?.phone);const changed=policy.suppressPhone(phone,p?.reason||'manual opt-out');if(changed)audit.append('contact_suppressed',{phone,reason:p?.reason||'manual opt-out'});return{changed}});
+ipcMain.handle('contacts:import',async()=>{
+  const r=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'CSV/JSON',extensions:['csv','json']}]});
+  if(r.canceled)return stateManager.readContacts();
+  const file=r.filePaths[0],raw=fs.readFileSync(file,'utf8');let rows=[];
+  if(file.toLowerCase().endsWith('.json')){const parsed=JSON.parse(raw);rows=Array.isArray(parsed)?parsed:(parsed.contacts||[])}
+  else{
+    const lines=raw.split(/\r?\n/).filter(Boolean);const headers=(parseCsvLine(lines.shift()||'')).map(x=>x.trim().toLowerCase());
+    rows=lines.map(line=>{const v=parseCsvLine(line);const o={};headers.forEach((h,i)=>o[h]=v[i]??'');return o})
+  }
+  const incoming=rows.map(x=>({...x,phone:policy.normalizePhone(x.phone),consent:typeof x.consent==='boolean'?x.consent:parseBool(x.consent),status:x.status||'pending'})).filter(x=>policy.validate(x).valid);
+  const mergedRows=[...await stateManager.readContacts(),...incoming];const seen=new Set();const merged=mergedRows.filter(x=>{const p=policy.normalizePhone(x.phone);if(!p||seen.has(p))return false;seen.add(p);x.phone=p;return true});
+  await stateManager.writeContacts(merged);audit.append('contacts_imported',{source:path.basename(file),count:incoming.length,total:merged.length});return merged;
+});
 ipcMain.handle('browser:list',()=>BrowserManager.detectInstalledBrowsers());
-ipcMain.handle('session:create',(_,p)=>createSession(String(p.id||'').trim(),!!p.headless,p.browser||settings().browser));
-ipcMain.handle('session:list',()=>[...sessions.values()].map(s=>({id:s.id,status:s.status,sent:s.sent,browser:s.browserManager.browser})));
+ipcMain.handle('session:create',(_,p)=>createSession(p?.id,p?.headless,p?.browser||settings().browser));
+ipcMain.handle('session:list',()=>[...sessions.values()].map(s=>({id:s.id,status:s.status,sent:s.sent,browser:s.browserManager.browser,waState:s.waState,consecutiveFailures:s.consecutiveFailures})));
+ipcMain.handle('account:list',()=>registry.list());
+ipcMain.handle('session:logout',async(_,id)=>{
+  const key=normalizeId(id),s=sessions.get(key);registry.upsert({id:key,enabled:false});
+  if(s){try{await s.client.logout()}finally{sessions.delete(key)}}audit.append('account_logout',{accountId:key});return{ok:true}
+});
+ipcMain.handle('session:delete',async(_,id)=>{
+  const key=normalizeId(id),s=sessions.get(key);
+  if(s){try{await s.client.destroy()}catch{}sessions.delete(key)}
+  const sessionDir=path.join(dataDir,'auth',`session-${key}`);try{fs.rmSync(sessionDir,{recursive:true,force:true})}catch{}
+  registry.remove(key);audit.append('account_deleted',{accountId:key});return{ok:true}
+});
+ipcMain.handle('campaign:dry-run',async(_,payload={})=>{
+  const cfg=settings(),limit=Math.max(0,Number(payload.limit??cfg.perAccountLimit)||cfg.perAccountLimit),all=await stateManager.readContacts();
+  const eligible=policy.filterEligible(all).slice(0,limit);
+  return{totalContacts:all.length,eligible:eligible.length,contacts:eligible.map(x=>({index:x.index,phone:x.contact.phone,name:x.contact.name||'',status:x.contact.status||'pending'}))}
+});
 ipcMain.handle('campaign:pause',(_,id)=>{const s=sessions.get(id);if(s){s.paused=true;s.executor?.pause()}});
 ipcMain.handle('campaign:resume',(_,id)=>{const s=sessions.get(id);if(s){s.paused=false;s.executor?.resume()}});
 ipcMain.handle('campaign:stop',(_,id)=>{const s=sessions.get(id);if(s){s.stopped=true;s.paused=false;s.executor?.stop()}});
-ipcMain.handle('campaign:start',(_,payload)=>{sendCampaign(payload).catch(e=>emit('campaign:error',{accountId:payload.accountId,error:String(e.message||e)}));return {ok:true}});
-ipcMain.handle('media:pick',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Media',extensions:['png','jpg','jpeg','webp','mp3','wav','mp4','mov']}]});return r.canceled?null:r.filePaths[0]});
-app.whenReady().then(createWindow);app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
+ipcMain.handle('campaign:start',async(_,payload)=>{try{await sendCampaign(payload);return{ok:true}}catch(e){audit.append('campaign_error',{accountId:payload?.accountId,error:String(e.message||e)});emit('campaign:error',{accountId:payload?.accountId,error:String(e.message||e)});return{ok:false,error:String(e.message||e)}}});
+ipcMain.handle('delivery:list',(_,limit)=>delivery.list(limit));
+ipcMain.handle('delivery:summary',()=>delivery.summary());
+ipcMain.handle('account:readiness',async(_,id)=>{
+  const s=sessions.get(String(id));if(!s)return{ready:false,reason:'Account is not connected'};
+  let waState=s.waState||null;try{waState=await s.client.getState()}catch{}
+  return{ready:s.status==='ready',status:s.status,waState,browser:s.browserManager.browser,authenticated:['authenticated','ready'].includes(s.status),canCampaign:s.status==='ready'&&waState==='CONNECTED'}
+});
+ipcMain.handle('audit:list',(_,limit)=>audit.read(limit));
+ipcMain.handle('schedule:list',()=>scheduler.list());
+ipcMain.handle('schedule:add',(_,job)=>scheduler.add(job));
+ipcMain.handle('schedule:cancel',(_,id)=>scheduler.cancel(id));
+ipcMain.handle('media:pick',async(_,kind='all')=>{
+  const ext=kind==='images'?['png','jpg','jpeg','webp','gif']:kind==='audio-video'?['mp3','wav','m4a','aac','ogg','mp4','mov','webm','mkv']:['png','jpg','jpeg','webp','gif','mp3','wav','m4a','aac','ogg','mp4','mov','webm','mkv'];
+  const r=await dialog.showOpenDialog(win,{properties:['openFile','multiSelections'],filters:[{name:kind==='images'?'Images':kind==='audio-video'?'Audio / Video':'Media',extensions:ext}]});
+  return r.canceled?[]:r.filePaths;
+});
+
+async function processDueSchedules(){
+  for(const job of scheduler.due()){
+    scheduler.markRunning(job.id);audit.append('schedule_started',{jobId:job.id});
+    try{await sendCampaign(job.payload||{});scheduler.markCompleted(job.id);audit.append('schedule_completed',{jobId:job.id})}
+    catch(e){scheduler.markFailed(job.id,e.message||e);audit.append('schedule_failed',{jobId:job.id,error:String(e.message||e)})}
+  }
+}
+setInterval(()=>processDueSchedules().catch(e=>audit.append('scheduler_error',{error:String(e.message||e)})),15000);
+
+app.whenReady().then(createWindow);
+app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});

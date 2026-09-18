@@ -1,4 +1,4 @@
-# WhatsApp Scrapper
+# WhatsApp Scrapper — Professional 3.0
 
 A local Electron desktop workspace for consent-based WhatsApp campaigns.
 
@@ -14,7 +14,14 @@ A local Electron desktop workspace for consent-based WhatsApp campaigns.
 - Configurable randomized delivery interval and per-account cap.
 - Headless browser option.
 - Local data storage under Electron's user-data directory.
-- Account Readiness checklist instead of automated fake conversations or enforcement-evasion behavior.
+- Account Readiness diagnostics instead of automated fake conversations or enforcement-evasion behavior.
+- Delivery monitor with message ACK lifecycle and local delivery history.
+- Persistent account registry with correct LocalAuth session lifecycle.
+- Durable campaign scheduler with cancellation and restart recovery.
+- JSONL audit trail and operational event history.
+- Circuit breaker for consecutive send failures.
+- Multi-file media selection for image/audio/video campaigns.
+- Professional dashboard queues, delivery table and reliability controls.
 
 ## Run
 ```bash
@@ -35,7 +42,7 @@ CSV imports default to `consent: false`; review and enable consent in the Client
 This project is intended for legitimate, consent-based communications. It does not implement techniques intended to bypass platform enforcement, spoof users, or manufacture engagement. Randomized delays are a scheduling control, not a guarantee against restrictions.
 
 ## Architecture
-`src/main.js` owns Electron IPC, WhatsApp sessions, campaign execution and local persistence. `src/preload.js` exposes a minimal isolated API. `src/renderer/` contains the UI.
+`src/main.js` owns Electron IPC, WhatsApp sessions, campaign execution and local persistence. `src/8-delivery-tracker.js` records send/ACK lifecycle. `src/9-account-registry.js` manages durable account metadata. `src/preload.js` exposes a minimal isolated API. `src/renderer/` contains the UI.
 
 ## License
 MIT
@@ -54,7 +61,11 @@ npm install --ignore-scripts
 npm run termux:test
 ```
 
-The Termux smoke test validates JavaScript syntax, state persistence, bounded concurrency, retry handling, browser detection logic, and campaign-manager integration. It does not authenticate or send messages through WhatsApp Web.
+The Termux smoke test validates JavaScript syntax, state persistence, bounded concurrency, retry handling, browser detection logic, campaign-manager integration, delivery tracking and account registry behavior. It does not authenticate or send messages through WhatsApp Web.
+
+## Production reliability notes
+
+The project pins `whatsapp-web.js` to the tested 1.34.7 release rather than using a floating dependency. The runtime records the message returned by `sendMessage()` separately from subsequent `message_ack` events, because a returned message object is not by itself proof of final delivery. The upstream library exposes `message_ack`, `authenticated`, `ready`, `change_state`, `auth_failure`, and `disconnected` events for this lifecycle. See the upstream documentation before upgrading the dependency.
 
 ## Real WhatsApp account test
 
