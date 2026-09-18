@@ -7,5 +7,9 @@ node --check src/1-state-persistence-fix.js
 node --check src/2-parallel-processing-fix.js
 node --check src/3-browser-selection-fix.js
 node --check src/4-integration-campaign.js
+node --check src/5-contact-policy.js
+node --check src/6-audit-log.js
+node --check src/7-scheduler.js
 node test/5-tests.js
+node test/6-hardening-tests.js
 echo "== Termux core test completed =="
