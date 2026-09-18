@@ -69,6 +69,9 @@ ipcMain.handle('contacts:import',async()=>{const r=await dialog.showOpenDialog(w
 ipcMain.handle('browser:list',()=>BrowserManager.detectInstalledBrowsers());
 ipcMain.handle('session:create',(_,p)=>createSession(String(p.id||'').trim(),!!p.headless,p.browser||settings().browser));
 ipcMain.handle('session:list',()=>[...sessions.values()].map(s=>({id:s.id,status:s.status,sent:s.sent,browser:s.browserManager.browser})));
+ipcMain.handle('session:logout',async(_,id)=>{const s=sessions.get(String(id));if(!s)return {ok:false};try{await s.client.logout()}finally{sessions.delete(String(id))}audit.append('account_logout',{accountId:String(id)});return {ok:true}});
+ipcMain.handle('session:delete',async(_,id)=>{const key=String(id);const s=sessions.get(key);if(s){try{await s.client.destroy()}catch{}sessions.delete(key)}const authDir=path.join(dataDir,'auth',key);try{fs.rmSync(authDir,{recursive:true,force:true})}catch{}const profileDir=path.join(dataDir,'profiles',key);try{fs.rmSync(profileDir,{recursive:true,force:true})}catch{}audit.append('account_deleted',{accountId:key});return {ok:true}});
+ipcMain.handle('campaign:dry-run',async(_,payload)=>{const cfg=settings();const limit=Math.max(0,Number(payload?.limit??cfg.perAccountLimit)||cfg.perAccountLimit);const all=await stateManager.readContacts();const eligible=policy.filterEligible(all).slice(0,limit);return {totalContacts:all.length,eligible:eligible.length,contacts:eligible.map(x=>({index:x.index,phone:x.contact.phone,name:x.contact.name||'',status:x.contact.status||'pending'}))}});
 ipcMain.handle('campaign:pause',(_,id)=>{const s=sessions.get(id);if(s){s.paused=true;s.executor?.pause()}});
 ipcMain.handle('campaign:resume',(_,id)=>{const s=sessions.get(id);if(s){s.paused=false;s.executor?.resume()}});
 ipcMain.handle('campaign:stop',(_,id)=>{const s=sessions.get(id);if(s){s.stopped=true;s.paused=false;s.executor?.stop()}});
