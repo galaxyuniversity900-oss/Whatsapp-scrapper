@@ -1,4 +1,4 @@
-# WhatsApp Scrapper — Professional 3.1 Data Suite
+# WhatsApp Scrapper — Professional 3.2 Data Suite
 
 A local Electron desktop workspace for consent-based WhatsApp campaigns.
 
