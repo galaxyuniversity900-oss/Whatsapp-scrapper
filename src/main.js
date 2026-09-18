@@ -12,6 +12,7 @@ const {AccountRegistry}=require('./9-account-registry');
 const {DataCollector}=require('./10-data-collector');
 const {exportData}=require('./11-exporter');
 const {WhatsAppDirectory}=require('./12-whatsapp-directory');
+const {GroupIntelligence}=require('./13-group-intelligence');
 
 const sessions=new Map();
 const dataDir=path.join(app.getPath('userData'),'data');
@@ -37,6 +38,7 @@ const delivery=new DeliveryTracker(path.join(dataDir,'delivery.json'));
 const registry=new AccountRegistry(path.join(dataDir,'accounts.json'));
 const collector=new DataCollector(path.join(dataDir,'whatsapp-data'));
 const directory=new WhatsAppDirectory({includeProfiles:true});
+const groupIntelligence=new GroupIntelligence(path.join(dataDir,'whatsapp-data','group-intelligence.json'));
 let win=null;
 
 function createWindow(){
@@ -83,6 +85,15 @@ async function createSession(rawId,headless=false,browser='chromium',proxyUrl=''
   });
   client.on('message_create',async message=>{
     try{const chat=await message.getChat();const row=collector.ingest(message,chat);emit('message:stream',{accountId:id,...row});}catch(e){audit.append('message_collect_error',{accountId:id,error:String(e.message||e)})}
+  });
+  client.on('group_join',notification=>{
+    try{const row=groupIntelligence.recordJoin(notification,'join');audit.append('group_member_joined',{accountId:id,groupId:notification?.chatId,addedBy:notification?.author,recipients:notification?.recipientIds||[]});emit('group:intelligence:event',{accountId:id,type:'join',...row});}catch(e){audit.append('group_intelligence_event_error',{accountId:id,error:String(e.message||e)})}
+  });
+  client.on('group_leave',notification=>{
+    try{const row=groupIntelligence.recordJoin(notification,'leave');audit.append('group_member_left',{accountId:id,groupId:notification?.chatId,removedBy:notification?.author,recipients:notification?.recipientIds||[]});emit('group:intelligence:event',{accountId:id,type:'leave',...row});}catch(e){audit.append('group_intelligence_event_error',{accountId:id,error:String(e.message||e)})}
+  });
+  client.on('message_reaction',async reaction=>{
+    try{const message=await client.getMessageById(reaction?.msgId?._serialized||reaction?.msgId);const row=groupIntelligence.recordReaction(reaction,message);if(row)emit('group:intelligence:reaction',{accountId:id,...row});}catch(e){audit.append('group_intelligence_reaction_error',{accountId:id,error:String(e.message||e)})}
   });
   client.on('message',(message)=>{
     audit.append('message_received',{accountId:id,from:message?.from||'',messageId:message?.id?._serialized||''});
@@ -246,6 +257,14 @@ ipcMain.handle('data:sync:contacts',async(_,p={})=>{const s=sessions.get(String(
 ipcMain.handle('data:sync:groups',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');const rows=await directory.listGroups(s.client,{includeMembers:p.includeMembers!==false,includeProfiles:!!p.includeProfiles});collector.saveGroups(rows);audit.append('directory_groups_synced',{accountId:s.id,count:rows.length});emit('data:sync:done',{type:'groups',count:rows.length});return rows});
 ipcMain.handle('data:sync:chats',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');const result=await directory.syncChats(s.client,{limitMessages:Math.min(500,Math.max(1,Number(p.limitMessages)||50)),types:p.types||'all',onMessage:async(m,c)=>collector.ingest(m,c)});audit.append('chat_history_synced',{accountId:s.id,...result});emit('data:sync:done',{type:'chats',...result});return result});
 ipcMain.handle('data:validate:numbers',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');return directory.validateNumbers(s.client,p.numbers||[],{includeProfilePicture:p.includeProfilePicture!==false})});
+ipcMain.handle('data:group-intelligence',async(_,p={})=>{
+  const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');
+  const metrics={addedBy:p.metrics?.addedBy!==false,groups:p.metrics?.groups!==false,messages:p.metrics?.messages!==false,reactions:p.metrics?.reactions!==false};
+  const result=await groupIntelligence.analyze(s.client,p.number,{...p,metrics});
+  audit.append('group_intelligence_analyzed',{accountId:s.id,targetPhone:result.targetPhone,metrics,result:{groupsEncountered:result.groupsEncountered,addedTimes:result.addedTimes,messageCount:result.messageCount,reactionCount:result.reactionCount}});
+  emit('group:intelligence:done',{accountId:s.id,...result});
+  return result;
+});
 ipcMain.handle('data:channel:subscribers',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');return directory.channelSubscribers(s.client,p.channelId,{limit:Math.min(1000,Math.max(1,Number(p.limit)||100)),includeProfiles:!!p.includeProfiles})});
 ipcMain.handle('data:search',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');return s.client.searchMessages(String(p.query||''),{limit:Math.min(500,Math.max(1,Number(p.limit)||50)),...(p.chatId?{chatId:String(p.chatId)}:{})})});
 ipcMain.handle('data:export',async(_,p={})=>{const format=String(p.format||'json').toLowerCase();const source=p.source||'messages';const rows=source==='contacts'?collector.listContacts():source==='groups'?collector.listGroups():source==='profiles'?collector.listProfiles():source==='chats'?collector.listChats():collector.listMessages(p.limit||5000);const ext=format==='excel'?'xls':format;const r=await dialog.showSaveDialog(win,{defaultPath:'whatsapp-'+source+'.'+ext,filters:[{name:format.toUpperCase(),extensions:[ext]}]});if(r.canceled)return{canceled:true};const result=exportData(rows,format,r.filePath,'WhatsApp '+source+' export');audit.append('data_exported',{source,format,count:rows.length,file:path.basename(r.filePath)});return result});
