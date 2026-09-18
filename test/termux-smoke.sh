@@ -10,6 +10,9 @@ node --check src/4-integration-campaign.js
 node --check src/5-contact-policy.js
 node --check src/6-audit-log.js
 node --check src/7-scheduler.js
+node --check src/8-delivery-tracker.js
+node --check src/9-account-registry.js
 node test/5-tests.js
 node test/6-hardening-tests.js
+node test/7-professional-tests.js
 echo "== Termux core test completed =="
