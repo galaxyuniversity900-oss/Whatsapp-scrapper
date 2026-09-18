@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-scrapper",
-  "version": "4.3.0",
+  "version": "5.0.0",
   "private": true,
   "description": "Professional consent-first WhatsApp workspace with a real whatsapp-web.js runtime for Windows, Termux and Android PWA control.",
   "main": "src/main.js",
@@ -13,10 +13,10 @@
     "dist": "electron-builder",
     "test:hardening": "node test/6-hardening-tests.js",
     "test:professional": "node test/7-professional-tests.js",
-    "test:platform": "node test/8-platform-tests.js",
+    "test:platform": "node test/12-platform-tests.js",
     "test:web": "node test/9-web-ui-tests.js",
     "test:runtime": "node test/10-runtime-tests.js",
-    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime && npm run test:4.3",
+    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime && npm run test:4.3 && npm run test:platform",
     "server": "node src/server.js",
     "termux": "node src/server.js",
     "start:web": "node src/server.js",
@@ -44,7 +44,8 @@
   },
   "dependencies": {
     "whatsapp-web.js": "1.34.7",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "electron": "^38.0.0",
