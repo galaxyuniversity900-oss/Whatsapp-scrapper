@@ -23,6 +23,7 @@
   <button data-view="clients"><span class="dot"></span>Clients</button>
   <button data-view="directory"><span class="dot"></span>WhatsApp Directory</button>
   <button data-view="groups"><span class="dot"></span>Groups</button>
+  <button data-view="groupWorkspace"><span class="dot"></span>Group / Channel Workspace</button>
   <button data-view="intelligence"><span class="dot"></span>Person Intelligence</button>
   <button data-view="delivery"><span class="dot"></span>Delivery Monitor</button>
   <button data-view="data"><span class="dot"></span>Data & Export</button>
@@ -107,6 +108,40 @@
  </div></div>
 </section>
 
+<section id="groupWorkspace" class="view">
+ <div class="panel"><div class="head"><b>Group / Channel Workspace</b><span class="muted">Real data from the connected account</span></div><div class="body">
+  <div class="form">
+   <div class="field"><label>Account</label><select id="groupAccount"></select></div>
+   <div class="field span2"><label>WhatsApp Group or Channel Link</label><input id="groupLink" placeholder="https://chat.whatsapp.com/... or https://whatsapp.com/channel/..."></div>
+   <div class="field"><label>Profile details</label><select id="groupProfiles"><option value="0">Names + numbers</option><option value="1">Include available profile details</option></select></div>
+  </div>
+  <div class="toolbar" style="margin-top:8px"><button class="blue" onclick="extractGroupWorkspace()">Extract real members</button><button onclick="loadGroupWorkspace()">Reload last extraction</button></div>
+  <div id="groupSource" class="result code">Paste a group/channel link. The account must already have legitimate access to the group; the app will not auto-join or bypass privacy controls.</div>
+ </div></div>
+ <div style="height:10px"></div>
+ <div class="panel"><div class="head"><b>Members / Subscribers</b><span id="groupCount" class="status">0</span></div><div class="body">
+  <div class="scroll"><table class="table"><thead><tr><th>Name</th><th>Country</th><th>Phone</th><th>WhatsApp ID</th><th>Role</th><th>Consent</th></tr></thead><tbody id="groupMembersTable"></tbody></table></div>
+ </div></div>
+ <div style="height:10px"></div>
+ <div class="panel"><div class="head"><b>Consent-gated message job</b><span id="groupJobStatus" class="status">Idle</span></div><div class="body">
+  <div class="form">
+   <div class="field span2"><label>Message — {name}, {phone}</label><textarea id="groupMessage" placeholder="Write the message..."></textarea></div>
+   <div class="field"><label>Seconds between recipients</label><input id="groupInterval" type="number" min="0" max="3600" value="10"></div>
+   <div class="field"><label>Job ID</label><input id="groupJobId" readonly placeholder="—"></div>
+  </div>
+  <div class="checks"><label><input type="checkbox" checked disabled> Only contacts already marked consent=true</label><label><input type="checkbox" checked disabled> Opt-outs excluded</label></div>
+  <div class="toolbar"><button class="green" onclick="startGroupJob()">Send to eligible members</button><button class="red" onclick="stopGroupJob()">Stop job</button></div>
+  <div style="margin-top:10px" class="progress"><i id="groupJobBar"></i></div>
+  <div class="barline"><span id="groupJobCount">0 / 0</span><span id="groupJobStats">0 sent · 0 skipped · 0 failed</span></div>
+ </div></div>
+ <div style="height:10px"></div>
+ <div class="panel"><div class="head"><b>Export extracted data</b></div><div class="body">
+  <div class="form"><div class="field"><label>Format</label><select id="groupExportFormat"><option value="csv">CSV</option><option value="xls">Excel-compatible XLS</option><option value="json">JSON</option><option value="html">HTML</option><option value="xml">XML</option><option value="jsonl">JSONL</option><option value="txt">TXT</option></select></div></div>
+  <div class="toolbar" style="margin-top:8px"><button class="blue" onclick="exportGroupWorkspace()">Export file</button></div>
+  <div id="groupExportResult" class="result code">No export created yet.</div>
+ </div></div>
+</section>
+
 <section id="groups" class="view">
  <div class="panel"><div class="head"><b>Groups & Members</b><button onclick="loadGroups()">Refresh</button></div><div class="body"><div class="scroll"><table class="table"><thead><tr><th>Group</th><th>Members</th><th>Current target</th><th>Messages</th></tr></thead><tbody id="groupsTable"></tbody></table></div></div></div>
 </section>
@@ -154,9 +189,9 @@ async function api(p,o){const r=await fetch(p,o),d=await r.json().catch(()=>({ok
 function post(p,d){return api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(window.__t);window.__t=setTimeout(()=>t.classList.remove('show'),3500)}
 function log(m){S.logs.unshift(new Date().toLocaleTimeString()+'  '+m);S.logs=S.logs.slice(0,160);$('miniLog').textContent=S.logs.join('\n');}
-function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));if(v==='groups')loadGroups();if(v==='delivery')refreshDelivery();if(v==='activity')refreshAudit();if(v==='data')loadDataSummary()}
+function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));if(v==='groups')loadGroups();if(v==='groupWorkspace')loadGroupWorkspace();if(v==='delivery')refreshDelivery();if(v==='activity')refreshAudit();if(v==='data')loadDataSummary()}
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.view));
-function selectAccounts(){const ready=S.sessions.filter(x=>x.status==='ready');const opts=ready.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.id)+' · '+esc(x.browser||'')+'</option>').join('')||'<option value="">No ready account</option>';['campaignAccount','dirAccount','intelAccount','searchAccount'].forEach(id=>$(id).innerHTML=opts)}
+function selectAccounts(){const ready=S.sessions.filter(x=>x.status==='ready');const opts=ready.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.id)+' · '+esc(x.browser||'')+'</option>').join('')||'<option value="">No ready account</option>';['campaignAccount','dirAccount','intelAccount','searchAccount','groupAccount'].forEach(id=>$(id).innerHTML=opts)}
 function renderSessions(){const rows=S.sessions;const html=rows.map(x=>'<div class="row"><div><b>'+esc(x.id)+'</b><br><span class="muted small">'+esc(x.browser||'')+' · '+esc(x.waState||'—')+'</span></div><span class="status '+(x.status==='ready'?'ready':x.status==='qr'?'qr':x.status==='auth_failure'?'error':'')+'">'+esc(x.status)+'</span><button onclick="logout('+JSON.stringify(x.id)+')">Logout</button></div>').join('')||'<div class="empty">No live sessions. Connect an account to create a real WhatsApp Web session.</div>';$('accountList').innerHTML=html;$('dashAccounts').innerHTML=rows.map(x=>'<div class="row"><b>'+esc(x.id)+'</b><span class="status '+(x.status==='ready'?'ready':'')+'">'+esc(x.status)+'</span></div>').join('')||'<div class="empty">No connected accounts</div>';selectAccounts();$('statAccounts').textContent=readyCount()}
 function readyCount(){return S.sessions.filter(x=>x.status==='ready').length}
 async function refreshAll(){try{const r=await api('/api/runtime');S.sessions=r.sessions||[];S.accounts=r.accounts||[];S.delivery=r.delivery?[]:S.delivery;S.campaign=(r.campaigns&&r.campaigns[0])||S.campaign;renderSessions();await refreshContacts();await refreshDelivery();$('platform').textContent=r.health?.platform||'—';$('node').textContent=r.health?.node||'—';$('waState').textContent=readyCount()?'CONNECTED':'WAITING';updateCampaign(S.campaign);log('Runtime refreshed');}catch(e){toast(e.message);log('Refresh error: '+e.message)}}
@@ -183,6 +218,58 @@ async function syncContacts(){const id=$('dirAccount').value;if(!id)return toast
 async function syncGroups(){const id=$('dirAccount').value;if(!id)return toast('No ready account');try{const r=await post('/api/data/sync/groups',{accountId:id,includeMembers:true,includeProfiles:false});$('directoryResult').textContent=JSON.stringify({count:r.count,rows:r.rows.slice(0,5)},null,2);toast('Synced '+r.count+' groups');loadGroups()}catch(e){toast(e.message)}}
 async function syncChats(){const id=$('dirAccount').value;if(!id)return toast('No ready account');try{const r=await post('/api/data/sync/chats',{accountId:id,limitMessages:Number($('historyLimit').value),types:'all'});$('directoryResult').textContent=JSON.stringify(r,null,2);toast('Synced '+r.messages+' messages')}catch(e){toast(e.message)}}
 async function validateNumbers(){const id=$('dirAccount').value;if(!id)return toast('No ready account');const text=prompt('Enter phone numbers separated by commas/new lines');if(!text)return;try{const r=await post('/api/data/validate/numbers',{accountId:id,numbers:text.split(/[\s,;]+/).filter(Boolean)});$('directoryResult').textContent=JSON.stringify(r.rows,null,2)}catch(e){toast(e.message)}}
+async function extractGroupWorkspace(){
+ const accountId=$('groupAccount').value, url=$('groupLink').value.trim();
+ if(!accountId)return toast('Select a ready account');
+ if(!url)return toast('Paste a WhatsApp group/channel link');
+ try{
+  const r=await post('/api/group-workspace/extract',{accountId,url,includeProfiles:$('groupProfiles').value==='1'});
+  renderGroupWorkspace(r); toast('Extracted '+r.total+' records');
+ }catch(e){toast(e.message);$('groupSource').textContent='ERROR: '+e.message}
+}
+function renderGroupWorkspace(r){
+ const src=r.source||{};
+ $('groupSource').textContent=JSON.stringify({type:src.type,title:src.title,id:src.id,total:r.total,extractedAt:r.extractedAt},null,2);
+ $('groupCount').textContent=String(r.total||0);
+ $('groupMembersTable').innerHTML=(r.rows||[]).map(x=>{
+  const phone=x.phone||'';
+  const consent=S.contacts.some(c=>String(c.phone||'')===phone && c.consent===true && !c.optOut && c.status!=='suppressed');
+  return '<tr><td>'+esc(x.name||'Unnamed')+'</td><td>+'+esc(x.countryCode||'')+'</td><td>'+esc(phone)+'</td><td>'+esc(x.whatsappId||'')+'</td><td>'+esc(x.role||'member')+'</td><td><span class="status '+(consent?'ready':'')+'">'+(consent?'Eligible':'No consent')+'</span></td></tr>'
+ }).join('')||'<tr><td colspan="6" class="empty">No participant records available.</td></tr>';
+}
+async function loadGroupWorkspace(){
+ try{const r=await api('/api/group-workspace/latest');renderGroupWorkspace(r)}catch(e){toast(e.message)}
+}
+async function startGroupJob(){
+ const accountId=$('groupAccount').value, message=$('groupMessage').value.trim();
+ if(!accountId)return toast('Select a ready account');
+ if(!message)return toast('Message is empty');
+ try{
+  const r=await post('/api/group-workspace/send',{accountId,message,intervalSeconds:Number($('groupInterval').value)});
+  $('groupJobId').value=r.job.id; updateGroupJob(r.job); toast('Group job started; non-consented members will be skipped');
+ }catch(e){toast(e.message)}
+}
+async function stopGroupJob(){
+ const jobId=$('groupJobId').value.trim(); if(!jobId)return toast('No active group job');
+ try{const r=await post('/api/group-workspace/stop',{jobId});updateGroupJob(r.job);toast('Group job stopped')}catch(e){toast(e.message)}
+}
+function updateGroupJob(j){
+ if(!j)return;
+ $('groupJobId').value=j.id||'';
+ const done=(j.sent||0)+(j.skipped||0)+(j.failed||0);
+ const pct=j.total?Math.min(100,Math.round(done/j.total*100)):0;
+ $('groupJobBar').style.width=pct+'%';
+ $('groupJobCount').textContent=done+' / '+(j.total||0);
+ $('groupJobStats').textContent=(j.sent||0)+' sent · '+(j.skipped||0)+' skipped · '+(j.failed||0)+' failed';
+ $('groupJobStatus').textContent=j.status||'idle';
+ $('groupJobStatus').className='status '+(j.status==='running'?'running':j.status==='completed'?'ready':'');
+}
+async function exportGroupWorkspace(){
+ try{
+  const r=await post('/api/group-workspace/export',{format:$('groupExportFormat').value});
+  $('groupExportResult').textContent=JSON.stringify(r,null,2); toast('Export created: '+r.path);
+ }catch(e){toast(e.message)}
+}
 async function loadGroups(){try{const rows=await api('/api/data/groups');$('groupsTable').innerHTML=rows.map(g=>'<tr><td>'+esc(g.name||g.id)+'</td><td>'+esc(g.participantCount)+'</td><td>'+esc(g.owner||'')+'</td><td>—</td></tr>').join('')||'<tr><td colspan="4" class="empty">No synchronized groups</td></tr>'}catch(e){toast(e.message)}}
 async function analyzePerson(){const accountId=$('intelAccount').value,number=$('intelPhone').value.trim();if(!accountId||!number)return toast('Account and target phone required');try{const r=await post('/api/data/group-intelligence',{accountId,number,limitMessages:Number($('intelLimit').value),metrics:{addedBy:$('mAdded').checked,groups:$('mGroups').checked,messages:$('mMessages').checked,reactions:$('mReactions').checked}});$('intelResult').textContent=JSON.stringify(r.result,null,2);toast('Analysis completed from available WhatsApp data')}catch(e){toast(e.message);$('intelResult').textContent='ERROR: '+e.message}}
 async function refreshDelivery(){try{S.delivery=await api('/api/delivery?limit=200');$('deliveryTable').innerHTML=S.delivery.slice().reverse().map(x=>'<tr><td>'+esc(x.phone)+'</td><td>'+esc(x.accountId)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.ack??'—')+'</td><td>'+esc(x.createdAt||'')+'</td></tr>').join('')||'<tr><td colspan="5" class="empty">No delivery records</td></tr>';const d=S.delivery.slice().reverse().slice(0,8);$('dashDelivery').innerHTML=d.map(x=>'<tr><td>'+esc(x.phone)+'</td><td>'+esc(x.accountId)+'</td><td>'+esc(x.status)+'</td></tr>').join('')}catch(e){log(e.message)}}
@@ -190,7 +277,7 @@ async function refreshAudit(){try{const r=await api('/api/audit?limit=300');$('a
 async function loadDataSummary(){try{const r=await api('/api/data/summary');$('dataSummary').textContent=JSON.stringify(r,null,2)}catch(e){toast(e.message)}}
 async function searchMessages(){const id=$('searchAccount').value,q=$('searchQuery').value.trim();if(!id||!q)return toast('Account and search query required');try{const r=await post('/api/data/search',{accountId:id,query:q,limit:Number($('searchLimit').value)});$('searchResult').textContent=JSON.stringify(r.rows,null,2)}catch(e){toast(e.message)}}
 async function exportData(){try{const r=await post('/api/data/export',{source:$('exportSource').value,format:$('exportFormat').value,limit:5000});$('searchResult').textContent=JSON.stringify(r,null,2);toast('Export created on the Termux data directory')}catch(e){toast(e.message)}}
-function connectSSE(){const es=new EventSource('/events');es.addEventListener('session:qr',e=>handleQR(JSON.parse(e.data)));es.addEventListener('session:status',e=>{const x=JSON.parse(e.data);log('Session '+x.id+': '+x.status);refreshAll()});es.addEventListener('session:error',e=>{const x=JSON.parse(e.data);toast(x.id+': '+x.error);log('ERROR '+x.id+': '+x.error);refreshAll()});es.addEventListener('campaign:progress',e=>updateCampaign(JSON.parse(e.data)));es.addEventListener('campaign:done',e=>{updateCampaign(JSON.parse(e.data));refreshContacts();refreshDelivery();log('Campaign '+e.data)});es.addEventListener('delivery:ack',e=>{log('Delivery ACK '+e.data);refreshDelivery()});es.addEventListener('data:sync:done',e=>log('Data sync '+e.data));es.addEventListener('group:intelligence:done',e=>log('Group intelligence completed'));es.onerror=()=>{$('engine').textContent='RECONNECTING';setTimeout(()=>{$('engine').textContent='ONLINE'},1500)}}
+function connectSSE(){const es=new EventSource('/events');es.addEventListener('session:qr',e=>handleQR(JSON.parse(e.data)));es.addEventListener('session:status',e=>{const x=JSON.parse(e.data);log('Session '+x.id+': '+x.status);refreshAll()});es.addEventListener('session:error',e=>{const x=JSON.parse(e.data);toast(x.id+': '+x.error);log('ERROR '+x.id+': '+x.error);refreshAll()});es.addEventListener('campaign:progress',e=>updateCampaign(JSON.parse(e.data)));es.addEventListener('campaign:done',e=>{updateCampaign(JSON.parse(e.data));refreshContacts();refreshDelivery();log('Campaign '+e.data)});es.addEventListener('delivery:ack',e=>{log('Delivery ACK '+e.data);refreshDelivery()});es.addEventListener('data:sync:done',e=>log('Data sync '+e.data));es.addEventListener('group:intelligence:done',e=>log('Group intelligence completed'));es.addEventListener('group:extracted',e=>{const x=JSON.parse(e.data);renderGroupWorkspace(x);log('Group/channel extraction completed')});es.addEventListener('group:job:progress',e=>updateGroupJob(JSON.parse(e.data)));es.addEventListener('group:job:done',e=>{updateGroupJob(JSON.parse(e.data));log('Group message job '+e.data)});es.onerror=()=>{$('engine').textContent='RECONNECTING';setTimeout(()=>{$('engine').textContent='ONLINE'},1500)}}
 window.addEventListener('load',()=>{renderTemplates();connectSSE();refreshAll();setInterval(refreshAll,10000);setInterval(()=>{$('clock').textContent=new Date().toLocaleTimeString()},1000);$('clock').textContent=new Date().toLocaleTimeString()});
 </script>
 </body>
