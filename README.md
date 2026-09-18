@@ -124,3 +124,50 @@ This follows Electron's UtilityProcess model for running a Node.js child service
 ### Telegram API credentials
 
 Telegram MTProto requires an `api_id` and `api_hash` obtained from Telegram's developer portal. The saved session string is equivalent to a long-lived login credential and must be treated as a secret.
+
+
+## AI Provider Hub 5.2
+
+The desktop platform now has a unified AI layer that can connect local LLM runtimes and cloud/gateway APIs without coupling WhatsApp or Telegram features to a single model vendor.
+
+### Local LLM support
+
+The Hub can detect and connect to OpenAI-compatible local servers such as:
+- Ollama: `http://127.0.0.1:11434/v1`
+- LM Studio: `http://127.0.0.1:1234/v1`
+- vLLM: `http://127.0.0.1:8000/v1`
+- llama.cpp server: `http://127.0.0.1:8080/v1`
+
+LM Studio officially exposes OpenAI-compatible endpoints and a local REST API, including model listing and tool/MCP capabilities. citeturn0search0turn0search4
+
+### 30-model catalog
+
+The Hub ships with 30 model profiles spanning OpenAI, Anthropic, Google, DeepSeek, xAI, Mistral, Meta/Llama, Qwen, Cohere, Perplexity, Groq, Cerebras, Together, Fireworks, NVIDIA NIM, Hugging Face, Replicate, OpenRouter and local runtimes. The catalog is a capability/connection catalog; actual model availability is discovered from the configured provider rather than assumed.
+
+OpenRouter can expose hundreds of models through one OpenAI-compatible API and provides a `/v1/models` endpoint, so the Hub can use its live model catalog in addition to the built-in profiles. citeturn0search1turn0search2
+
+### UniKey gateway
+
+UniKey is supported as a first-class preset using its OpenAI-compatible API:
+- Base URL: `https://www.getunikey.ai/v1`
+- Authentication: Bearer API key
+- Model discovery: `GET /v1/models`
+- Chat: `POST /v1/chat/completions`
+
+UniKey's documentation explicitly describes OpenAI-compatible model APIs and a unified gateway for multiple model families. citeturn1search0turn1search1
+
+### AI use across the platform
+
+The same AI Hub can be used as the capability layer for:
+- WhatsApp conversation classification and summaries.
+- Telegram message/channel analysis.
+- CRM/customer summaries and notes.
+- Contact segmentation assistance.
+- Campaign/template drafting.
+- Group intelligence summaries.
+- Search and research assistance.
+- Developer/code assistance.
+- Future image/audio/video model adapters.
+- Multi-provider comparison and fallback routing.
+
+API keys are stored encrypted in the local AI provider store; they are never rendered back to the UI. The application keeps operator/consent controls around actual messaging actions.
