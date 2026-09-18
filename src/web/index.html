@@ -323,5 +323,28 @@ async function createConsentGroup(){try{const phones=$('groupBuildPhones').value
 function connectSSE(){const es=new EventSource('/events');es.addEventListener('session:qr',e=>handleQR(JSON.parse(e.data)));es.addEventListener('session:pairing',e=>{const x=JSON.parse(e.data);$('multiPairing').textContent=JSON.stringify(x,null,2);toast('Pairing code ready for '+x.id);});es.addEventListener('session:status',e=>{const x=JSON.parse(e.data);log('Session '+x.id+': '+x.status);refreshAll()});es.addEventListener('session:error',e=>{const x=JSON.parse(e.data);toast(x.id+': '+x.error);log('ERROR '+x.id+': '+x.error);refreshAll()});es.addEventListener('campaign:progress',e=>updateCampaign(JSON.parse(e.data)));es.addEventListener('campaign:done',e=>{updateCampaign(JSON.parse(e.data));refreshContacts();refreshDelivery();log('Campaign '+e.data)});es.addEventListener('delivery:ack',e=>{log('Delivery ACK '+e.data);refreshDelivery()});es.addEventListener('data:sync:done',e=>log('Data sync '+e.data));es.addEventListener('group:intelligence:done',e=>log('Group intelligence completed'));es.addEventListener('group:extracted',e=>{const x=JSON.parse(e.data);renderGroupWorkspace(x);log('Group/channel extraction completed')});es.addEventListener('group:job:progress',e=>updateGroupJob(JSON.parse(e.data)));es.addEventListener('group:job:done',e=>{updateGroupJob(JSON.parse(e.data));log('Group message job '+e.data)});es.onerror=()=>{$('engine').textContent='RECONNECTING';setTimeout(()=>{$('engine').textContent='ONLINE'},1500)}}
 window.addEventListener('load',()=>{renderTemplates();connectSSE();refreshAll();setInterval(refreshAll,10000);setInterval(()=>{$('clock').textContent=new Date().toLocaleTimeString()},1000);$('clock').textContent=new Date().toLocaleTimeString()});
 </script>
+<section class="card" id="platform5" style="margin:18px">
+<h2>Platform 5.x — CRM / Automation / Data</h2>
+<div class="grid">
+<button onclick="p5Load('contacts')">Contacts</button>
+<button onclick="p5Load('tasks')">Tasks</button>
+<button onclick="p5Load('leads')">Leads</button>
+<button onclick="p5Load('templates')">Templates</button>
+<button onclick="p5Load('automations')">Automations</button>
+<button onclick="p5Load('activity')">Activity</button>
+<button onclick="p5Backup()">Encrypted-ready Backup</button>
+</div>
+<div style="margin-top:10px">
+<input id="p5Search" placeholder="Search contacts..." style="width:60%">
+<button onclick="p5Search()">Search</button>
+</div>
+<pre id="p5Output" style="max-height:420px;overflow:auto;margin-top:12px">Platform API ready.</pre>
+</section>
+<script>
+async function p5Get(path){const r=await fetch(path);const j=await r.json();$('p5Output').textContent=JSON.stringify(j,null,2);return j}
+async function p5Load(x){return p5Get('/api/platform/'+x)}
+async function p5Search(){const q=$('p5Search').value.trim();return p5Get('/api/platform/search?'+new URLSearchParams({q}).toString())}
+async function p5Backup(){try{const r=await fetch('/api/platform/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});$('p5Output').textContent=JSON.stringify(await r.json(),null,2)}catch(e){toast(e.message)}}
+</script>
 </body>
 </html>
