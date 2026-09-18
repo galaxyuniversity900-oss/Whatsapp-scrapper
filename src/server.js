@@ -20,6 +20,7 @@ const { GroupLinkWorkspace } = require('./14-group-link-workspace');
 const { MultiAccountOrchestrator } = require('./15-multi-account-orchestrator');
 const { ContactDirectory, normPhone } = require('./16-contact-directory');
 const { sendCloud } = require('./17-cloud-api');
+const { SecretStore } = require('./18-secret-store');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -41,6 +42,7 @@ const groupWorkspace = new GroupLinkWorkspace(path.join(dataDir, 'group-workspac
 const groupJobs = new Map();
 const accountOrchestrator = new MultiAccountOrchestrator(path.join(dataDir, 'account-schedules.json'));
 const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'));
+const secretStore = new SecretStore(path.join(dataDir, 'secrets.json'));
 
 const sessions = new Map();
 const listeners = new Set();
@@ -287,9 +289,10 @@ async function createCloudSession(input={}) {
   if(sessions.has(id)) return {ok:true,id,existing:true,session:sessionPublic(sessions.get(id))};
   const cap=accountOrchestrator.capacity(sessions.size); if(!cap.canCreate) throw new Error('Account capacity reached: '+cap.max+' live accounts');
   const phoneNumberId=String(input.phoneNumberId||''); if(!/^\d+$/.test(phoneNumberId)) throw new Error('Cloud API phone number ID required');
-  const token=String(input.token||''); if(!token) throw new Error('Cloud API token required');
+  const token=String(input.token||secretStore.get(id)||''); if(!token) throw new Error('Cloud API token required (or set WA_MASTER_KEY and configure the account once)');
   const s={id,client:null,browser:null,headless:true,manager:null,status:'ready',transport:'cloud_api',phoneNumberId,cloudVersion:String(input.version||'v23.0'),cloudToken:token,createdAt:new Date().toISOString(),sent:0,consecutiveFailures:0};
   sessions.set(id,s);
+  secretStore.set(id,token);
   registry.upsert({id,enabled:true,transport:'cloud_api',phoneNumberId,cloudVersion:s.cloudVersion,tokenConfigured:true});
   audit.append('cloud_account_ready',{accountId:id,phoneNumberId});
   broadcast('session:status',sessionPublic(s));
@@ -334,6 +337,7 @@ async function logoutSession(id, removeAuth = false) {
   }
   registry.upsert({ id: key, enabled: false });
   if (removeAuth) {
+    secretStore.remove(key);
     try { fs.rmSync(path.join(authDir, 'session-' + key), { recursive: true, force: true }); } catch {}
     registry.remove(key);
   }
