@@ -72,7 +72,7 @@ class GroupIntelligence{
         const authoredByTarget=phoneOf(author)===phoneOf(target);
         if(authoredByTarget){
           seenMessageIds.add(jid(m.id));
-          if(metrics.messages){messageCount++;groupMessages++}
+          if(metrics.messages){messageCount++;}groupMessages++;
           if(metrics.reactions&&m.hasReaction){
             try{
               const rs=await m.getReactions();
@@ -90,7 +90,7 @@ class GroupIntelligence{
         matchedGroups.set(groupId,{id:groupId,name:group.name||'',participantCount:(group.participants||[]).length,currentMember:isMember,messages:groupMessages,reactions:groupReactions});
       }
     }
-    const stored=this.read().filter(x=>x.recipients?.some(r=>phoneOf(r)===phoneOf(target)));
+    const stored=this.read().filter(x=>['join','add','invite','linked_group_join'].includes(x.action)&&x.recipients?.some(r=>phoneOf(r)===phoneOf(target)));
     for(const x of stored){
       if(metrics.addedBy){
         additions.push({groupId:x.groupId,groupName:'',addedBy:x.addedBy||null,addedByPhone:phoneOf(x.addedBy)||null,targetPhone:phoneOf(target),action:x.action,timestamp:x.timestamp});
