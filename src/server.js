@@ -17,6 +17,7 @@ const { DataCollector } = require('./10-data-collector');
 const { WhatsAppDirectory } = require('./12-whatsapp-directory');
 const { GroupIntelligence } = require('./13-group-intelligence');
 const { GroupLinkWorkspace } = require('./14-group-link-workspace');
+const { MultiAccountOrchestrator, MAX_ACCOUNTS } = require('./15-multi-account-orchestrator');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -36,6 +37,7 @@ const directory = new WhatsAppDirectory({ includeProfiles: true });
 const groupIntelligence = new GroupIntelligence(path.join(dataDir, 'whatsapp-data', 'group-intelligence.json'));
 const groupWorkspace = new GroupLinkWorkspace(path.join(dataDir, 'group-workspace-latest.json'));
 const groupJobs = new Map();
+const accountOrchestrator = new MultiAccountOrchestrator(path.join(dataDir, 'accounts.json'));
 
 const sessions = new Map();
 const listeners = new Set();
@@ -108,6 +110,8 @@ function sessionPublic(s) {
   return {
     id: s.id,
     status: s.status,
+    transport: s.transport || 'web_qr',
+    pairingCode: s.pairingCode || null,
     browser: s.browser,
     headless: s.headless,
     waState: s.waState || null,
@@ -125,6 +129,9 @@ async function createSession(input = {}) {
   const existing = sessions.get(id);
   if (existing) return { ok: true, id, existing: true, session: sessionPublic(existing) };
 
+  accountOrchestrator.assertCapacity(registry, id);
+  const transport = String(input.transport || input.authMode || 'web_qr').toLowerCase();
+  if (transport === 'cloud_api') return createCloudApiSession(input);
   const browser = input.browser || 'chromium';
   const headless = input.headless === true;
   const executablePath = input.executablePath || process.env.CHROME_BIN || null;
@@ -147,17 +154,25 @@ async function createSession(input = {}) {
 
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: id, dataPath: authDir }),
-    puppeteer: manager.puppeteerOptions()
+    puppeteer: manager.puppeteerOptions(),
+    ...(transport === 'web_pairing' ? { pairWithPhoneNumber: { phoneNumber: String(input.phoneNumber || '').replace(/\\D/g, '') } } : {})
   });
 
   const s = {
-    id, client, browser, headless, manager, status: 'initializing',
+    id, client, browser, headless, manager, status: 'initializing', transport,
     sent: 0, consecutiveFailures: 0, paused: false, stopped: false,
-    lastQr: null, createdAt: new Date().toISOString()
+    lastQr: null, pairingCode: null, createdAt: new Date().toISOString()
   };
   sessions.set(id, s);
   registry.upsert({ id, browser, headless, enabled: true });
 
+  client.on('code', code => {
+    s.pairingCode = String(code || '');
+    s.status = 'pairing';
+    audit.append('account_pairing_code_generated', { accountId: id });
+    broadcast('session:pairing', { id, code: s.pairingCode });
+    broadcast('session:status', sessionPublic(s));
+  });
   client.on('qr', async qr => {
     try {
       s.lastQr = await qrcode.toDataURL(qr, { margin: 2, width: 420 });
@@ -172,12 +187,14 @@ async function createSession(input = {}) {
   client.on('authenticated', () => {
     s.status = 'authenticated';
     s.lastQr = null;
+    s.pairingCode = null;
     audit.append('account_authenticated', { accountId: id });
     broadcast('session:status', sessionPublic(s));
   });
   client.on('ready', async () => {
     s.status = 'ready';
     s.lastQr = null;
+    s.pairingCode = null;
     s.consecutiveFailures = 0;
     try { s.waState = await client.getState(); } catch {}
     audit.append('account_ready', { accountId: id, browser });
@@ -410,6 +427,30 @@ async function sendCampaign(payload = {}) {
   return results;
 }
 
+async function createCloudApiSession(input = {}) {
+  const config = accountOrchestrator.sanitizeConfig({ ...input, transport: 'cloud_api' });
+  const existing = sessions.get(config.id);
+  if (existing) return { ok: true, id: config.id, existing: true, session: sessionPublic(existing) };
+  registry.upsert({
+    ...config,
+    cloud: config.cloud,
+    transport: 'cloud_api',
+    status: 'ready',
+    browser: null,
+    headless: false
+  });
+  const s = {
+    id: config.id, client: null, browser: null, headless: false, manager: null,
+    status: 'ready', transport: 'cloud_api', cloud: config.cloud,
+    sent: 0, consecutiveFailures: 0, paused: false, stopped: false,
+    lastQr: null, pairingCode: null, createdAt: config.createdAt
+  };
+  sessions.set(config.id, s);
+  audit.append('account_cloud_api_configured', { accountId: config.id, phoneNumberId: config.cloud.phoneNumberId });
+  broadcast('session:status', sessionPublic(s));
+  return { ok: true, id: config.id, session: sessionPublic(s) };
+}
+
 function parseCsv(raw) {
   const lines = String(raw).split(/\r?\n/).filter(Boolean);
   if (!lines.length) return [];
@@ -463,6 +504,32 @@ async function requireReady(accountId) {
   return s;
 }
 
+async function sendThroughAccount(s, phone, body) {
+  if (s.transport === 'cloud_api') {
+    const row = registry.get(s.id);
+    const result = await accountOrchestrator.sendCloud(row, phone, body);
+    return {
+      id: { _serialized: result?.messages?.[0]?.id || ('cloud-' + Date.now()) },
+      raw: result
+    };
+  }
+  if (!s.client) throw new Error('WhatsApp Web client is unavailable');
+  return s.client.sendMessage(phone + '@c.us', body);
+}
+
+async function scheduleAccountAction(payload = {}) {
+  const accountId = String(payload.accountId || '');
+  if (!sessions.has(accountId) && !registry.get(accountId)) throw new Error('Account not found');
+  const row = accountOrchestrator.schedule(accountId, payload.runAt, payload.action || 'send', {
+    message: String(payload.message || ''),
+    phone: String(payload.phone || ''),
+    template: String(payload.template || '')
+  });
+  audit.append('account_action_scheduled', row);
+  broadcast('account:schedule', row);
+  return { ok: true, schedule: row };
+}
+
 async function startGroupMessageJob(payload = {}) {
   const accountId = String(payload.accountId || '');
   const s = await requireReady(accountId);
@@ -504,6 +571,7 @@ async function startGroupMessageJob(payload = {}) {
         const contact = consented.get(target.phone);
         const body = text.replace(/\{name\}/gi, contact?.name || target.name || '')
           .replace(/\{phone\}/gi, target.phone);
+        if (s.transport === 'cloud_api') throw new Error('Group/channel workspace requires a WhatsApp Web account');
         const sent = await s.client.sendMessage(target.phone + '@c.us', body);
         delivery.create({
           id: sent?.id?._serialized || ('group-' + jobId + '-' + target.index),
@@ -588,7 +656,13 @@ async function route(req, res) {
       return json(res, 200, [...sessions.values()].map(sessionPublic));
     }
     if (req.method === 'GET' && p === '/api/accounts') {
-      return json(res, 200, registry.list());
+      return json(res, 200, registry.list().map(accountOrchestrator.publicConfig.bind(accountOrchestrator)));
+    }
+    if (req.method === 'GET' && p === '/api/accounts/capacity') {
+      return json(res, 200, { configured: registry.list().length, active: sessions.size, max: MAX_ACCOUNTS });
+    }
+    if (req.method === 'GET' && p === '/api/accounts/schedules') {
+      return json(res, 200, accountOrchestrator.listSchedules());
     }
     if (req.method === 'GET' && p === '/api/contacts') {
       return json(res, 200, await state.readContacts());
@@ -634,6 +708,19 @@ async function route(req, res) {
     if (req.method === 'POST' && p === '/api/session/create') {
       return json(res, 200, await createSession(await parseBody(req)));
     }
+    if (req.method === 'POST' && p === '/api/accounts/schedule') {
+      return json(res, 200, await scheduleAccountAction(await parseBody(req)));
+    }
+    if (req.method === 'POST' && p === '/api/accounts/schedule/cancel') {
+      const x = await parseBody(req);
+      return json(res, 200, { ok: true, schedule: accountOrchestrator.cancelSchedule(x.id) });
+    }
+    if (req.method === 'POST' && p === '/api/accounts/cloud/health') {
+      const x = await parseBody(req);
+      const row = registry.get(x.accountId);
+      if (!row || row.transport !== 'cloud_api') throw new Error('Cloud API account not found');
+      return json(res, 200, await accountOrchestrator.healthCloud(row));
+    }
     if (req.method === 'POST' && p === '/api/session/logout') {
       const x = await parseBody(req);
       return json(res, 200, await logoutSession(x.id, false));
@@ -648,6 +735,7 @@ async function route(req, res) {
       if (!s) return json(res, 200, { ready: false, reason: 'Account is not connected' });
       let waState = s.waState || null;
       try { waState = await s.client.getState(); } catch {}
+      if (s.transport === 'cloud_api') return json(res, 200, { ready: s.status === 'ready', status: s.status, transport: s.transport, authenticated: true, canCampaign: true });
       return json(res, 200, {
         ready: s.status === 'ready' && waState === 'CONNECTED',
         status: s.status, waState, browser: s.browser,
@@ -856,8 +944,20 @@ const server = http.createServer(route);
 server.listen(port, host, () => {
   console.log('WhatsApp Scrapper Web Server listening on http://' + host + ':' + port);
   console.log('Data directory: ' + ROOT);
+  accountOrchestrator.startDueSchedules(async row => {
+    if (row.action !== 'send') return;
+    const s = sessions.get(row.accountId);
+    if (!s || s.status !== 'ready') throw new Error('Scheduled account is not ready');
+    if (!row.payload.phone || !row.payload.message) throw new Error('Scheduled send requires phone and message');
+    const all = await state.readContacts();
+    const eligible = policy.filterEligible(all).some(x => policy.normalizePhone(x.contact.phone) === policy.normalizePhone(row.payload.phone));
+    if (!eligible) throw new Error('Scheduled recipient is not consent-eligible');
+    const body = String(row.payload.message).replace(/\\{name\\}/gi, (await state.readContacts()).find(x => policy.normalizePhone(x.phone) === policy.normalizePhone(row.payload.phone))?.name || '').replace(/\\{phone\\}/gi, policy.normalizePhone(row.payload.phone));
+    await sendThroughAccount(s, policy.normalizePhone(row.payload.phone), body);
+    audit.append('scheduled_message_sent', { scheduleId: row.id, accountId: s.id, phone: policy.normalizePhone(row.payload.phone) });
+  });
   setTimeout(async () => {
-    for (const account of registry.list().filter(x => x.enabled !== false)) {
+    for (const account of registry.list().filter(x => x.enabled !== false && x.transport !== 'cloud_api')) {
       if (sessions.has(account.id)) continue;
       try {
         await createSession(account);
