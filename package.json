@@ -16,10 +16,11 @@
     "test:platform": "node test/8-platform-tests.js",
     "test:web": "node test/9-web-ui-tests.js",
     "test:runtime": "node test/10-runtime-tests.js",
-    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime",
+    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime && npm run test:4.3",
     "server": "node src/server.js",
     "termux": "node src/server.js",
-    "start:web": "node src/server.js"
+    "start:web": "node src/server.js",
+    "test:4.3": "node test/11-4.3-tests.js"
   },
   "build": {
     "appId": "com.galaxyuniversity.whatsapp-scrapper",
