@@ -63,9 +63,7 @@ async function route(req,res){
  if(req.method==='GET'&&p==='/'){const html=fs.readFileSync(path.join(__dirname,'web','index.html'),'utf8');return send(res,200,html,'text/html; charset=utf-8')}
  if(req.method==='GET'&&p==='/manifest.json'){return send(res,200,fs.readFileSync(path.join(__dirname,'web','manifest.json'),'utf8'),'application/manifest+json')}
  if(req.method==='GET'&&p==='/sw.js'){return send(res,200,fs.readFileSync(path.join(__dirname,'web','sw.js'),'utf8'),'application/javascript')}
- if(req.method==='GET'&&p==='/events'){res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive','Access-Control-Allow-Origin':'*'});res.write(': connected
-
-');listeners.add(res);req.on('close',()=>listeners.delete(res));return}
+ if(req.method==='GET'&&p==='/events'){res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive','Access-Control-Allow-Origin':'*'});res.write(': connected\\n\\n');listeners.add(res);req.on('close',()=>listeners.delete(res));return}
  if(req.method==='GET'&&p==='/api/health')return send(res,200,{ok:true,platform:process.platform,node:process.version,root:ROOT,sessions:sessions.size});
  try{
   if(req.method==='GET'&&p==='/api/sessions')return send(res,200,[...sessions.values()].map(s=>({id:s.id,status:s.status,browser:s.browser,sent:s.sent})));
