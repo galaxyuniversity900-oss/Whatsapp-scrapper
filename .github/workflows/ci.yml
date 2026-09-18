@@ -1,0 +1,26 @@
+name: Node Validation
+on:
+  push:
+    branches: ["main", "feature/**"]
+  pull_request:
+    branches: ["main", "feature/**"]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm install
+      - run: npm run lint
+      - run: npm test
+      - run: npm run test:hardening
+      - run: npm run test:professional
+      - run: npm run test:platform
+      - run: npm run test:web
+      - run: npm run test:4.3
