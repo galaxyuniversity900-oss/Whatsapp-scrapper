@@ -1,8 +1,8 @@
 {
   "name":"whatsapp-scrapper",
-  "version":"4.0.0",
+  "version":"4.1.0",
   "private":true,
-  "description":"Professional consent-first WhatsApp workspace with realtime data, directory extraction, selectable person/group intelligence, delivery monitoring, scheduling, auditability, bounded concurrency and a production web/PWA console.",
+  "description":"Professional consent-first WhatsApp workspace with a real whatsapp-web.js runtime for Windows, Termux and Android PWA control.",
   "main":"src/main.js",
   "scripts":{
     "start":"electron .",
@@ -12,12 +12,13 @@
     "termux:test":"bash test/termux-smoke.sh",
     "dist":"electron-builder",
     "test:hardening":"node test/6-hardening-tests.js",
-    "test:all":"npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web",
     "test:professional":"node test/7-professional-tests.js",
-    "server":"node src/server.js",
-    "termux":"node src/server.js",
     "test:platform":"node test/8-platform-tests.js",
     "test:web":"node test/9-web-ui-tests.js",
+    "test:runtime":"node test/10-runtime-tests.js",
+    "test:all":"npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime",
+    "server":"node src/server.js",
+    "termux":"node src/server.js",
     "start:web":"node src/server.js"
   },
   "build":{
