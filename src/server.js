@@ -16,6 +16,7 @@ const { AccountRegistry } = require('./9-account-registry');
 const { DataCollector } = require('./10-data-collector');
 const { WhatsAppDirectory } = require('./12-whatsapp-directory');
 const { GroupIntelligence } = require('./13-group-intelligence');
+const { GroupLinkWorkspace } = require('./14-group-link-workspace');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -33,6 +34,8 @@ const registry = new AccountRegistry(path.join(dataDir, 'accounts.json'));
 const collector = new DataCollector(path.join(dataDir, 'whatsapp-data'));
 const directory = new WhatsAppDirectory({ includeProfiles: true });
 const groupIntelligence = new GroupIntelligence(path.join(dataDir, 'whatsapp-data', 'group-intelligence.json'));
+const groupWorkspace = new GroupLinkWorkspace(path.join(dataDir, 'group-workspace-latest.json'));
+const groupJobs = new Map();
 
 const sessions = new Map();
 const listeners = new Set();
@@ -460,6 +463,86 @@ async function requireReady(accountId) {
   return s;
 }
 
+async function startGroupMessageJob(payload = {}) {
+  const accountId = String(payload.accountId || '');
+  const s = await requireReady(accountId);
+  const snapshot = groupWorkspace.last();
+  if (!snapshot.rows?.length) throw new Error('Extract a group or channel first');
+  const text = String(payload.message || '').trim();
+  if (!text) throw new Error('Message is empty');
+  const intervalSeconds = Math.min(3600, Math.max(0, Number(payload.intervalSeconds ?? 10)));
+  const all = await state.readContacts();
+  const eligible = policy.filterEligible(all);
+  const consented = new Map(eligible.map(x => [policy.normalizePhone(x.contact.phone), x.contact]));
+  const targets = snapshot.rows.map((row, index) => ({
+    ...row, index, phone: policy.normalizePhone(row.phone),
+    consented: !!consented.get(policy.normalizePhone(row.phone))
+  }));
+  const jobId = 'group-' + Date.now().toString(36);
+  const job = {
+    id: jobId, accountId, source: snapshot.source, message: text,
+    intervalSeconds, total: targets.length, sent: 0, skipped: 0, failed: 0,
+    status: 'running', startedAt: new Date().toISOString(), finishedAt: null
+  };
+  groupJobs.set(jobId, job);
+  audit.append('group_message_job_started', {
+    jobId, accountId, source: snapshot.source, total: targets.length,
+    eligible: targets.filter(x => x.consented).length, intervalSeconds
+  });
+  broadcast('group:job:status', job);
+
+  (async () => {
+    for (const target of targets) {
+      if (groupJobs.get(jobId)?.status === 'stopped') break;
+      const current = groupJobs.get(jobId);
+      if (!target.phone || !target.consented) {
+        current.skipped++;
+        broadcast('group:job:progress', current);
+        continue;
+      }
+      try {
+        const contact = consented.get(target.phone);
+        const body = text.replace(/\{name\}/gi, contact?.name || target.name || '')
+          .replace(/\{phone\}/gi, target.phone);
+        const sent = await s.client.sendMessage(target.phone + '@c.us', body);
+        delivery.create({
+          id: sent?.id?._serialized || ('group-' + jobId + '-' + target.index),
+          accountId, phone: target.phone, contactIndex: null
+        });
+        current.sent++;
+        audit.append('group_message_sent', { jobId, accountId, phone: target.phone });
+      } catch (e) {
+        current.failed++;
+        audit.append('group_message_failed', { jobId, accountId, phone: target.phone, error: String(e.message || e) });
+      }
+      broadcast('group:job:progress', current);
+      if (current.status === 'stopped') break;
+      if (intervalSeconds > 0) await sleep(intervalSeconds * 1000);
+    }
+    const final = groupJobs.get(jobId);
+    if (final && final.status !== 'stopped') final.status = 'completed';
+    if (final) {
+      final.finishedAt = new Date().toISOString();
+      audit.append('group_message_job_completed', {
+        jobId, accountId, sent: final.sent, skipped: final.skipped, failed: final.failed,
+        status: final.status
+      });
+      broadcast('group:job:done', final);
+    }
+  })().catch(e => {
+    const failed = groupJobs.get(jobId);
+    if (failed) {
+      failed.status = 'failed';
+      failed.error = String(e.message || e);
+      failed.finishedAt = new Date().toISOString();
+      broadcast('group:job:done', failed);
+    }
+    audit.append('group_message_job_error', { jobId, accountId, error: String(e.message || e) });
+  });
+
+  return { ok: true, job };
+}
+
 async function route(req, res) {
   const url = new URL(req.url, 'http://127.0.0.1');
   const p = url.pathname;
@@ -692,6 +775,51 @@ async function route(req, res) {
       });
       return json(res, 200, { ok: true, rows });
     }
+    if (req.method === 'POST' && p === '/api/group-workspace/extract') {
+      const x = await parseBody(req);
+      const s = await requireReady(x.accountId);
+      const result = await groupWorkspace.extract(s.client, x.url, { includeProfiles: !!x.includeProfiles });
+      audit.append('group_workspace_extracted', {
+        accountId: s.id, type: result.source?.type, title: result.source?.title, count: result.total
+      });
+      broadcast('group:extracted', { accountId: s.id, ...result });
+      return json(res, 200, { ok: true, ...result });
+    }
+    if (req.method === 'GET' && p === '/api/group-workspace/latest') {
+      return json(res, 200, groupWorkspace.last());
+    }
+    if (req.method === 'POST' && p === '/api/group-workspace/send') {
+      return json(res, 200, await startGroupMessageJob(await parseBody(req)));
+    }
+    if (req.method === 'GET' && p === '/api/group-workspace/jobs') {
+      return json(res, 200, [...groupJobs.values()]);
+    }
+    if (req.method === 'POST' && p === '/api/group-workspace/stop') {
+      const x = await parseBody(req);
+      const job = groupJobs.get(String(x.jobId || ''));
+      if (!job) throw new Error('Group message job not found');
+      job.status = 'stopped';
+      job.finishedAt = new Date().toISOString();
+      audit.append('group_message_job_stopped', { jobId: job.id, accountId: job.accountId });
+      broadcast('group:job:done', job);
+      return json(res, 200, { ok: true, job });
+    }
+    if (req.method === 'POST' && p === '/api/group-workspace/export') {
+      const x = await parseBody(req);
+      const format = String(x.format || 'csv').toLowerCase();
+      const allowed = ['json','csv','xls','excel','html','xml','jsonl','rss','txt'];
+      if (!allowed.includes(format)) throw new Error('Unsupported export format');
+      const rows = groupWorkspace.last().rows || [];
+      const { exportData } = require('./11-exporter');
+      const ext = format === 'excel' ? 'xls' : format;
+      const dir = path.join(ROOT, 'exports');
+      fs.mkdirSync(dir, { recursive: true });
+      const output = path.join(dir, Date.now() + '-group-members.' + ext);
+      const result = exportData(rows, format, output, 'WhatsApp Group/Channel Members');
+      audit.append('group_workspace_exported', { format, count: rows.length, file: output });
+      return json(res, 200, { ok: true, ...result, source: groupWorkspace.last().source });
+    }
+
     if (req.method === 'POST' && p === '/api/data/export') {
       const x = await parseBody(req);
       const format = String(x.format || 'json').toLowerCase();
