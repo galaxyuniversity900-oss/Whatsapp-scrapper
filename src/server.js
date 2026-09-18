@@ -17,6 +17,7 @@ const { DataCollector } = require('./10-data-collector');
 const { WhatsAppDirectory } = require('./12-whatsapp-directory');
 const { GroupIntelligence } = require('./13-group-intelligence');
 const { GroupLinkWorkspace } = require('./14-group-link-workspace');
+const { PublicChannelSearch } = require('./27-public-channel-search');
 const { MultiAccountOrchestrator } = require('./15-multi-account-orchestrator');
 const { ContactDirectory, normPhone } = require('./16-contact-directory');
 const { sendCloud } = require('./17-cloud-api');
@@ -39,6 +40,7 @@ const collector = new DataCollector(path.join(dataDir, 'whatsapp-data'));
 const directory = new WhatsAppDirectory({ includeProfiles: true });
 const groupIntelligence = new GroupIntelligence(path.join(dataDir, 'whatsapp-data', 'group-intelligence.json'));
 const groupWorkspace = new GroupLinkWorkspace(path.join(dataDir, 'group-workspace-latest.json'));
+const publicChannelSearch = new PublicChannelSearch();
 const groupJobs = new Map();
 const accountOrchestrator = new MultiAccountOrchestrator(path.join(dataDir, 'account-schedules.json'));
 const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'));
@@ -874,6 +876,24 @@ async function route(req, res) {
         includeProfiles: !!x.includeProfiles
       });
       return json(res, 200, { ok: true, rows });
+    }
+    if (req.method === 'POST' && p === '/api/channels/public/search') {
+      const x = await parseBody(req);
+      const s = await requireReady(x.accountId);
+      const result = await publicChannelSearch.search(s.client, {
+        searchText: x.searchText,
+        countryCodes: x.countryCodes,
+        skipSubscribedNewsletters: x.skipSubscribedNewsletters,
+        view: x.view,
+        limit: x.limit
+      });
+      audit.append('public_channels_searched', {
+        accountId: s.id,
+        searchText: String(x.searchText || '').slice(0, 200),
+        countryCodes: Array.isArray(x.countryCodes) ? x.countryCodes : [],
+        count: result.count
+      });
+      return json(res, 200, { ok: true, ...result });
     }
     if (req.method === 'POST' && p === '/api/group-workspace/extract') {
       const x = await parseBody(req);
