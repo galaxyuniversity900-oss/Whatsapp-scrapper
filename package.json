@@ -1,11 +1,43 @@
 {
   "name": "whatsapp-scrapper",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Consent-first WhatsApp campaign desktop workspace with multi-session management, templates, media, tracking and safety controls.",
+  "description": "Consent-first WhatsApp campaign desktop workspace with durable state, bounded concurrency, browser selection and multi-session QR authentication.",
   "main": "src/main.js",
-  "scripts": {"start": "electron .", "dev": "electron .", "lint": "node --check src/main.js && node --check src/preload.js", "dist": "electron-builder"},
-  "build": {"appId": "com.galaxyuniversity.whatsapp-scrapper", "productName": "WhatsApp Scrapper", "files": ["src/**/*", "package.json"], "directories": {"output": "dist"}, "win": {"target": ["nsis", "portable"]}},
-  "dependencies": {"whatsapp-web.js": "^1.26.0", "qrcode": "^1.5.4"},
-  "devDependencies": {"electron": "^38.0.0", "electron-builder": "^26.0.12"}
-}
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "lint": "node --check src/main.js && node --check src/preload.js && node --check src/1-state-persistence-fix.js && node --check src/2-parallel-processing-fix.js && node --check src/3-browser-selection-fix.js && node --check src/4-integration-campaign.js",
+    "test": "node test/5-tests.js",
+    "termux:test": "bash test/termux-smoke.sh",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.galaxyuniversity.whatsapp-scrapper",
+    "productName": "WhatsApp Scrapper",
+    "files": [
+      "src/**/*",
+      "test/**/*",
+      "package.json",
+      "README.md",
+      "LICENSE"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.26.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  }
+}\n
