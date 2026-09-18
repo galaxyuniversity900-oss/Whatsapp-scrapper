@@ -4,184 +4,194 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#07090b">
-<meta name="description" content="Professional WhatsApp campaign operations workspace">
 <link rel="manifest" href="/manifest.json">
-<title>WhatsApp Message Sender — Professional Workspace</title>
+<title>WhatsApp Message Sender — Professional Operations</title>
 <style>
-:root{--bg:#07090b;--panel:#101418;--panel2:#151a1f;--panel3:#0c1013;--line:#2a3037;--text:#f4f6f8;--muted:#9aa4ae;--blue:#169bd5;--blue2:#0c7bb0;--green:#72d216;--red:#ef2020;--orange:#ff9f16;--shadow:0 12px 34px rgba(0,0,0,.32);--r:5px}
-*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;font-size:14px}button,input,textarea,select{font:inherit}button{border:1px solid #3b4249;background:#171c21;color:#fff;border-radius:3px;cursor:pointer}button:hover{filter:brightness(1.16)}button:disabled{opacity:.45;cursor:not-allowed}
-.app{min-height:100vh;display:grid;grid-template-columns:235px 1fr}.side{border-right:1px solid var(--line);background:#090b0e;padding:18px 12px;position:sticky;top:0;height:100vh}.brand{display:flex;gap:10px;align-items:center;font-size:17px;font-weight:800;margin:4px 8px 24px}.logo{width:34px;height:34px;border:1px solid #3d454d;border-radius:7px;display:grid;place-items:center;background:#151a1f}.nav{display:grid;gap:5px}.nav button{border:0;background:transparent;text-align:left;padding:11px 12px;color:#aeb6bf}.nav button.active,.nav button:hover{background:#151a1f;color:#fff}.nav .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#47505a;margin-right:9px}.nav .active .dot{background:var(--blue)}.sideBottom{position:absolute;bottom:16px;left:12px;right:12px}.healthMini{border:1px solid var(--line);background:#0e1216;padding:10px;color:var(--muted);line-height:1.6}.green{color:var(--green)}.muted{color:var(--muted)}.main{min-width:0}.top{height:62px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:#0a0d10;position:sticky;top:0;z-index:10}.title{font-size:18px;font-weight:800}.topRight{display:flex;align-items:center;gap:10px}.pill{border:1px solid var(--line);background:#11161b;padding:7px 10px;border-radius:999px;color:#b9c1c9;font-size:12px}.content{padding:18px;max-width:1600px;margin:auto}.section{display:none}.section.active{display:block}.hero{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-bottom:12px}.panel{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:var(--r)}.panelHead{padding:13px 15px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.panelHead h2,.panelHead h3{margin:0;font-size:14px}.panelBody{padding:14px}.kicker{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:#7e8994}.heroTitle{font-size:26px;font-weight:800;margin:5px 0}.heroText{color:#9ea8b2;max-width:680px;line-height:1.5}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.stat{background:#0c1013;border:1px solid var(--line);padding:13px}.stat b{font-size:22px;display:block}.stat span{color:#8e99a3;font-size:11px}.workspace{display:grid;grid-template-columns:1.15fr 1fr;gap:12px}.stack{display:grid;gap:12px}.accounts{min-height:170px}.accountList{max-height:220px;overflow:auto}.accountRow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:9px 10px;border-bottom:1px solid #242a30}.accountRow:last-child{border-bottom:0}.acctName{font-weight:700}.status{font-size:11px;padding:4px 7px;border-radius:3px;border:1px solid #343b42;color:#aab3bb}.status.ready{color:#b8ef80;border-color:#365b22}.status.qr{color:#ffd17b;border-color:#5b431e}.status.error{color:#ff8a8a;border-color:#642b2b}.formGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.field label{display:block;color:#9aa4ae;font-size:10px;text-transform:uppercase;letter-spacing:.7px;margin:0 0 5px}.field input,.field select,.field textarea{width:100%;background:#090d10;border:1px solid #353c43;color:#f4f6f8;padding:9px;border-radius:3px;outline:none}.field input:focus,.field select:focus,.field textarea:focus{border-color:#5e6a75}.field textarea{min-height:92px;resize:vertical}.span2{grid-column:span 2}.span4{grid-column:span 4}.toolbar{display:flex;flex-wrap:wrap;gap:7px;align-items:center}.btn{padding:9px 12px}.btnBlue{background:#159bd7;border-color:#1ca9e7}.btnGreen{background:#69c60e;border-color:#7ddd1b;color:#061000}.btnRed{background:#d91616;border-color:#f02828}.btnOrange{background:#e9890d;border-color:#ffae2c;color:#160b00}.btnGhost{background:#11161b}.clients{display:grid;grid-template-columns:1fr 1fr;gap:10px}.clientPane{background:#0a0e11;border:1px solid var(--line);min-height:230px}.clientHead{padding:10px 11px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}.clientList{height:195px;overflow:auto}.clientRow{padding:8px 10px;border-bottom:1px solid #20262c;display:flex;justify-content:space-between;gap:8px}.clientRow small{color:#7f8a94}.messages{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}.messageTab{padding:9px 5px;text-align:center}.messageTab.active{background:#169bd5;border-color:#2cb2ee}.messageEditor{margin-top:7px}.messageEditor textarea{min-height:110px}.mediaBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}.mediaCount{font-size:12px;color:#a8b1ba;border:1px solid var(--line);padding:7px 9px;background:#0a0e11}.qrBox{min-height:220px;display:grid;place-items:center;background:#080b0d;border:1px dashed #3a4148}.qrBox img{width:min(220px,70vw);height:auto;background:#fff;padding:10px}.empty{color:#727c85;text-align:center;padding:45px 10px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}.controlBar{display:flex;gap:6px;flex-wrap:wrap}.rangeLine{display:grid;grid-template-columns:1fr 70px;gap:8px;align-items:center;margin-bottom:8px}.rangeLine input[type=range]{width:100%}.rangeValue{background:#090d10;border:1px solid #353c43;padding:8px;text-align:center}.switches{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}.check{display:flex;gap:7px;align-items:center;color:#b4bdc5}.check input{accent-color:var(--blue)}.activity{height:210px;overflow:auto;background:#080b0e;font-family:Consolas,monospace;font-size:11px;padding:9px}.log{padding:5px 0;border-bottom:1px solid #171c21;color:#9fa9b2}.log b{color:#e9edf0}.progress{height:7px;background:#252b31;border-radius:5px;overflow:hidden}.progress i{display:block;height:100%;width:0;background:var(--blue);transition:width .2s}.tableWrap{overflow:auto}.dataTable{width:100%;border-collapse:collapse;font-size:12px}.dataTable th,.dataTable td{padding:9px 10px;border-bottom:1px solid #252b31;text-align:left;white-space:nowrap}.dataTable th{color:#89949e;background:#0d1115;position:sticky;top:0}.toast{position:fixed;right:16px;bottom:16px;z-index:99;background:#151b20;border:1px solid #3b444c;padding:12px 14px;box-shadow:var(--shadow);display:none;max-width:340px}.toast.show{display:block}.footerNote{color:#66717b;font-size:11px;margin-top:14px}.dangerNote{color:#ffb1b1}.hidden{display:none!important}
-@media(max-width:1000px){.app{grid-template-columns:1fr}.side{height:auto;position:static;border-right:0;border-bottom:1px solid var(--line);padding:8px}.brand{margin:5px 8px 10px}.nav{display:flex;overflow:auto}.nav button{white-space:nowrap}.sideBottom{display:none}.hero,.workspace,.controls{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:620px){.content{padding:10px}.top{padding:0 12px}.title{font-size:15px}.formGrid{grid-template-columns:1fr 1fr}.span2,.span4{grid-column:span 2}.clients{grid-template-columns:1fr}.messages{grid-template-columns:repeat(5,1fr)}.messageTab{font-size:11px;padding:8px 2px}.heroTitle{font-size:21px}}
+:root{--bg:#06080a;--p:#101418;--p2:#0b0f12;--p3:#151a1f;--line:#293038;--txt:#f5f7f9;--muted:#8f9aa5;--blue:#159bd7;--green:#70d10e;--red:#df1b1b;--orange:#ed9414;--yellow:#ffd166;--shadow:0 12px 32px rgba(0,0,0,.3)}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--txt);font:13px Arial,Helvetica,sans-serif}button,input,textarea,select{font:inherit}button{background:#171d22;color:#fff;border:1px solid #3c444c;border-radius:3px;padding:8px 11px;cursor:pointer}button:hover{filter:brightness(1.14)}button:disabled{opacity:.45;cursor:not-allowed}.blue{background:var(--blue);border-color:#2db0e8}.green{background:var(--green);border-color:#8be62c;color:#071000}.red{background:var(--red);border-color:#fa3535}.orange{background:var(--orange);border-color:#ffb436;color:#160c00}.ghost{background:#11161b}.app{min-height:100vh;display:grid;grid-template-columns:230px 1fr}.side{background:#090c0f;border-right:1px solid var(--line);padding:14px 10px;position:sticky;top:0;height:100vh}.brand{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:800;margin:4px 8px 20px}.logo{width:34px;height:34px;border:1px solid #3d464e;border-radius:6px;display:grid;place-items:center;background:#151a1f;font-size:10px}.nav{display:grid;gap:3px}.nav button{border:0;background:transparent;text-align:left;color:#aab3bc;padding:10px 11px}.nav button.active,.nav button:hover{background:#151a1f;color:#fff}.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#46515a;margin-right:9px}.active .dot{background:var(--blue)}.sideInfo{position:absolute;bottom:14px;left:10px;right:10px;border:1px solid var(--line);background:#0e1216;padding:10px;color:var(--muted);line-height:1.8}.sideInfo b{color:var(--green)}.main{min-width:0}.top{height:58px;border-bottom:1px solid var(--line);background:#0a0d10;display:flex;align-items:center;justify-content:space-between;padding:0 18px;position:sticky;top:0;z-index:10}.title{font-size:17px;font-weight:800}.topRight{display:flex;gap:7px;align-items:center}.pill{border:1px solid var(--line);background:#11161b;border-radius:12px;padding:5px 9px;color:#b9c1c8;font-size:11px}.pill.live{color:#a8ed6e}.content{padding:15px;max-width:1650px;margin:auto}.view{display:none}.view.active{display:block}.grid{display:grid;grid-template-columns:1.2fr 1fr;gap:10px}.stack{display:grid;gap:10px}.panel{background:var(--p);border:1px solid var(--line);box-shadow:var(--shadow)}.head{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px}.head b{font-size:13px}.body{padding:12px}.kicker{color:#7d8994;text-transform:uppercase;letter-spacing:1px;font-size:10px}.heroTitle{font-size:24px;font-weight:800;margin:4px 0 7px}.muted{color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px 0}.stat{background:#0b0f12;border:1px solid var(--line);padding:11px}.stat b{font-size:21px;display:block}.stat span{font-size:10px;color:#87919b}.form{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.field label{display:block;font-size:9px;color:#929ca6;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}.field input,.field select,.field textarea{width:100%;background:#090d10;color:#f3f5f7;border:1px solid #364049;border-radius:3px;padding:8px;outline:0}.field textarea{min-height:105px;resize:vertical}.span2{grid-column:span 2}.span4{grid-column:span 4}.checks{display:flex;gap:15px;flex-wrap:wrap;margin:9px 0;color:#aeb7bf}.checks label{display:flex;align-items:center;gap:6px}.checks input{width:auto}.toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.tabs{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}.tabs button{padding:8px 2px}.tabs button.active{background:var(--blue);border-color:#2cb1ea}.progress{height:7px;background:#252c32;overflow:hidden;border-radius:5px}.progress i{display:block;width:0;height:100%;background:var(--blue);transition:width .2s}.barline{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:#8e98a2}.list{background:#090d10;border:1px solid var(--line);overflow:auto}.rows{max-height:300px}.row{padding:8px 9px;border-bottom:1px solid #20262b;display:flex;justify-content:space-between;gap:8px;align-items:center}.row:last-child{border-bottom:0}.status{border:1px solid #3a434b;border-radius:3px;padding:3px 6px;font-size:10px;color:#aeb8c0}.status.ready{color:#b8ef7f;border-color:#365a24}.status.qr{color:#ffd27e;border-color:#604a24}.status.error{color:#ff9696;border-color:#662c2c}.status.running{color:#8ddfff;border-color:#22566d}.empty{text-align:center;color:#69747e;padding:30px 10px}.clients{display:grid;grid-template-columns:1fr 1fr;gap:9px}.clientPane{background:#090d10;border:1px solid var(--line)}.clientHead{padding:9px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}.clientList{height:230px;overflow:auto}.qr{min-height:300px;display:grid;place-items:center;background:#080b0d;border:1px dashed #3a434b}.qr img{width:min(280px,78vw);background:#fff;padding:10px}.table{width:100%;border-collapse:collapse;font-size:11px}.table th,.table td{padding:8px;border-bottom:1px solid #252c32;text-align:left;white-space:nowrap}.table th{background:#0d1115;color:#89949e;position:sticky;top:0}.scroll{overflow:auto}.code{background:#080b0e;border:1px solid var(--line);padding:10px;font:11px Consolas,monospace;white-space:pre-wrap;max-height:400px;overflow:auto;color:#b9c2ca}.drop{border:1px dashed #46515b;padding:14px;text-align:center;color:#8d98a2}.result{margin-top:9px}.mediaNames{max-width:500px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#aab3bb}.toast{display:none;position:fixed;right:14px;bottom:14px;max-width:360px;background:#151b20;border:1px solid #3e474f;padding:11px 13px;z-index:100;box-shadow:var(--shadow)}.toast.show{display:block}.danger{color:#ffabab}.ok{color:#a9ed70}.small{font-size:10px}.hidden{display:none!important}
+@media(max-width:1000px){.app{grid-template-columns:1fr}.side{height:auto;position:static;border-right:0;border-bottom:1px solid var(--line);padding:7px}.brand{margin:3px 7px 8px}.nav{display:flex;overflow:auto}.nav button{white-space:nowrap;padding:8px}.sideInfo{display:none}.grid{grid-template-columns:1fr}}@media(max-width:650px){.content{padding:8px}.top{padding:0 10px}.title{font-size:14px}.stats{grid-template-columns:repeat(2,1fr)}.form{grid-template-columns:1fr 1fr}.span2,.span4{grid-column:span 2}.clients{grid-template-columns:1fr}.tabs{grid-template-columns:repeat(5,1fr)}.heroTitle{font-size:20px}}
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="side">
-  <div class="brand"><span class="logo">WA</span><span>Message Sender</span></div>
-  <nav class="nav">
-    <button class="active" data-view="dashboard"><span class="dot"></span>Dashboard</button>
-    <button data-view="campaign"><span class="dot"></span>Campaign Control</button>
-    <button data-view="accounts"><span class="dot"></span>Accounts</button>
-    <button data-view="clients"><span class="dot"></span>Clients</button>
-    <button data-view="delivery"><span class="dot"></span>Delivery Monitor</button>
-    <button data-view="activity"><span class="dot"></span>Activity & Audit</button>
-  </nav>
-  <div class="sideBottom"><div class="healthMini"><div>ENGINE <b id="engineState">ONLINE</b></div><div>Platform <span id="platform">—</span></div><div>Node <span id="node">—</span></div></div></div>
+ <div class="brand"><span class="logo">WA</span><span>Message Sender</span></div>
+ <nav class="nav">
+  <button class="active" data-view="dashboard"><span class="dot"></span>Dashboard</button>
+  <button data-view="campaign"><span class="dot"></span>Campaign Control</button>
+  <button data-view="accounts"><span class="dot"></span>Accounts</button>
+  <button data-view="clients"><span class="dot"></span>Clients</button>
+  <button data-view="directory"><span class="dot"></span>WhatsApp Directory</button>
+  <button data-view="groups"><span class="dot"></span>Groups</button>
+  <button data-view="intelligence"><span class="dot"></span>Person Intelligence</button>
+  <button data-view="delivery"><span class="dot"></span>Delivery Monitor</button>
+  <button data-view="data"><span class="dot"></span>Data & Export</button>
+  <button data-view="activity"><span class="dot"></span>Activity & Audit</button>
+ </nav>
+ <div class="sideInfo"><div>ENGINE <b id="engine">ONLINE</b></div><div>Platform <span id="platform">—</span></div><div>Node <span id="node">—</span></div><div>WhatsApp <span id="waState">—</span></div></div>
 </aside>
 <main class="main">
-<header class="top"><div class="title">WhatsApp Message Sender</div><div class="topRight"><span class="pill" id="livePill">● Live</span><span class="pill" id="clock">—</span></div></header>
+<header class="top"><div class="title">WhatsApp Message Sender</div><div class="topRight"><span class="pill live">● LIVE ENGINE</span><span class="pill" id="clock">—</span></div></header>
 <div class="content">
 
-<section id="dashboard" class="section active">
-  <div class="hero">
-    <div class="panel"><div class="panelBody"><div class="kicker">Professional Operations Console</div><div class="heroTitle">Campaign control center</div><div class="heroText">Dense, responsive control surface for connected WhatsApp accounts, consented clients, message templates, media, delivery acknowledgements and live campaign state.</div><div style="margin-top:13px" class="toolbar"><button class="btn btnBlue" onclick="go('campaign')">Open Campaign</button><button class="btn btnGhost" onclick="go('accounts')">Manage Accounts</button></div></div></div>
-    <div class="panel"><div class="panelHead"><h3>Live campaign</h3><span id="dashCampaign" class="status">Idle</span></div><div class="panelBody"><div class="progress"><i id="dashProgress"></i></div><div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px"><span id="dashProgressText">0 / 0</span><span id="dashFail">0 failed</span></div></div></div>
+<section id="dashboard" class="view active">
+ <div class="grid">
+  <div class="panel"><div class="body"><div class="kicker">Real runtime</div><div class="heroTitle">Campaign control center</div><div class="muted">This console is connected to the local Node.js WhatsApp engine. Account, QR, contacts, directory, delivery and campaign values below come from the running server — no demo counters.</div><div class="toolbar" style="margin-top:12px"><button class="blue" onclick="go('accounts')">Connect WhatsApp</button><button onclick="go('campaign')">Open Campaign</button><button onclick="refreshAll()">Refresh Runtime</button></div></div></div>
+  <div class="panel"><div class="head"><b>Live campaign</b><span id="dashCampaign" class="status">Idle</span></div><div class="body"><div class="progress"><i id="dashBar"></i></div><div class="barline"><span id="dashCount">0 / 0</span><span id="dashFail">0 failed</span></div></div></div>
+ </div>
+ <div class="stats">
+  <div class="stat"><b id="statAccounts">0</b><span>Connected / active accounts</span></div>
+  <div class="stat"><b id="statContacts">0</b><span>Campaign contacts</span></div>
+  <div class="stat"><b id="statEligible">0</b><span>Consent eligible</span></div>
+  <div class="stat"><b id="statSent">0</b><span>Sent contacts</span></div>
+ </div>
+ <div class="grid">
+  <div class="panel"><div class="head"><b>Accounts</b><button onclick="go('accounts')">Open</button></div><div class="body rows list" id="dashAccounts"></div></div>
+  <div class="panel"><div class="head"><b>Recent delivery</b><button onclick="go('delivery')">Monitor</button></div><div class="body scroll"><table class="table"><thead><tr><th>Phone</th><th>Account</th><th>Status</th></tr></thead><tbody id="dashDelivery"></tbody></table></div></div>
+ </div>
+</section>
+
+<section id="campaign" class="view">
+ <div class="panel"><div class="head"><b>Campaign Control</b><span id="campaignStatus" class="status">Ready</span></div><div class="body">
+  <div class="form">
+   <div class="field"><label>Account</label><select id="campaignAccount"></select></div>
+   <div class="field"><label>Message</label><select id="templateSelect"></select></div>
+   <div class="field"><label>Msg / Acc</label><input id="limit" type="number" min="1" max="10000" value="999"></div>
+   <div class="field"><label>Concurrency</label><input id="concurrency" type="number" min="1" max="5" value="2"></div>
+   <div class="field span2"><label>Message body — {name}, {phone}</label><textarea id="message"></textarea></div>
+   <div class="field"><label>Delay from (seconds)</label><input id="delayFrom" type="number" min="0" value="15"></div>
+   <div class="field"><label>Delay to (seconds)</label><input id="delayTo" type="number" min="0" value="30"></div>
   </div>
-  <div class="stats">
-    <div class="stat"><b id="statAccounts">0</b><span>Connected accounts</span></div>
-    <div class="stat"><b id="statContacts">0</b><span>Total clients</span></div>
-    <div class="stat"><b id="statPending">0</b><span>Pending / eligible</span></div>
-    <div class="stat"><b id="statSent">0</b><span>Sent clients</span></div>
+  <div class="checks"><label><input id="parallel" type="checkbox"> Parallel workers</label><label><input type="checkbox" checked disabled> Explicit consent required</label></div>
+  <div class="mediaNames" id="mediaNames">No media selected</div>
+  <input id="mediaInput" class="hidden" type="file" multiple accept="image/*,audio/*,video/*">
+  <div class="toolbar" style="margin-top:8px"><button class="blue" onclick="pickMedia()">Images / Audio / Video</button><button class="green" onclick="startCampaign()">Start</button><button onclick="campaignAction('pause')">Pause</button><button onclick="campaignAction('resume')">Resume</button><button class="red" onclick="campaignAction('stop')">Stop</button><button class="orange" onclick="readiness()">Warmer / Readiness</button><button onclick="dryRun()">Dry Run</button></div>
+  <div style="margin-top:11px" class="progress"><i id="campaignBar"></i></div><div class="barline"><span id="campaignCount">0 / 0</span><span id="campaignErrors">0 failed</span></div>
+  <div class="footerNote muted small" style="margin-top:9px">The server will only select contacts with consent=true, not opted out and not previously sent.</div>
+ </div></div>
+ <div style="height:10px"></div>
+ <div class="grid">
+  <div class="panel"><div class="head"><b>Messages M1 — M10</b><button onclick="saveTemplate()">Save current</button></div><div class="body"><div id="messageTabs" class="tabs"></div><div class="field" style="margin-top:8px"><label>Selected template</label><textarea id="templateText"></textarea></div></div></div>
+  <div class="panel"><div class="head"><b>Live activity</b><span class="status">SSE realtime</span></div><div class="body"><div id="miniLog" class="code" style="height:240px"></div></div></div>
+ </div>
+</section>
+
+<section id="accounts" class="view">
+ <div class="panel"><div class="head"><b>WhatsApp Accounts</b><span class="muted">whatsapp-web.js + LocalAuth</span></div><div class="body">
+  <div class="form">
+   <div class="field"><label>Account ID</label><input id="accountId" placeholder="sales-01"></div>
+   <div class="field"><label>Browser</label><select id="accountBrowser"><option value="chromium">Chromium</option><option value="chrome">Chrome</option><option value="edge">Edge</option></select></div>
+   <div class="field span2"><label>Executable path (optional)</label><input id="execPath" placeholder="/data/data/com.termux/files/usr/bin/chromium"></div>
   </div>
-  <div style="height:12px"></div>
-  <div class="workspace">
-    <div class="panel"><div class="panelHead"><h3>Accounts</h3><button class="btn btnGhost" onclick="go('accounts')">Open</button></div><div class="panelBody accountList" id="dashAccounts"><div class="empty">No connected accounts</div></div></div>
-    <div class="panel"><div class="panelHead"><h3>Recent delivery</h3><button class="btn btnGhost" onclick="go('delivery')">Monitor</button></div><div class="panelBody tableWrap"><table class="dataTable"><thead><tr><th>Phone</th><th>Account</th><th>Status</th></tr></thead><tbody id="dashDelivery"></tbody></table></div></div>
+  <div class="checks"><label><input id="accountHeadless" type="checkbox" checked> Headless</label></div>
+  <div class="toolbar"><button class="green" onclick="connectAccount()">Connect account</button><button onclick="refreshAll()">Refresh</button></div>
+  <div id="qrPanel" class="qr" style="margin-top:10px"><div class="empty">Real WhatsApp QR will appear here after Chromium starts.</div></div>
+ </div></div>
+ <div style="height:10px"></div>
+ <div class="panel"><div class="head"><b>Sessions</b></div><div class="body rows list" id="accountList"></div></div>
+</section>
+
+<section id="clients" class="view">
+ <div class="panel"><div class="head"><b>Campaign Clients</b><span class="muted">CSV: phone,name,consent,status</span></div><div class="body">
+  <input id="contactFile" class="hidden" type="file" accept=".csv,.json">
+  <div class="toolbar"><button class="blue" onclick="$('contactFile').click()">Import CSV / JSON</button><button onclick="refreshContacts()">Refresh</button><button class="red" onclick="suppressPrompt()">Opt-out number</button></div>
+  <div class="clients" style="margin-top:10px"><div class="clientPane"><div class="clientHead"><b>Pending / Eligible</b><span id="pendingCount">0</span></div><div id="pendingList" class="clientList"></div></div><div class="clientPane"><div class="clientHead"><b>Sent</b><span id="sentCount">0</span></div><div id="sentList" class="clientList"></div></div></div>
+ </div></div>
+</section>
+
+<section id="directory" class="view">
+ <div class="panel"><div class="head"><b>WhatsApp Directory</b><span class="muted">Real account data</span></div><div class="body">
+  <div class="form"><div class="field"><label>Account</label><select id="dirAccount"></select></div><div class="field"><label>History messages/chat</label><input id="historyLimit" type="number" min="1" max="500" value="50"></div></div>
+  <div class="toolbar" style="margin-top:9px"><button class="blue" onclick="syncContacts()">Sync Contacts + Profiles</button><button onclick="syncGroups()">Sync Groups + Members</button><button onclick="syncChats()">Sync Chat History</button><button onclick="validateNumbers()">Validate Numbers</button></div>
+  <div id="directoryResult" class="result code">No sync executed yet.</div>
+ </div></div>
+</section>
+
+<section id="groups" class="view">
+ <div class="panel"><div class="head"><b>Groups & Members</b><button onclick="loadGroups()">Refresh</button></div><div class="body"><div class="scroll"><table class="table"><thead><tr><th>Group</th><th>Members</th><th>Current target</th><th>Messages</th></tr></thead><tbody id="groupsTable"></tbody></table></div></div></div>
+</section>
+
+<section id="intelligence" class="view">
+ <div class="panel"><div class="head"><b>Person / Group Intelligence</b><span class="muted">Selectable metrics; no fabricated history</span></div><div class="body">
+  <div class="form">
+   <div class="field"><label>Account</label><select id="intelAccount"></select></div>
+   <div class="field"><label>Target phone</label><input id="intelPhone" placeholder="2010..."></div>
+   <div class="field"><label>Messages per group</label><input id="intelLimit" type="number" min="1" max="5000" value="200"></div>
   </div>
+  <div class="checks"><label><input id="mAdded" type="checkbox" checked> Who added target</label><label><input id="mGroups" type="checkbox" checked> Groups</label><label><input id="mMessages" type="checkbox" checked> Target messages</label><label><input id="mReactions" type="checkbox" checked> Reactions</label></div>
+  <button class="blue" onclick="analyzePerson()">Analyze real data</button>
+  <div id="intelResult" class="result code">Choose an authenticated account and target number.</div>
+ </div></div>
 </section>
 
-<section id="campaign" class="section">
-  <div class="panel"><div class="panelHead"><h2>Campaign Control</h2><span id="campaignStatus" class="status">Ready</span></div><div class="panelBody">
-    <div class="formGrid">
-      <div class="field"><label>Account</label><select id="campaignAccount"></select></div>
-      <div class="field"><label>Message / Active template</label><select id="templateSelect"></select></div>
-      <div class="field"><label>Msg / Acc</label><input id="limit" type="number" min="1" max="10000" value="999"></div>
-      <div class="field"><label>Browser</label><select id="browser"><option value="chromium">Chromium</option><option value="chrome">Chrome</option><option value="edge">Edge</option></select></div>
-      <div class="field span2"><label>Message</label><textarea id="message" placeholder="Write the message. Variables: {name} and {phone}"></textarea></div>
-      <div class="field"><label>Delay from (seconds)</label><input id="delayFrom" type="number" min="0" value="15"></div>
-      <div class="field"><label>Delay to (seconds)</label><input id="delayTo" type="number" min="0" value="30"></div>
-    </div>
-    <div class="switches">
-      <label class="check"><input id="headless" type="checkbox"> Headless</label>
-      <label class="check"><input id="parallel" type="checkbox"> Parallel</label>
-      <label class="check"><input id="consentOnly" type="checkbox" checked disabled> Consent required</label>
-    </div>
-    <div class="mediaBar">
-      <input id="mediaInput" type="file" multiple accept="image/*,audio/*,video/*" class="hidden">
-      <button class="btn btnBlue" onclick="pickMedia()">Images / Media</button>
-      <span class="mediaCount">Images: <b id="imageCount">0</b></span>
-      <span class="mediaCount">Audio/Video: <b id="avCount">0</b></span>
-      <span id="mediaNames" class="muted"></span>
-    </div>
-    <div style="margin-top:13px" class="controlBar">
-      <button id="startBtn" class="btn btnGreen" onclick="startCampaign()">Start</button>
-      <button class="btn btnBlue" onclick="pauseCampaign()">Pause</button>
-      <button class="btn btnBlue" onclick="resumeCampaign()">Resume</button>
-      <button class="btn btnRed" onclick="stopCampaign()">Stop</button>
-      <button class="btn btnOrange" onclick="warmCheck()">Warmer</button>
-      <button class="btn btnGhost" onclick="dryRun()">Dry Run</button>
-    </div>
-    <div style="margin-top:12px" class="progress"><i id="campaignProgress"></i></div>
-    <div style="display:flex;justify-content:space-between;margin-top:7px;color:#9aa4ae;font-size:12px"><span id="campaignCount">0 / 0</span><span id="campaignErrors">0 failed</span></div>
-    <div class="footerNote">Sending is restricted to contacts that explicitly have <b>consent=true</b> and are not opted out or already sent.</div>
-  </div></div>
-  <div style="height:12px"></div>
-  <div class="controls">
-    <div class="panel"><div class="panelHead"><h3>Message templates</h3><button class="btn btnGhost" onclick="saveTemplate()">Save</button></div><div class="panelBody"><div class="messages" id="messageTabs"></div><div class="messageEditor field"><label>Selected message</label><textarea id="templateText"></textarea></div></div></div>
-    <div class="panel"><div class="panelHead"><h3>Live activity</h3><span class="status">Realtime</span></div><div class="panelBody"><div id="activityMini" class="activity"></div></div></div>
-  </div>
+<section id="delivery" class="view">
+ <div class="panel"><div class="head"><b>Delivery Monitor</b><button onclick="refreshDelivery()">Refresh</button></div><div class="body"><div class="scroll"><table class="table"><thead><tr><th>Phone</th><th>Account</th><th>Status</th><th>ACK</th><th>Created</th></tr></thead><tbody id="deliveryTable"></tbody></table></div></div></div>
 </section>
 
-<section id="accounts" class="section">
-  <div class="panel"><div class="panelHead"><h2>Accounts</h2><span class="muted">LocalAuth sessions</span></div><div class="panelBody">
-    <div class="formGrid">
-      <div class="field"><label>Account ID</label><input id="accountId" placeholder="sales-01"></div>
-      <div class="field"><label>Browser</label><select id="accountBrowser"><option value="chromium">Chromium</option><option value="chrome">Chrome</option><option value="edge">Edge</option></select></div>
-      <div class="field span2"><label>Executable path (optional)</label><input id="execPath" placeholder="/data/data/com.termux/files/usr/bin/chromium"></div>
-    </div>
-    <div class="switches"><label class="check"><input id="accountHeadless" type="checkbox" checked> Headless</label></div>
-    <div class="toolbar" style="margin-top:10px"><button class="btn btnGreen" onclick="connectAccount()">Connect account</button><button class="btn btnGhost" onclick="refreshAll()">Refresh</button></div>
-    <div id="qrPanel" class="qrBox" style="margin-top:12px"><div class="empty">QR will appear here when WhatsApp requests pairing.</div></div>
-  </div></div>
-  <div style="height:12px"></div>
-  <div class="panel"><div class="panelHead"><h3>Session registry</h3></div><div class="panelBody accountList" id="accountList"><div class="empty">No sessions</div></div></div>
+<section id="data" class="view">
+ <div class="panel"><div class="head"><b>Data, Search & Export</b></div><div class="body">
+  <div class="form"><div class="field"><label>Account</label><select id="searchAccount"></select></div><div class="field span2"><label>Search messages</label><input id="searchQuery" placeholder="Search inside the authenticated WhatsApp account"></div><div class="field"><label>Limit</label><input id="searchLimit" type="number" value="50" min="1" max="500"></div></div>
+  <div class="toolbar" style="margin-top:8px"><button class="blue" onclick="searchMessages()">Search WhatsApp messages</button><button onclick="loadDataSummary()">Refresh local data</button></div>
+  <div id="searchResult" class="result code">No search.</div>
+  <div style="height:10px"></div>
+  <div class="form"><div class="field"><label>Source</label><select id="exportSource"><option>messages</option><option>contacts</option><option>groups</option><option>profiles</option><option>chats</option></select></div><div class="field"><label>Format</label><select id="exportFormat"><option>json</option><option>csv</option><option>xls</option><option>html</option><option>xml</option><option>jsonl</option><option>rss</option><option>txt</option></select></div></div>
+  <div class="toolbar" style="margin-top:8px"><button class="green" onclick="exportData()">Export real local data</button></div>
+  <div id="dataSummary" class="result code">Loading…</div>
+ </div></div>
 </section>
 
-<section id="clients" class="section">
-  <div class="panel"><div class="panelHead"><h2>Clients</h2><div class="toolbar"><input id="contactFile" type="file" accept=".csv,.json" class="hidden"><button class="btn btnBlue" onclick="document.getElementById('contactFile').click()">Import CSV / JSON</button><button class="btn btnGhost" onclick="refreshContacts()">Refresh</button></div></div><div class="panelBody">
-    <div class="clients"><div class="clientPane"><div class="clientHead"><b>Pending Clients</b><span id="pendingCount">0</span></div><div id="pendingList" class="clientList"></div></div><div class="clientPane"><div class="clientHead"><b>Sent Clients</b><span id="sentCount">0</span></div><div id="sentList" class="clientList"></div></div></div>
-    <div class="footerNote">CSV fields supported: <b>phone,name,consent,status</b>. Web import is normalized and deduplicated by phone.</div>
-  </div></div>
-</section>
-
-<section id="delivery" class="section">
-  <div class="panel"><div class="panelHead"><h2>Delivery Monitor</h2><button class="btn btnGhost" onclick="refreshDelivery()">Refresh</button></div><div class="panelBody"><div class="tableWrap"><table class="dataTable"><thead><tr><th>Phone</th><th>Account</th><th>Status</th><th>ACK</th><th>Created</th></tr></thead><tbody id="deliveryTable"></tbody></table></div></div></div>
-</section>
-
-<section id="activity" class="section">
-  <div class="panel"><div class="panelHead"><h2>Activity & Audit</h2><button class="btn btnGhost" onclick="refreshAudit()">Refresh</button></div><div class="panelBody"><div id="auditLog" class="activity" style="height:520px"></div></div></div>
+<section id="activity" class="view">
+ <div class="panel"><div class="head"><b>Activity & Audit</b><button onclick="refreshAudit()">Refresh</button></div><div class="body"><div id="audit" class="code" style="height:560px"></div></div></div>
 </section>
 
 </div></main></div>
 <div id="toast" class="toast"></div>
 <script>
 const $=id=>document.getElementById(id);
-const state={sessions:[],accounts:[],contacts:[],delivery:[],templates:Array.from({length:10},(_,i)=>({id:i+1,name:'M'+(i+1),text:''})),activeTemplate:1,media:[],campaign:{status:'idle',sent:0,total:0,failed:0},events:[]};
-
-async function api(path,opts){const r=await fetch(path,opts);const d=await r.json().catch(()=>({ok:false,error:'Invalid server response'}));if(!r.ok||d.ok===false)throw Error(d.error||('HTTP '+r.status));return d}
-function post(path,data){return api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})}
-function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove('show'),3500)}
-function log(msg,kind){const line={time:new Date().toLocaleTimeString(),msg,kind:kind||'info'};state.events.unshift(line);state.events=state.events.slice(0,120);const html=state.events.map(x=>'<div class="log"><b>'+esc(x.time)+'</b> '+esc(x.msg)+'</div>').join('');$('activityMini').innerHTML=html||'<div class="empty">Waiting for events…</div>';$('auditLog').innerHTML=html||'<div class="empty">No local events in this session.</div>'}
-function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function go(view){document.querySelectorAll('.section').forEach(x=>x.classList.toggle('active',x.id===view));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===view))}
+const S={sessions:[],accounts:[],contacts:[],delivery:[],templates:Array.from({length:10},(_,i)=>({id:i+1,name:'M'+(i+1),text:localStorage.getItem('wa-m'+(i+1))||''})),active:1,media:[],campaign:{status:'idle',sent:0,total:0,failed:0},logs:[]};
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+async function api(p,o){const r=await fetch(p,o),d=await r.json().catch(()=>({ok:false,error:'Invalid server response'}));if(!r.ok||d.ok===false)throw Error(d.error||('HTTP '+r.status));return d}
+function post(p,d){return api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(window.__t);window.__t=setTimeout(()=>t.classList.remove('show'),3500)}
+function log(m){S.logs.unshift(new Date().toLocaleTimeString()+'  '+m);S.logs=S.logs.slice(0,160);$('miniLog').textContent=S.logs.join('\n');}
+function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));if(v==='groups')loadGroups();if(v==='delivery')refreshDelivery();if(v==='activity')refreshAudit();if(v==='data')loadDataSummary()}
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.view));
-
-function updateTemplateUI(){const tabs=$('messageTabs');tabs.innerHTML=state.templates.map(t=>'<button class="messageTab '+(t.id===state.activeTemplate?'active':'')+'" onclick="selectTemplate('+t.id+')">'+esc(t.name)+'</button>').join('');$('templateText').value=(state.templates.find(x=>x.id===state.activeTemplate)||{}).text||'';$('message').value=$('templateText').value}
-function selectTemplate(id){saveTemplate(false);state.activeTemplate=id;updateTemplateUI()}
-function saveTemplate(show=true){const t=state.templates.find(x=>x.id===state.activeTemplate);if(t){t.text=$('templateText').value;localStorage.setItem('wa_templates',JSON.stringify(state.templates));$('message').value=t.text;if(show)toast('Template '+t.name+' saved')}}
-function loadTemplates(){try{const x=JSON.parse(localStorage.getItem('wa_templates')||'null');if(Array.isArray(x)&&x.length===10)state.templates=x}catch{}updateTemplateUI()}
-$('templateText').addEventListener('input',()=>{$('message').value=$('templateText').value});
-
-async function refreshHealth(){try{const h=await api('/api/health');$('engineState').textContent=h.ok?'ONLINE':'OFFLINE';$('platform').textContent=h.platform;$('node').textContent=h.node;return h}catch(e){$('engineState').textContent='OFFLINE';throw e}}
-async function refreshSessions(){state.sessions=await api('/api/sessions');state.accounts=await api('/api/accounts');renderAccounts();fillAccounts()}
-function fillAccounts(){const opts=state.sessions.filter(x=>x.status==='ready').map(x=>'<option value="'+esc(x.id)+'">'+esc(x.id)+'</option>').join('');$('campaignAccount').innerHTML=opts||'<option value="">No ready account</option>'}
-function renderAccounts(){
- const rows=state.sessions.map(s=>'<div class="accountRow"><div><div class="acctName">'+esc(s.id)+'</div><small class="muted">'+esc(s.browser||'—')+(s.waState?' · '+esc(s.waState):'')+'</small></div><span class="status '+(s.status==='ready'?'ready':s.status==='qr'?'qr':s.status==='auth_failure'?'error':'')+'">'+esc(s.status)+'</span><button class="btn btnGhost" onclick="logoutAccount(\\''+esc(s.id)+'\\')">Logout</button></div>').join('');
- $('accountList').innerHTML=rows||'<div class="empty">No active sessions</div>';
- $('dashAccounts').innerHTML=rows||'<div class="empty">No connected accounts</div>';
- $('statAccounts').textContent=state.sessions.filter(x=>x.status==='ready').length;
-}
-async function connectAccount(){try{const id=$('accountId').value.trim();if(!id)return toast('Account ID is required');$('qrPanel').innerHTML='<div class="empty">Starting session…</div>';await post('/api/session/create',{id,browser:$('accountBrowser').value,headless:$('accountHeadless').checked,executablePath:$('execPath').value.trim()||undefined});log('Session requested for '+id);toast('Session started — scan QR if shown')}catch(e){toast(e.message);log('Connect error: '+e.message,'error')}}
-async function logoutAccount(id){try{await post('/api/session/logout',{id});toast('Logged out '+id);refreshAll()}catch(e){toast(e.message)}}
-
-function renderContacts(){const pending=state.contacts.filter(c=>c.status!=='sent'&&c.status!=='failed'&&c.status!=='suppressed'),sent=state.contacts.filter(c=>c.status==='sent');$('pendingCount').textContent=pending.length;$('sentCount').textContent=sent.length;$('pendingList').innerHTML=pending.map(c=>contactRow(c,'pending')).join('')||'<div class="empty">No pending clients</div>';$('sentList').innerHTML=sent.map(c=>contactRow(c,'sent')).join('')||'<div class="empty">No sent clients</div>';$('statContacts').textContent=state.contacts.length;$('statPending').textContent=pending.filter(c=>c.consent===true&&!c.optOut).length;$('statSent').textContent=sent.length}
-function contactRow(c,type){return '<div class="clientRow"><div><b>'+esc(c.name||'Unnamed')+'</b><br><small>'+esc(c.phone||'')+'</small></div><div><small>'+esc(c.status||type)+'</small></div></div>'}
-async function refreshContacts(){try{state.contacts=await api('/api/contacts');renderContacts()}catch(e){toast(e.message)}}
-$('contactFile').addEventListener('change',async ev=>{const f=ev.target.files[0];if(!f)return;try{const raw=await f.text();let rows=[];if(f.name.toLowerCase().endsWith('.json')){const j=JSON.parse(raw);rows=Array.isArray(j)?j:(j.contacts||[])}else{const lines=raw.split(/\\r?\\n/).filter(Boolean);const heads=csvLine(lines.shift()).map(x=>x.trim().toLowerCase());rows=lines.map(l=>{const v=csvLine(l),o={};heads.forEach((h,i)=>o[h]=v[i]||'');return o})}const r=await post('/api/contacts/import',{contacts:rows});state.contacts=r.contacts;renderContacts();toast('Imported '+r.imported+' contacts')}catch(e){toast(e.message)}ev.target.value=''});
-function csvLine(s){const a=[];let c='',q=false;for(let i=0;i<s.length;i++){const x=s[i];if(x==='"'){if(q&&s[i+1]==='"'){c+='"';i++}else q=!q}else if(x===','&&!q){a.push(c);c=''}else c+=x}a.push(c);return a}
-
-async function pickMedia(){$('mediaInput').click()}
-$('mediaInput').addEventListener('change',async ev=>{const files=[...ev.target.files];for(const f of files){if(f.size>20*1024*1024){toast(f.name+' exceeds 20 MB');continue}try{const data=await fileData(f);const r=await post('/api/media/upload',{name:f.name,type:f.type,data});state.media.push(r);log('Media uploaded: '+f.name)}catch(e){toast(e.message)}}renderMedia();ev.target.value=''});
-function fileData(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})}
-function renderMedia(){const imgs=state.media.filter(x=>/^image\\//.test(x.type||'')||/\\.(png|jpe?g|webp|gif)$/i.test(x.name));const av=state.media.length-imgs.length;$('imageCount').textContent=imgs.length;$('avCount').textContent=av;$('mediaNames').textContent=state.media.map(x=>x.name).join(', ')}
-
-async function startCampaign(){saveTemplate(false);const accountId=$('campaignAccount').value;if(!accountId)return toast('Select a ready account');const payload={accountId,template:$('message').value,limit:Number($('limit').value||999),minDelay:Number($('delayFrom').value||0),maxDelay:Number($('delayTo').value||0),mediaPaths:state.media.map(x=>x.path)};try{$('startBtn').disabled=true;await post('/api/campaign/start',payload);log('Campaign started for '+accountId);toast('Campaign started')}catch(e){toast(e.message);log('Campaign error: '+e.message,'error')}finally{$('startBtn').disabled=false}}
-async function campaignAction(action){const id=$('campaignAccount').value;if(!id)return toast('Select an account');try{await post('/api/campaign/'+action,{accountId:id});toast(action+' requested');log('Campaign '+action+' requested for '+id)}catch(e){toast(e.message)}}
-function pauseCampaign(){campaignAction('pause')}function resumeCampaign(){campaignAction('resume')}function stopCampaign(){campaignAction('stop')}
-async function warmCheck(){const id=$('campaignAccount').value;if(!id)return toast('Select an account');try{const r=await api('/api/sessions');const s=r.find(x=>x.id===id);if(!s)throw Error('Account not found');toast('Warm-up check: '+s.status+(s.waState?' / '+s.waState:''));log('Warm-up readiness check completed for '+id)}catch(e){toast(e.message)}}
-async function dryRun(){try{const id=$('campaignAccount').value;if(!id)return toast('Select an account');const contacts=state.contacts.filter(c=>c.consent===true&&c.optOut!==true&&c.status!=='sent'&&c.status!=='suppressed');toast('Dry run: '+contacts.slice(0,Number($('limit').value||999)).length+' eligible contacts');log('Dry run completed: '+contacts.length+' eligible')}catch(e){toast(e.message)}}
-
-function renderCampaign(c){state.campaign=c||state.campaign;const total=Number(state.campaign.total||0),sent=Number(state.campaign.sent||0),failed=Number(state.campaign.failed||0),pct=total?Math.min(100,Math.round(sent/total*100)):0;['campaignProgress','dashProgress'].forEach(id=>$(id).style.width=pct+'%');$('campaignCount').textContent=sent+' / '+total;$('dashProgressText').textContent=sent+' / '+total;$('campaignErrors').textContent=failed+' failed';$('dashFail').textContent=failed+' failed';$('campaignStatus').textContent=state.campaign.status||'Ready';$('dashCampaign').textContent=state.campaign.status||'Idle'}
-async function refreshDelivery(){try{state.delivery=await api('/api/delivery?limit=200');$('deliveryTable').innerHTML=state.delivery.slice().reverse().map(d=>'<tr><td>'+esc(d.phone)+'</td><td>'+esc(d.accountId)+'</td><td>'+esc(d.status)+'</td><td>'+esc(d.ack==null?'—':d.ack)+'</td><td>'+esc(d.createdAt||'')+'</td></tr>').join('')||'<tr><td colspan="5" class="muted">No delivery records</td></tr>';$('dashDelivery').innerHTML=state.delivery.slice(-8).reverse().map(d=>'<tr><td>'+esc(d.phone)+'</td><td>'+esc(d.accountId)+'</td><td>'+esc(d.status)+'</td></tr>').join('')||'<tr><td colspan="3" class="muted">No records</td></tr>'}catch(e){toast(e.message)}}
-async function refreshAudit(){try{const rows=await api('/api/audit?limit=200');$('auditLog').innerHTML=rows.slice().reverse().map(x=>'<div class="log"><b>'+esc(x.timestamp||x.time||'')+'</b> '+esc(x.type||x.event||JSON.stringify(x))+'</div>').join('')||'<div class="empty">No audit events</div>'}catch(e){toast(e.message)}}
-
-function subscribe(){const es=new EventSource('/events');es.addEventListener('qr',e=>{const x=JSON.parse(e.data);$('qrPanel').innerHTML='<div><div class="kicker" style="text-align:center;margin-bottom:8px">Scan with WhatsApp</div><img src="'+x.qr+'" alt="WhatsApp QR"><div class="muted" style="text-align:center;margin-top:8px">'+esc(x.id)+'</div></div>';log('QR received for '+x.id)});es.addEventListener('session:status',e=>{const x=JSON.parse(e.data);log('Session '+x.id+': '+x.status+(x.waState?' / '+x.waState:''));refreshSessions()});es.addEventListener('campaign:status',e=>{const x=JSON.parse(e.data);renderCampaign(x)});es.addEventListener('campaign:progress',e=>{const x=JSON.parse(e.data);if(x.overall){renderCampaign({status:'running',sent:x.overall.sent||0,total:x.overall.total||0,failed:x.overall.failed||0})}else renderCampaign({status:'running',sent:x.sent||0,total:x.total||0,failed:x.failed||0});log((x.phone||'')+' → '+(x.status||'progress'))});es.addEventListener('campaign:done',e=>{const x=JSON.parse(e.data);renderCampaign(x);log('Campaign '+x.accountId+' finished: '+x.sent+' sent, '+x.failed+' failed');refreshContacts();refreshDelivery()});es.addEventListener('delivery:ack',e=>{const x=JSON.parse(e.data);log('ACK '+x.messageId+': '+x.ack);refreshDelivery()});es.onerror=()=>{$('livePill').textContent='● Reconnecting';$('livePill').style.color='#ffb1b1'};es.onopen=()=>{$('livePill').textContent='● Live';$('livePill').style.color=''}}
-
-async function refreshAll(){try{await refreshHealth();await refreshSessions();await refreshContacts();await refreshDelivery();const c=await api('/api/campaign/status');if(c.length)renderCampaign(c[c.length-1]);}catch(e){toast(e.message);log('Refresh error: '+e.message,'error')}}
-setInterval(()=>{$('clock').textContent=new Date().toLocaleTimeString()},1000);
-loadTemplates();subscribe();refreshAll();setInterval(refreshAll,7000);
+function selectAccounts(){const ready=S.sessions.filter(x=>x.status==='ready');const opts=ready.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.id)+' · '+esc(x.browser||'')+'</option>').join('')||'<option value="">No ready account</option>';['campaignAccount','dirAccount','intelAccount','searchAccount'].forEach(id=>$(id).innerHTML=opts)}
+function renderSessions(){const rows=S.sessions;const html=rows.map(x=>'<div class="row"><div><b>'+esc(x.id)+'</b><br><span class="muted small">'+esc(x.browser||'')+' · '+esc(x.waState||'—')+'</span></div><span class="status '+(x.status==='ready'?'ready':x.status==='qr'?'qr':x.status==='auth_failure'?'error':'')+'">'+esc(x.status)+'</span><button onclick="logout('+JSON.stringify(x.id)+')">Logout</button></div>').join('')||'<div class="empty">No live sessions. Connect an account to create a real WhatsApp Web session.</div>';$('accountList').innerHTML=html;$('dashAccounts').innerHTML=rows.map(x=>'<div class="row"><b>'+esc(x.id)+'</b><span class="status '+(x.status==='ready'?'ready':'')+'">'+esc(x.status)+'</span></div>').join('')||'<div class="empty">No connected accounts</div>';selectAccounts();$('statAccounts').textContent=readyCount()}
+function readyCount(){return S.sessions.filter(x=>x.status==='ready').length}
+async function refreshAll(){try{const r=await api('/api/runtime');S.sessions=r.sessions||[];S.accounts=r.accounts||[];S.delivery=r.delivery?[]:S.delivery;S.campaign=(r.campaigns&&r.campaigns[0])||S.campaign;renderSessions();await refreshContacts();await refreshDelivery();$('platform').textContent=r.health?.platform||'—';$('node').textContent=r.health?.node||'—';$('waState').textContent=readyCount()?'CONNECTED':'WAITING';updateCampaign(S.campaign);log('Runtime refreshed');}catch(e){toast(e.message);log('Refresh error: '+e.message)}}
+async function connectAccount(){const id=$('accountId').value.trim();if(!id)return toast('Account ID required');try{await post('/api/session/create',{id,browser:$('accountBrowser').value,headless:$('accountHeadless').checked,executablePath:$('execPath').value.trim()||undefined});toast('WhatsApp session starting');log('Starting real WhatsApp session '+id);refreshAll()}catch(e){toast(e.message);log('Session error: '+e.message)}}
+async function logout(id){try{await post('/api/session/logout',{id});toast('Logged out '+id);refreshAll()}catch(e){toast(e.message)}}
+function renderContacts(){const c=S.contacts;const pending=c.filter(x=>!['sent','failed','suppressed'].includes(x.status)&&x.consent===true&&!x.optOut);const sent=c.filter(x=>x.status==='sent');$('pendingCount').textContent=pending.length;$('sentCount').textContent=sent.length;$('statContacts').textContent=c.length;$('statEligible').textContent=pending.length;$('statSent').textContent=sent.length;const row=x=>'<div class="row"><span>'+esc(x.name||'Unnamed')+'<br><small class="muted">'+esc(x.phone)+'</small></span><span class="status">'+esc(x.status||'pending')+'</span></div>';$('pendingList').innerHTML=pending.map(row).join('')||'<div class="empty">No consented pending contacts</div>';$('sentList').innerHTML=sent.map(row).join('')||'<div class="empty">No sent contacts</div>'}
+async function refreshContacts(){try{S.contacts=await api('/api/contacts');renderContacts()}catch(e){log(e.message)}}
+$('contactFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const raw=await f.text();let contacts;if(f.name.toLowerCase().endsWith('.json')){const j=JSON.parse(raw);contacts=Array.isArray(j)?j:j.contacts||[]}else{const lines=raw.split(/\r?\n/).filter(Boolean);const parse=line=>{const a=[];let q=false,c='';for(let i=0;i<line.length;i++){if(line[i]==='"'){if(q&&line[i+1]==='"'){c+='"';i++}else q=!q}else if(line[i]===','&&!q){a.push(c);c=''}else c+=line[i]}a.push(c);return a};const h=parse(lines.shift()).map(x=>x.trim().toLowerCase());contacts=lines.map(l=>{const v=parse(l),o={};h.forEach((k,i)=>o[k]=v[i]||'');return o})}const r=await post('/api/contacts/import',{contacts});toast('Imported '+r.imported+' contacts');renderContacts()}catch(e){toast(e.message)}e.target.value=''}
+function suppressPrompt(){const phone=prompt('Enter phone number to opt out:');if(!phone)return;post('/api/contacts/suppress',{phone,reason:'manual opt-out'}).then(()=>{toast('Opt-out recorded');refreshContacts()}).catch(e=>toast(e.message))}
+function renderTemplates(){$('messageTabs').innerHTML=S.templates.map(t=>'<button class="'+(t.id===S.active?'active':'')+'" onclick="selectTemplate('+t.id+')">M'+t.id+'</button>').join('');$('templateSelect').innerHTML=S.templates.map(t=>'<option value="'+t.id+'">M'+t.id+'</option>').join('');$('templateSelect').value=S.active;$('message').value=S.templates.find(x=>x.id===S.active).text||'';$('templateText').value=$('message').value}
+function selectTemplate(id){S.templates.find(x=>x.id===S.active).text=$('message').value;S.active=id;renderTemplates()}
+$('message').oninput=()=>{S.templates.find(x=>x.id===S.active).text=$('message').value;$('templateText').value=$('message').value}
+$('templateText').oninput=()=>{$('message').value=$('templateText').value;S.templates.find(x=>x.id===S.active).text=$('templateText').value}
+$('templateSelect').onchange=e=>{S.active=Number(e.target.value);renderTemplates()}
+function saveTemplate(){const t=S.templates.find(x=>x.id===S.active);localStorage.setItem('wa-m'+t.id,t.text||'');toast('M'+t.id+' saved locally');log('Template M'+t.id+' saved')}
+async function pickMedia(){const input=$('mediaInput');input.click();input.onchange=async()=>{S.media=[];for(const f of input.files){if(f.size>20*1024*1024){toast(f.name+' exceeds 20MB');continue}const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(f)});try{const x=await post('/api/media/upload',{name:f.name,type:f.type,data});S.media.push(x)}catch(e){toast(e.message)}}$('mediaNames').textContent=S.media.length?S.media.map(x=>x.name).join(' · '):'No media selected'}}
+async function startCampaign(){const accountId=$('campaignAccount').value;if(!accountId)return toast('Select a ready account');try{await post('/api/campaign/start',{accountId,template:$('message').value,limit:Number($('limit').value),minDelay:Number($('delayFrom').value),maxDelay:Number($('delayTo').value),parallel:$('parallel').checked,concurrency:Number($('concurrency').value),mediaPaths:S.media.map(x=>x.path)});toast('Campaign completed');}catch(e){toast(e.message);log('Campaign error: '+e.message)}}
+async function campaignAction(a){const id=$('campaignAccount').value;if(!id)return toast('Select account');try{await post('/api/campaign/'+a,{accountId:id});log('Campaign '+a);toast('Campaign '+a)}catch(e){toast(e.message)}}
+async function readiness(){const id=$('campaignAccount').value;if(!id)return toast('Select account');try{const r=await post('/api/session/readiness',{id});toast(r.ready?'Account ready and CONNECTED':'Not ready: '+(r.reason||r.waState||r.status));log('Readiness: '+JSON.stringify(r))}catch(e){toast(e.message)}}
+async function dryRun(){const id=$('campaignAccount').value;if(!id)return toast('Select account');try{const c=S.contacts.filter(x=>x.consent===true&&!x.optOut&&x.status!=='sent'&&x.status!=='suppressed').slice(0,Number($('limit').value));$('miniLog').textContent=JSON.stringify({total:S.contacts.length,eligible:c.length,contacts:c},null,2);toast(c.length+' eligible contacts')}catch(e){toast(e.message)}}
+function updateCampaign(c){if(!c)return;S.campaign=c;const pct=c.total?Math.round(c.sent/c.total*100):0;['campaignBar','dashBar'].forEach(id=>$(id).style.width=pct+'%');$('campaignCount').textContent=(c.sent||0)+' / '+(c.total||0);$('dashCount').textContent=(c.sent||0)+' / '+(c.total||0);$('campaignErrors').textContent=(c.failed||0)+' failed';$('dashFail').textContent=(c.failed||0)+' failed';$('campaignStatus').textContent=c.status||'idle';$('dashCampaign').textContent=c.status||'Idle';$('campaignStatus').className='status '+(c.status==='running'?'running':'')}
+function handleQR(x){$('qrPanel').innerHTML='<div><div style="text-align:center;margin-bottom:8px">Scan this REAL WhatsApp QR with the account phone</div><img src="'+esc(x.qr)+'"><div class="small muted" style="text-align:center;margin-top:7px">Account: '+esc(x.id)+'</div></div>';go('accounts');log('Real QR generated for '+x.id);toast('QR ready — scan it from WhatsApp > Linked devices')}
+async function syncContacts(){const id=$('dirAccount').value;if(!id)return toast('No ready account');try{const r=await post('/api/data/sync/contacts',{accountId:id,includeProfiles:true});$('directoryResult').textContent=JSON.stringify({count:r.count,rows:r.rows.slice(0,10)},null,2);toast('Synced '+r.count+' contacts')}catch(e){toast(e.message)}}
+async function syncGroups(){const id=$('dirAccount').value;if(!id)return toast('No ready account');try{const r=await post('/api/data/sync/groups',{accountId:id,includeMembers:true,includeProfiles:false});$('directoryResult').textContent=JSON.stringify({count:r.count,rows:r.rows.slice(0,5)},null,2);toast('Synced '+r.count+' groups');loadGroups()}catch(e){toast(e.message)}}
+async function syncChats(){const id=$('dirAccount').value;if(!id)return toast('No ready account');try{const r=await post('/api/data/sync/chats',{accountId:id,limitMessages:Number($('historyLimit').value),types:'all'});$('directoryResult').textContent=JSON.stringify(r,null,2);toast('Synced '+r.messages+' messages')}catch(e){toast(e.message)}}
+async function validateNumbers(){const id=$('dirAccount').value;if(!id)return toast('No ready account');const text=prompt('Enter phone numbers separated by commas/new lines');if(!text)return;try{const r=await post('/api/data/validate/numbers',{accountId:id,numbers:text.split(/[\s,;]+/).filter(Boolean)});$('directoryResult').textContent=JSON.stringify(r.rows,null,2)}catch(e){toast(e.message)}}
+async function loadGroups(){try{const rows=await api('/api/data/groups');$('groupsTable').innerHTML=rows.map(g=>'<tr><td>'+esc(g.name||g.id)+'</td><td>'+esc(g.participantCount)+'</td><td>'+esc(g.owner||'')+'</td><td>—</td></tr>').join('')||'<tr><td colspan="4" class="empty">No synchronized groups</td></tr>'}catch(e){toast(e.message)}}
+async function analyzePerson(){const accountId=$('intelAccount').value,number=$('intelPhone').value.trim();if(!accountId||!number)return toast('Account and target phone required');try{const r=await post('/api/data/group-intelligence',{accountId,number,limitMessages:Number($('intelLimit').value),metrics:{addedBy:$('mAdded').checked,groups:$('mGroups').checked,messages:$('mMessages').checked,reactions:$('mReactions').checked}});$('intelResult').textContent=JSON.stringify(r.result,null,2);toast('Analysis completed from available WhatsApp data')}catch(e){toast(e.message);$('intelResult').textContent='ERROR: '+e.message}}
+async function refreshDelivery(){try{S.delivery=await api('/api/delivery?limit=200');$('deliveryTable').innerHTML=S.delivery.slice().reverse().map(x=>'<tr><td>'+esc(x.phone)+'</td><td>'+esc(x.accountId)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.ack??'—')+'</td><td>'+esc(x.createdAt||'')+'</td></tr>').join('')||'<tr><td colspan="5" class="empty">No delivery records</td></tr>';const d=S.delivery.slice().reverse().slice(0,8);$('dashDelivery').innerHTML=d.map(x=>'<tr><td>'+esc(x.phone)+'</td><td>'+esc(x.accountId)+'</td><td>'+esc(x.status)+'</td></tr>').join('')}catch(e){log(e.message)}}
+async function refreshAudit(){try{const r=await api('/api/audit?limit=300');$('audit').textContent=r.map(x=>JSON.stringify(x)).join('\n')||'No audit events yet.'}catch(e){toast(e.message)}}
+async function loadDataSummary(){try{const r=await api('/api/data/summary');$('dataSummary').textContent=JSON.stringify(r,null,2)}catch(e){toast(e.message)}}
+async function searchMessages(){const id=$('searchAccount').value,q=$('searchQuery').value.trim();if(!id||!q)return toast('Account and search query required');try{const r=await post('/api/data/search',{accountId:id,query:q,limit:Number($('searchLimit').value)});$('searchResult').textContent=JSON.stringify(r.rows,null,2)}catch(e){toast(e.message)}}
+async function exportData(){try{const r=await post('/api/data/export',{source:$('exportSource').value,format:$('exportFormat').value,limit:5000});$('searchResult').textContent=JSON.stringify(r,null,2);toast('Export created on the Termux data directory')}catch(e){toast(e.message)}}
+function connectSSE(){const es=new EventSource('/events');es.addEventListener('session:qr',e=>handleQR(JSON.parse(e.data)));es.addEventListener('session:status',e=>{const x=JSON.parse(e.data);log('Session '+x.id+': '+x.status);refreshAll()});es.addEventListener('session:error',e=>{const x=JSON.parse(e.data);toast(x.id+': '+x.error);log('ERROR '+x.id+': '+x.error);refreshAll()});es.addEventListener('campaign:progress',e=>updateCampaign(JSON.parse(e.data)));es.addEventListener('campaign:done',e=>{updateCampaign(JSON.parse(e.data));refreshContacts();refreshDelivery();log('Campaign '+e.data)});es.addEventListener('delivery:ack',e=>{log('Delivery ACK '+e.data);refreshDelivery()});es.addEventListener('data:sync:done',e=>log('Data sync '+e.data));es.addEventListener('group:intelligence:done',e=>log('Group intelligence completed'));es.onerror=()=>{$('engine').textContent='RECONNECTING';setTimeout(()=>{$('engine').textContent='ONLINE'},1500)}}
+window.addEventListener('load',()=>{renderTemplates();connectSSE();refreshAll();setInterval(refreshAll,10000);setInterval(()=>{$('clock').textContent=new Date().toLocaleTimeString()},1000);$('clock').textContent=new Date().toLocaleTimeString()});
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>
