@@ -22,7 +22,7 @@ function randomDelay(min,max){const lo=Math.max(0,Number(min)||0),hi=Math.max(lo
 
 async function createSession(id,headless=false,browser='chromium'){
   if(sessions.has(id))return {ok:true,id};
-  const browserManager=new BrowserManager({browser,headless,userDataDir:path.join(dataDir,'profiles',id)});
+  const cfg=settings();const executablePath=cfg.browserPaths?.[browser]||null;const browserManager=new BrowserManager({browser,headless,userDataDir:path.join(dataDir,'profiles',id),executablePath});
   const puppeteer=browserManager.puppeteerOptions();
   const client=new Client({authStrategy:new LocalAuth({clientId:id,dataPath:path.join(dataDir,'auth')}),puppeteer});
   const state={id,client,status:'initializing',sent:0,paused:false,stopped:false,browserManager,executor:null};
