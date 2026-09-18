@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,utilityProcess}=require('electron');
 const path=require('path');const fs=require('fs');const qrcode=require('qrcode');
 const {Client,LocalAuth,MessageMedia}=require('whatsapp-web.js');
 const {ContactStateManager}=require('./1-state-persistence-fix');
@@ -39,7 +39,7 @@ const registry=new AccountRegistry(path.join(dataDir,'accounts.json'));
 const collector=new DataCollector(path.join(dataDir,'whatsapp-data'));
 const directory=new WhatsAppDirectory({includeProfiles:true});
 const groupIntelligence=new GroupIntelligence(path.join(dataDir,'whatsapp-data','group-intelligence.json'));
-let win=null;
+let win=null;\nlet localService=null;\nconst servicePort=8787;\nfunction serviceMasterKey(){\n  const file=path.join(dataDir,'service-master.key');\n  try { if(fs.existsSync(file)) return fs.readFileSync(file,'utf8').trim(); } catch {}\n  const crypto=require('crypto');\n  const key=crypto.randomBytes(32).toString('base64url');\n  try { fs.writeFileSync(file,key+'\\n',{encoding:'utf8',mode:0o600}); } catch {}\n  return key;\n}\nfunction startLocalService(){\n  if(localService && localService.pid) return;\n  const env={...process.env,WA_DATA_DIR:dataDir,WA_MASTER_KEY:process.env.WA_MASTER_KEY||serviceMasterKey(),TG_MASTER_KEY:process.env.TG_MASTER_KEY||process.env.WA_MASTER_KEY||serviceMasterKey(),PORT:String(servicePort),HOST:'127.0.0.1'};\n  const entry=path.join(__dirname,'server.js');\n  localService=utilityProcess.fork(entry,[],{env,cwd:__dirname,serviceName:'WhatsApp Scrapper Local Service',session:{stdout:'ignore',stderr:'ignore'}});\n  localService.on('exit',()=>{localService=null;});\n  localService.on('error',()=>{localService=null;});\n}\nfunction stopLocalService(){try{localService?.kill()}catch{} localService=null;}
 
 function createWindow(){
   win=new BrowserWindow({
@@ -195,7 +195,7 @@ function parseCsvLine(line){
   for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(quoted&&line[i+1]==='"'){cur+='"';i++}else quoted=!quoted}else if(ch===','&&!quoted){out.push(cur);cur=''}else cur+=ch}out.push(cur);return out;
 }
 
-ipcMain.handle('settings:get',()=>settings());
+ipcMain.handle('service:status',()=>({running:!!localService?.pid,pid:localService?.pid||null,port:servicePort,host:'127.0.0.1'}));\nipcMain.handle('settings:get',()=>settings());
 ipcMain.handle('settings:set',(_,value)=>{const s={...settings(),...value};writeJson(settingsFile,s);return s});
 ipcMain.handle('contacts:get',()=>stateManager.readContacts());
 ipcMain.handle('contacts:set',(_,value)=>stateManager.writeContacts(value));
@@ -283,5 +283,5 @@ async function processDueSchedules(){
 }
 setInterval(()=>processDueSchedules().catch(e=>audit.append('scheduler_error',{error:String(e.message||e)})),15000);
 
-app.whenReady().then(createWindow);
-app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
+app.whenReady().then(()=>{startLocalService();createWindow();});
+app.on('before-quit',()=>stopLocalService());\napp.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
