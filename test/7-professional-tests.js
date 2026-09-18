@@ -1,0 +1,5 @@
+const assert=require('assert');const fs=require('fs');const os=require('os');const path=require('path');const {DeliveryTracker}=require('../src/8-delivery-tracker');const {AccountRegistry}=require('../src/9-account-registry');
+(async()=>{let passed=0;const d=fs.mkdtempSync(path.join(os.tmpdir(),'wa-pro-'));const t=async(n,f)=>{try{await f();console.log('PASS '+n);passed++}catch(e){console.error('FAIL '+n+' '+e.message);process.exitCode=1}};
+await t('delivery lifecycle',async()=>{const x=new DeliveryTracker(path.join(d,'delivery.json'));x.create({id:'m1',accountId:'a',phone:'201000000000'});x.ack('m1',2);assert.equal(x.list()[0].status,'acknowledged');assert.equal(x.summary().acknowledged,1)});
+await t('account registry',async()=>{const x=new AccountRegistry(path.join(d,'accounts.json'));x.upsert({id:'sales-01',browser:'edge'});assert.equal(x.get('sales-01').browser,'edge');x.remove('sales-01');assert.equal(x.list().length,0)});
+fs.rmSync(d,{recursive:true,force:true});console.log('RESULT '+passed+'/2 professional tests passed');if(passed!==2)process.exitCode=1})().catch(e=>{console.error(e);process.exitCode=1});
