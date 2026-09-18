@@ -1,8 +1,8 @@
 {
   "name": "whatsapp-scrapper",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
-  "description": "Professional consent-first WhatsApp campaign workspace with multi-account sessions, durable state, delivery monitoring, scheduling, auditability and bounded concurrency.",
+  "description": "Professional consent-first WhatsApp workspace with realtime data collection, directory extraction, delivery monitoring, scheduling, auditability and bounded concurrency.",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
