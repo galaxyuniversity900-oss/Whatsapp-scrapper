@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),os=require('os'),path=require('path');
+const {createPlatform}=require('../src/26-platform-api');
+const {parseImport}=require('../src/16-contact-directory');
+const XLSX=require('xlsx');
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'wa-platform-'));const p=createPlatform(root);let n=0;
+const ok=(name,fn)=>{fn();console.log('PASS '+name);n++;};
+ok('contact upsert and explicit gender',()=>{const c=p.contacts.upsert({name:'A',phone:'+20 10 1234 5678',gender:'female',consent:true,tags:['lead']});assert.equal(c.gender,'female');assert.equal(p.contacts.filter({gender:'female'}).length,1);});
+ok('no gender inference',()=>{const c=p.contacts.upsert({name:'Male Name',phone:'201012345679'});assert.equal(c.gender,'');});
+ok('saved segment',()=>{const s=p.contacts.segment('Females',{gender:'female'});assert.equal(p.contacts.resolveSegment(s.id).length,1);});
+ok('CRM task and pipeline',()=>{const c=p.contacts.all()[0];p.crm.task({title:'Follow up',contactId:c.id});p.crm.pipeline({contactId:c.id,stage:'interested',value:100});assert.equal(p.crm.customer360(c.id).tasks.length,1);});
+ok('automation matching',()=>{p.automations.create({trigger:{type:'message.received'},conditions:[{field:'keyword',op:'eq',value:'price'}],actions:[{type:'tag'}]});let ran=p.automations.evaluate({type:'message.received',keyword:'price'},()=>{});assert.equal(ran.length,1);});
+ok('template rendering',()=>{const t=p.templates.create({name:'Welcome',body:'Hello {{name}}'});assert.equal(p.templates.render(t,{name:'A'}),'Hello A');});
+ok('webhook signature',()=>{const h=p.webhooks.create({url:'https://example.invalid',events:['x']});assert.equal(p.webhooks.sign('abc',h.secret).length,64);});
+ok('backup',()=>{assert.ok(fs.existsSync(p.backups.create()));});
+ok('XLSX import',()=>{const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet([{name:'X',phone:'201012345680',gender:'male'}]);XLSX.utils.book_append_sheet(wb,ws,'Contacts');const buf=XLSX.write(wb,{type:'buffer',bookType:'xlsx'});assert.equal(parseImport(buf,'xlsx')[0].phone,'201012345680');});
+console.log('RESULT '+n+'/9 passed');
