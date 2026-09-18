@@ -175,6 +175,41 @@
  </div></div>
 </section>
 
+<section id="multiWorkspace" class="view">
+ <div class="grid">
+  <div class="panel"><div class="head"><b>Multi-Account Control</b><button onclick="refreshMulti()">Refresh</button></div><div class="body">
+   <div class="form">
+    <div class="field"><label>Transport</label><select id="multiTransport"><option value="web_qr">WhatsApp Web · QR</option><option value="web_pairing">WhatsApp Web · Pairing Code</option><option value="cloud_api">WhatsApp Cloud API</option></select></div>
+    <div class="field"><label>Account ID</label><input id="multiAccountId" placeholder="Sales-01"></div>
+    <div class="field"><label>Phone for pairing</label><input id="multiPhone" placeholder="2010xxxxxxxx"></div>
+    <div class="field"><label>Cloud Phone Number ID</label><input id="multiPhoneId"></div>
+    <div class="field"><label>Cloud API token</label><input id="multiToken" type="password" autocomplete="off"></div>
+    <div class="field"><label>Graph version</label><input id="multiVersion" value="v23.0"></div>
+   </div>
+   <div class="toolbar"><button class="green" onclick="createMultiAccount()">Connect / Add Account</button><button onclick="refreshMulti()">Capacity & Accounts</button></div>
+   <div id="multiCapacity" class="result code">Loading…</div>
+   <div id="multiAccounts" class="result code" style="max-height:260px;overflow:auto"></div>
+   <div id="multiPairing" class="result code"></div>
+  </div></div>
+  <div class="panel"><div class="head"><b>Contact Import & Filtering</b></div><div class="body">
+   <div class="form"><div class="field"><label>File</label><input id="multiContactFile" type="file" accept=".csv,.json,.jsonl,.txt,.vcf,.vcard"></div><div class="field"><label>Format</label><select id="multiContactFormat"><option value="csv">CSV</option><option value="vcf">VCF / vCard</option><option value="json">JSON</option><option value="jsonl">JSONL</option><option value="txt">TXT</option></select></div><div class="field"><label>Gender filter (explicit field only)</label><select id="multiGender"><option value="all">All</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div></div>
+   <div class="toolbar"><button class="green" onclick="importMultiContacts()">Import / Merge</button><button onclick="filterMultiContacts()">Filter</button></div>
+   <div class="small muted">Gender is never inferred from a name or phone number. Only an explicit imported <code>gender</code> field is used.</div>
+   <div id="multiContacts" class="result code" style="max-height:360px;overflow:auto"></div>
+  </div></div>
+  <div class="panel"><div class="head"><b>Account Scheduling</b></div><div class="body">
+   <div class="form"><div class="field"><label>Account ID</label><input id="scheduleAccount"></div><div class="field"><label>Run at</label><input id="scheduleAt" type="datetime-local"></div><div class="field"><label>Action</label><select id="scheduleAction"><option value="start">Start / restore account</option><option value="logout">Logout account</option></select></div></div>
+   <div class="toolbar"><button class="green" onclick="scheduleMulti()">Schedule</button><button onclick="loadSchedules()">Refresh schedules</button></div>
+   <div id="multiSchedules" class="result code"></div>
+  </div></div>
+  <div class="panel"><div class="head"><b>Consent-Gated Group Builder</b></div><div class="body">
+   <div class="form"><div class="field"><label>Ready Web account</label><input id="groupBuildAccount"></div><div class="field"><label>Group name</label><input id="groupBuildName"></div><div class="field"><label>Phones</label><textarea id="groupBuildPhones" rows="5" placeholder="2010...&#10;2011..."></textarea></div></div>
+   <button class="green" onclick="createConsentGroup()">Create group with consented contacts</button>
+   <div id="groupBuildResult" class="result code"></div>
+  </div></div>
+ </div>
+</section>
+
 <section id="activity" class="view">
  <div class="panel"><div class="head"><b>Activity & Audit</b><button onclick="refreshAudit()">Refresh</button></div><div class="body"><div id="audit" class="code" style="height:560px"></div></div></div>
 </section>
@@ -189,7 +224,7 @@ async function api(p,o){const r=await fetch(p,o),d=await r.json().catch(()=>({ok
 function post(p,d){return api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(window.__t);window.__t=setTimeout(()=>t.classList.remove('show'),3500)}
 function log(m){S.logs.unshift(new Date().toLocaleTimeString()+'  '+m);S.logs=S.logs.slice(0,160);$('miniLog').textContent=S.logs.join('\n');}
-function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));if(v==='groups')loadGroups();if(v==='groupWorkspace')loadGroupWorkspace();if(v==='delivery')refreshDelivery();if(v==='activity')refreshAudit();if(v==='data')loadDataSummary()}
+function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));if(v==='groups')loadGroups();if(v==='multiWorkspace')refreshMulti();if(v==='groupWorkspace')loadGroupWorkspace();if(v==='delivery')refreshDelivery();if(v==='activity')refreshAudit();if(v==='data')loadDataSummary()}
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.view));
 function selectAccounts(){const ready=S.sessions.filter(x=>x.status==='ready');const opts=ready.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.id)+' · '+esc(x.browser||'')+'</option>').join('')||'<option value="">No ready account</option>';['campaignAccount','dirAccount','intelAccount','searchAccount','groupAccount'].forEach(id=>$(id).innerHTML=opts)}
 function renderSessions(){const rows=S.sessions;const html=rows.map(x=>'<div class="row"><div><b>'+esc(x.id)+'</b><br><span class="muted small">'+esc(x.browser||'')+' · '+esc(x.waState||'—')+'</span></div><span class="status '+(x.status==='ready'?'ready':x.status==='qr'?'qr':x.status==='auth_failure'?'error':'')+'">'+esc(x.status)+'</span><button onclick="logout('+JSON.stringify(x.id)+')">Logout</button></div>').join('')||'<div class="empty">No live sessions. Connect an account to create a real WhatsApp Web session.</div>';$('accountList').innerHTML=html;$('dashAccounts').innerHTML=rows.map(x=>'<div class="row"><b>'+esc(x.id)+'</b><span class="status '+(x.status==='ready'?'ready':'')+'">'+esc(x.status)+'</span></div>').join('')||'<div class="empty">No connected accounts</div>';selectAccounts();$('statAccounts').textContent=readyCount()}
@@ -277,7 +312,15 @@ async function refreshAudit(){try{const r=await api('/api/audit?limit=300');$('a
 async function loadDataSummary(){try{const r=await api('/api/data/summary');$('dataSummary').textContent=JSON.stringify(r,null,2)}catch(e){toast(e.message)}}
 async function searchMessages(){const id=$('searchAccount').value,q=$('searchQuery').value.trim();if(!id||!q)return toast('Account and search query required');try{const r=await post('/api/data/search',{accountId:id,query:q,limit:Number($('searchLimit').value)});$('searchResult').textContent=JSON.stringify(r.rows,null,2)}catch(e){toast(e.message)}}
 async function exportData(){try{const r=await post('/api/data/export',{source:$('exportSource').value,format:$('exportFormat').value,limit:5000});$('searchResult').textContent=JSON.stringify(r,null,2);toast('Export created on the Termux data directory')}catch(e){toast(e.message)}}
-function connectSSE(){const es=new EventSource('/events');es.addEventListener('session:qr',e=>handleQR(JSON.parse(e.data)));es.addEventListener('session:status',e=>{const x=JSON.parse(e.data);log('Session '+x.id+': '+x.status);refreshAll()});es.addEventListener('session:error',e=>{const x=JSON.parse(e.data);toast(x.id+': '+x.error);log('ERROR '+x.id+': '+x.error);refreshAll()});es.addEventListener('campaign:progress',e=>updateCampaign(JSON.parse(e.data)));es.addEventListener('campaign:done',e=>{updateCampaign(JSON.parse(e.data));refreshContacts();refreshDelivery();log('Campaign '+e.data)});es.addEventListener('delivery:ack',e=>{log('Delivery ACK '+e.data);refreshDelivery()});es.addEventListener('data:sync:done',e=>log('Data sync '+e.data));es.addEventListener('group:intelligence:done',e=>log('Group intelligence completed'));es.addEventListener('group:extracted',e=>{const x=JSON.parse(e.data);renderGroupWorkspace(x);log('Group/channel extraction completed')});es.addEventListener('group:job:progress',e=>updateGroupJob(JSON.parse(e.data)));es.addEventListener('group:job:done',e=>{updateGroupJob(JSON.parse(e.data));log('Group message job '+e.data)});es.onerror=()=>{$('engine').textContent='RECONNECTING';setTimeout(()=>{$('engine').textContent='ONLINE'},1500)}}
+
+async function refreshMulti(){try{const [cap,acc]=await Promise.all([api('/api/accounts/capacity'),api('/api/accounts')]);$('multiCapacity').textContent=JSON.stringify(cap,null,2);$('multiAccounts').textContent=JSON.stringify(acc,null,2);await loadSchedules();await filterMultiContacts()}catch(e){toast(e.message)}}
+async function createMultiAccount(){try{const transport=$('multiTransport').value;const payload={id:$('multiAccountId').value.trim(),transport};if(transport==='web_pairing')payload.phone=$('multiPhone').value.trim();if(transport==='cloud_api'){payload.phoneNumberId=$('multiPhoneId').value.trim();payload.token=$('multiToken').value;payload.version=$('multiVersion').value.trim()||'v23.0'}const r=await post('/api/session/create',payload);$('multiPairing').textContent=JSON.stringify(r.session,null,2);toast('Account '+payload.id+' configured');refreshAll();refreshMulti()}catch(e){toast(e.message)}}
+async function importMultiContacts(){const f=$('multiContactFile').files[0];if(!f)return toast('Choose a contact file');try{const raw=await f.text();const r=await post('/api/contacts/import-file',{format:$('multiContactFormat').value,raw});toast('Imported '+r.imported+' contacts');$('multiContacts').textContent=JSON.stringify(r.contacts,null,2);refreshContacts()}catch(e){toast(e.message)}}
+async function filterMultiContacts(){try{const r=await api('/api/contacts/filter?gender='+encodeURIComponent($('multiGender').value));$('multiContacts').textContent=JSON.stringify(r,null,2)}catch(e){toast(e.message)}}
+async function scheduleMulti(){try{const r=await post('/api/accounts/schedule',{accountId:$('scheduleAccount').value.trim(),runAt:new Date($('scheduleAt').value).toISOString(),action:$('scheduleAction').value,payload:{id:$('scheduleAccount').value.trim(),transport:'web_qr'}});toast('Scheduled '+r.schedule.id);loadSchedules()}catch(e){toast(e.message)}}
+async function loadSchedules(){try{$('multiSchedules').textContent=JSON.stringify(await api('/api/accounts/schedules'),null,2)}catch(e){toast(e.message)}}
+async function createConsentGroup(){try{const phones=$('groupBuildPhones').value.split(/[\\s,;]+/).filter(Boolean);const r=await post('/api/groups/create',{accountId:$('groupBuildAccount').value.trim(),name:$('groupBuildName').value.trim(),phones});$('groupBuildResult').textContent=JSON.stringify(r,null,2);toast('Group creation request completed')}catch(e){toast(e.message)}}
+function connectSSE(){const es=new EventSource('/events');es.addEventListener('session:qr',e=>handleQR(JSON.parse(e.data)));es.addEventListener('session:pairing',e=>{const x=JSON.parse(e.data);$('multiPairing').textContent=JSON.stringify(x,null,2);toast('Pairing code ready for '+x.id);});es.addEventListener('session:status',e=>{const x=JSON.parse(e.data);log('Session '+x.id+': '+x.status);refreshAll()});es.addEventListener('session:error',e=>{const x=JSON.parse(e.data);toast(x.id+': '+x.error);log('ERROR '+x.id+': '+x.error);refreshAll()});es.addEventListener('campaign:progress',e=>updateCampaign(JSON.parse(e.data)));es.addEventListener('campaign:done',e=>{updateCampaign(JSON.parse(e.data));refreshContacts();refreshDelivery();log('Campaign '+e.data)});es.addEventListener('delivery:ack',e=>{log('Delivery ACK '+e.data);refreshDelivery()});es.addEventListener('data:sync:done',e=>log('Data sync '+e.data));es.addEventListener('group:intelligence:done',e=>log('Group intelligence completed'));es.addEventListener('group:extracted',e=>{const x=JSON.parse(e.data);renderGroupWorkspace(x);log('Group/channel extraction completed')});es.addEventListener('group:job:progress',e=>updateGroupJob(JSON.parse(e.data)));es.addEventListener('group:job:done',e=>{updateGroupJob(JSON.parse(e.data));log('Group message job '+e.data)});es.onerror=()=>{$('engine').textContent='RECONNECTING';setTimeout(()=>{$('engine').textContent='ONLINE'},1500)}}
 window.addEventListener('load',()=>{renderTemplates();connectSSE();refreshAll();setInterval(refreshAll,10000);setInterval(()=>{$('clock').textContent=new Date().toLocaleTimeString()},1000);$('clock').textContent=new Date().toLocaleTimeString()});
 </script>
 </body>
