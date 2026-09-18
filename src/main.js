@@ -9,6 +9,9 @@ const {AuditLog}=require('./6-audit-log');
 const {CampaignScheduler}=require('./7-scheduler');
 const {DeliveryTracker}=require('./8-delivery-tracker');
 const {AccountRegistry}=require('./9-account-registry');
+const {DataCollector}=require('./10-data-collector');
+const {exportData}=require('./11-exporter');
+const {WhatsAppDirectory}=require('./12-whatsapp-directory');
 
 const sessions=new Map();
 const dataDir=path.join(app.getPath('userData'),'data');
@@ -18,7 +21,7 @@ fs.mkdirSync(dataDir,{recursive:true});
 
 const DEFAULT_SETTINGS={
   minDelay:10,maxDelay:30,perAccountLimit:100,headless:false,parallel:false,concurrency:3,
-  browser:'chromium',maxRetries:1,retryDelay:1000,ackTimeoutSec:15,maxConsecutiveFailures:5,
+  browser:'chromium',maxRetries:1,retryDelay:1000,ackTimeoutSec:15,maxConsecutiveFailures:5,proxyUrl:'',
   templates:Array.from({length:10},(_,i)=>({id:i+1,name:`M${i+1}`,text:''})),
   browserPaths:{}
 };
@@ -32,6 +35,8 @@ const audit=new AuditLog(path.join(dataDir,'audit.log'));
 const scheduler=new CampaignScheduler(path.join(dataDir,'scheduled-campaigns.json'));
 const delivery=new DeliveryTracker(path.join(dataDir,'delivery.json'));
 const registry=new AccountRegistry(path.join(dataDir,'accounts.json'));
+const collector=new DataCollector(path.join(dataDir,'whatsapp-data'));
+const directory=new WhatsAppDirectory({includeProfiles:true});
 let win=null;
 
 function createWindow(){
@@ -47,17 +52,18 @@ function randomDelay(min,max){const lo=Math.max(0,Number(min)||0),hi=Math.max(lo
 function normalizeId(id){return String(id||'').trim().replace(/[^A-Za-z0-9_-]/g,'-').slice(0,64)}
 function parseBool(v){return /^(1|true|yes|y)$/i.test(String(v||'').trim())}
 
-async function createSession(rawId,headless=false,browser='chromium'){
+async function createSession(rawId,headless=false,browser='chromium',proxyUrl='',proxyAuth=null){
   const id=normalizeId(rawId);
   if(!id)throw new Error('A valid account ID is required');
   if(sessions.has(id))return {ok:true,id,existing:true};
   if(!['chromium','chrome','edge'].includes(browser))throw new Error('Unsupported browser');
   const cfg=settings();
   const executablePath=cfg.browserPaths?.[browser]||null;
-  const browserManager=new BrowserManager({browser,headless,executablePath});
+  const browserManager=new BrowserManager({browser,headless,executablePath,proxyUrl:proxyUrl||cfg.proxyUrl||null});
   const client=new Client({
     authStrategy:new LocalAuth({clientId:id,dataPath:path.join(dataDir,'auth')}),
-    puppeteer:browserManager.puppeteerOptions()
+    puppeteer:browserManager.puppeteerOptions(),
+    ...(proxyAuth?.username&&proxyAuth?.password?{proxyAuthentication:{username:String(proxyAuth.username),password:String(proxyAuth.password)}}:{})
   });
   const state={id,client,status:'initializing',sent:0,paused:false,stopped:false,consecutiveFailures:0,browserManager,executor:null};
   sessions.set(id,state);
@@ -75,10 +81,15 @@ async function createSession(rawId,headless=false,browser='chromium'){
       emit('delivery:ack',{accountId:id,messageId,ack,status:row?.status||'acknowledged'});
     }
   });
+  client.on('message_create',async message=>{
+    try{const chat=await message.getChat();const row=collector.ingest(message,chat);emit('message:stream',{accountId:id,...row});}catch(e){audit.append('message_collect_error',{accountId:id,error:String(e.message||e)})}
+  });
   client.on('message',(message)=>{
     audit.append('message_received',{accountId:id,from:message?.from||'',messageId:message?.id?._serialized||''});
-    emit('message:received',{accountId:id,from:message?.from||'',body:message?.body||'',messageId:message?.id?._serialized||''});
+    emit('message:received',{accountId:id,from:message?.from||'',body:message?.body||'',messageId:message?.id?._serialized||'',timestamp:message?.timestamp||Date.now()});
   });
+  client.on('message_edit',(message,newBody,prevBody)=>emit('message:edited',{accountId:id,messageId:message?.id?._serialized||'',newBody:newBody||'',prevBody:prevBody||''}));
+  client.on('message_revoke_everyone',(message,revoked)=>emit('message:revoked',{accountId:id,messageId:message?.id?._serialized||'',originalMessageId:revoked?.id?._serialized||null}));
   client.on('disconnected',reason=>{
     state.status='disconnected';audit.append('account_disconnected',{accountId:id,reason:String(reason)});
     emit('session:status',{id,status:state.status,reason});sessions.delete(id);
@@ -192,7 +203,7 @@ ipcMain.handle('contacts:import',async()=>{
   await stateManager.writeContacts(merged);audit.append('contacts_imported',{source:path.basename(file),count:incoming.length,total:merged.length});return merged;
 });
 ipcMain.handle('browser:list',()=>BrowserManager.detectInstalledBrowsers());
-ipcMain.handle('session:create',(_,p)=>createSession(p?.id,p?.headless,p?.browser||settings().browser));
+ipcMain.handle('session:create',(_,p)=>createSession(p?.id,p?.headless,p?.browser||settings().browser,p?.proxyUrl||settings().proxyUrl||'',p?.proxyAuth||null));
 ipcMain.handle('session:list',()=>[...sessions.values()].map(s=>({id:s.id,status:s.status,sent:s.sent,browser:s.browserManager.browser,waState:s.waState,consecutiveFailures:s.consecutiveFailures})));
 ipcMain.handle('account:list',()=>registry.list());
 ipcMain.handle('session:logout',async(_,id)=>{
@@ -225,6 +236,19 @@ ipcMain.handle('audit:list',(_,limit)=>audit.read(limit));
 ipcMain.handle('schedule:list',()=>scheduler.list());
 ipcMain.handle('schedule:add',(_,job)=>scheduler.add(job));
 ipcMain.handle('schedule:cancel',(_,id)=>scheduler.cancel(id));
+ipcMain.handle('data:summary',()=>collector.summary());
+ipcMain.handle('data:messages',(_,limit)=>collector.listMessages(limit));
+ipcMain.handle('data:chats',()=>collector.listChats());
+ipcMain.handle('data:profiles',()=>collector.listProfiles());
+ipcMain.handle('data:groups',()=>collector.listGroups());
+ipcMain.handle('data:contacts',()=>collector.listContacts());
+ipcMain.handle('data:sync:contacts',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');const rows=await directory.listContacts(s.client,{includeProfiles:p.includeProfiles!==false});collector.saveContacts(rows);audit.append('directory_contacts_synced',{accountId:s.id,count:rows.length});emit('data:sync:done',{type:'contacts',count:rows.length});return rows});
+ipcMain.handle('data:sync:groups',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');const rows=await directory.listGroups(s.client,{includeMembers:p.includeMembers!==false,includeProfiles:!!p.includeProfiles});collector.saveGroups(rows);audit.append('directory_groups_synced',{accountId:s.id,count:rows.length});emit('data:sync:done',{type:'groups',count:rows.length});return rows});
+ipcMain.handle('data:sync:chats',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');const result=await directory.syncChats(s.client,{limitMessages:Math.min(500,Math.max(1,Number(p.limitMessages)||50)),types:p.types||'all',onMessage:async(m,c)=>collector.ingest(m,c)});audit.append('chat_history_synced',{accountId:s.id,...result});emit('data:sync:done',{type:'chats',...result});return result});
+ipcMain.handle('data:validate:numbers',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');return directory.validateNumbers(s.client,p.numbers||[],{includeProfilePicture:p.includeProfilePicture!==false})});
+ipcMain.handle('data:channel:subscribers',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');return directory.channelSubscribers(s.client,p.channelId,{limit:Math.min(1000,Math.max(1,Number(p.limit)||100)),includeProfiles:!!p.includeProfiles})});
+ipcMain.handle('data:search',async(_,p={})=>{const s=sessions.get(String(p.accountId||''));if(!s||s.status!=='ready')throw new Error('Account is not ready');return s.client.searchMessages(String(p.query||''),{limit:Math.min(500,Math.max(1,Number(p.limit)||50)),...(p.chatId?{chatId:String(p.chatId)}:{})})});
+ipcMain.handle('data:export',async(_,p={})=>{const format=String(p.format||'json').toLowerCase();const source=p.source||'messages';const rows=source==='contacts'?collector.listContacts():source==='groups'?collector.listGroups():source==='profiles'?collector.listProfiles():source==='chats'?collector.listChats():collector.listMessages(p.limit||5000);const ext=format==='excel'?'xls':format;const r=await dialog.showSaveDialog(win,{defaultPath:'whatsapp-'+source+'.'+ext,filters:[{name:format.toUpperCase(),extensions:[ext]}]});if(r.canceled)return{canceled:true};const result=exportData(rows,format,r.filePath,'WhatsApp '+source+' export');audit.append('data_exported',{source,format,count:rows.length,file:path.basename(r.filePath)});return result});
 ipcMain.handle('media:pick',async(_,kind='all')=>{
   const ext=kind==='images'?['png','jpg','jpeg','webp','gif']:kind==='audio-video'?['mp3','wav','m4a','aac','ogg','mp4','mov','webm','mkv']:['png','jpg','jpeg','webp','gif','mp3','wav','m4a','aac','ogg','mp4','mov','webm','mkv'];
   const r=await dialog.showOpenDialog(win,{properties:['openFile','multiSelections'],filters:[{name:kind==='images'?'Images':kind==='audio-video'?'Audio / Video':'Media',extensions:ext}]});

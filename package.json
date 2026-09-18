@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "lint": "node --check src/main.js && node --check src/preload.js && node --check src/1-state-persistence-fix.js && node --check src/2-parallel-processing-fix.js && node --check src/3-browser-selection-fix.js && node --check src/4-integration-campaign.js && node --check src/5-contact-policy.js && node --check src/6-audit-log.js && node --check src/7-scheduler.js && node --check src/8-delivery-tracker.js && node --check src/9-account-registry.js",
+    "lint": "node --check src/main.js && node --check src/preload.js && node --check src/1-state-persistence-fix.js && node --check src/2-parallel-processing-fix.js && node --check src/3-browser-selection-fix.js && node --check src/4-integration-campaign.js && node --check src/5-contact-policy.js && node --check src/6-audit-log.js && node --check src/7-scheduler.js && node --check src/8-delivery-tracker.js && node --check src/9-account-registry.js && node --check src/10-data-collector.js && node --check src/11-exporter.js && node --check src/12-whatsapp-directory.js",
     "test": "node test/5-tests.js",
     "termux:test": "bash test/termux-smoke.sh",
     "dist": "electron-builder",
