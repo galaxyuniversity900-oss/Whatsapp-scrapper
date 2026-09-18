@@ -10,7 +10,7 @@ const {CampaignScheduler}=require('./7-scheduler');
 
 const sessions=new Map();const dataDir=path.join(app.getPath('userData'),'data');const contactsFile=path.join(dataDir,'contacts.json');const settingsFile=path.join(dataDir,'settings.json');
 fs.mkdirSync(dataDir,{recursive:true});
-const DEFAULT_SETTINGS={minDelay:10,maxDelay:30,perAccountLimit:100,headless:false,parallel:false,concurrency:3,browser:'chromium',maxRetries:1,retryDelay:1000};
+const DEFAULT_SETTINGS={minDelay:10,maxDelay:30,perAccountLimit:100,headless:false,parallel:false,concurrency:3,browser:'chromium',maxRetries:1,retryDelay:1000,templates:Array.from({length:10},(_,i)=>({id:i+1,name:`M${i+1}`,text:''}))};
 function readJson(file,fallback){try{return fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):fallback}catch{return fallback}}
 function writeJson(file,value){const tmp=file+'.tmp-'+process.pid+'-'+Date.now();fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\\n');fs.renameSync(tmp,file)}
 function settings(){return {...DEFAULT_SETTINGS,...readJson(settingsFile,{})}}
