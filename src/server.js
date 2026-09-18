@@ -650,6 +650,7 @@ async function route(req, res) {
 
   try {
     if (req.method === 'GET' && p === '/api/ai/models') return json(res, 200, { ok:true, models: aiHub.models(), count: aiHub.models().length });
+    if (req.method === 'GET' && p === '/api/ai/presets') return json(res, 200, { ok:true, presets: aiHub.presets() });
     if (req.method === 'GET' && p === '/api/ai/providers') return json(res, 200, { ok:true, providers: aiHub.providers() });
     if (req.method === 'POST' && p === '/api/ai/providers') { const x=await parseBody(req); return json(res,200,{ok:true,provider:aiHub.upsert(x)}); }
     if (req.method === 'DELETE' && p === '/api/ai/providers') { return json(res,200,aiHub.remove(url.searchParams.get('id'))); }
