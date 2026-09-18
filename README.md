@@ -1,4 +1,4 @@
-# WhatsApp Scrapper — Professional 3.1 Data Suite
+# WhatsApp Scrapper — Professional 3.2 Data Suite
 
 A local Electron desktop workspace for consent-based WhatsApp campaigns.
 
@@ -32,7 +32,7 @@ A local Electron desktop workspace for consent-based WhatsApp campaigns.
 - One-click exports to Excel-compatible `.xls` (SpreadsheetML), CSV, JSON, XML, HTML, JSONL, RSS and TXT.
 - Optional network proxy configuration for legitimate connectivity requirements; authenticated proxy credentials are held for the session and are not written to the settings file.
 - Channel subscriber discovery is supported only for subscribers visible to the connected account/library.
-- Realtime edit and revoke notifications in the UI.
+- Realtime edit and revoke notifications in the UI.\n- Selectable Person / Group Intelligence: for a chosen number, analyze who added the number to groups, how many distinct groups the number appears in, how many messages the number sent, and how many reactions those messages received. Each metric can be enabled independently to reduce work.
 
 ## Run
 ```bash
@@ -49,7 +49,7 @@ npm start
 
 CSV imports default to `consent: false`; review and enable consent in the Clients screen before sending.
 
-## Data and privacy boundary
+## Person / Group Intelligence\n\nThe **Person Intelligence** screen accepts one phone number and four independent metrics: **who added the number**, **distinct groups encountered**, **message count**, and **reaction count on that person's messages**. The scan is limited by a configurable messages-per-group value. Add events are derived from WhatsApp group notifications/history exposed to the connected session; reaction totals use the library's reaction metadata when available. Results are explicitly marked as based on the data accessible to the connected account.\n\n## Data and privacy boundary
 
 The data suite is designed for accounts the operator is authorized to access. It does not bypass WhatsApp privacy controls, scrape data that is not exposed to the connected account, or provide a mechanism to evade platform enforcement. Profile-picture and About retrieval can return no data when WhatsApp privacy settings do not permit it. Group/channel discovery is limited to objects and participant/subscriber data exposed by the current WhatsApp Web session. Exports are written locally by the desktop application.
 

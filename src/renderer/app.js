@@ -32,7 +32,7 @@ function renderMedia(){
 async function refreshAccounts(){
   const a=await window.wa.listSessions();
   $('#accountCount').textContent=a.length;
-  $('#accountSelect').innerHTML=a.map(x=>`<option value="${esc(x.id)}">${esc(x.id)} — ${esc(x.status)}</option>`).join('');
+  $('#accountSelect').innerHTML=a.map(x=>`<option value="${esc(x.id)}">${esc(x.id)} — ${esc(x.status)}</option>`).join('');if($('#intelAccount'))$('#intelAccount').innerHTML=a.map(x=>`<option value="${esc(x.id)}">${esc(x.id)} — ${esc(x.status)}</option>`).join('');
   $('#accountsList').innerHTML=a.map(x=>`<div class="account"><b>${esc(x.id)}</b><span>${esc(x.status)}</span><span>sent: ${x.sent}</span><span><button data-logout="${esc(x.id)}">Logout</button><button data-delete="${esc(x.id)}" class="danger">Delete</button></span></div>`).join('')||'<div class="empty">No active accounts</div>';
   renderConsole();
   document.querySelectorAll('[data-logout]').forEach(b=>b.onclick=async()=>{await window.wa.logoutSession(b.dataset.logout);await refreshAccounts()});
@@ -103,7 +103,23 @@ $('#refreshLive')?.addEventListener('click',refreshDataViews);$('#liveSearch')?.
 $('#syncContacts')?.addEventListener('click',async()=>{const accountId=$('#accountSelect').value;if(!accountId)return alert('Connect an account first.');try{await window.wa.syncContacts({accountId,includeProfiles:true});await refreshDataViews()}catch(e){alert(e.message)}});
 $('#validateNumbers')?.addEventListener('click',async()=>{const accountId=$('#accountSelect').value;if(!accountId)return alert('Connect an account first.');const numbers=$('#numberList').value.split(',').map(x=>x.trim()).filter(Boolean);try{$('#validationResult').textContent=JSON.stringify(await window.wa.validateNumbers({accountId,numbers,includeProfilePicture:true}),null,2);await refreshDataViews()}catch(e){alert(e.message)}});
 $('#syncGroups')?.addEventListener('click',async()=>{const accountId=$('#accountSelect').value;if(!accountId)return alert('Connect an account first.');try{await window.wa.syncGroups({accountId,includeMembers:true,includeProfiles:$('#groupProfiles').checked});await refreshDataViews()}catch(e){alert(e.message)}});
+$('#analyzePerson')?.addEventListener('click',async()=>{
+  const accountId=$('#intelAccount').value||$('#accountSelect').value,number=$('#intelNumber').value.trim();
+  if(!accountId)return alert('Connect an account first.');if(!number)return alert('Enter a phone number.');
+  const metrics={addedBy:$('#metricAddedBy').checked,groups:$('#metricGroups').checked,messages:$('#metricMessages').checked,reactions:$('#metricReactions').checked};
+  if(!Object.values(metrics).some(Boolean))return alert('Select at least one metric.');
+  try{
+    $('#intelSummary').textContent='Analyzing...';$('#intelAdditions').innerHTML='';$('#intelGroups').innerHTML='';
+    const r=await window.wa.analyzeGroupIntelligence({accountId,number,metrics,limitMessages:Number($('#intelLimit').value)||200});
+    const parts=[`Number: ${r.targetPhone}`];if(r.addedTimes!==undefined)parts.push(`Added times: ${r.addedTimes}`);if(r.groupsEncountered!==undefined)parts.push(`Groups encountered: ${r.groupsEncountered}`);if(r.messageCount!==undefined)parts.push(`Messages: ${r.messageCount}`);if(r.reactionCount!==undefined)parts.push(`Reactions: ${r.reactionCount}`);if(r.reactionBreakdown)parts.push(`Reaction types: ${JSON.stringify(r.reactionBreakdown)}`);
+    if(r.addedBy!==undefined)parts.push(`Adders: ${r.addedBy.map(x=>x.name||x.phone).join(', ')||'None found'}`);$('#intelSummary').textContent=parts.join(' | ');
+    $('#intelAdditions').innerHTML=(r.additions||[]).map(x=>`<tr><td>${esc(x.groupName||x.groupId)}</td><td>${esc(x.addedByPhone||x.addedBy||'Unknown')}</td><td>${esc(x.action)}</td><td>${esc(x.timestamp)}</td></tr>`).join('')||'<tr><td colspan="4">No add events found in available history.</td></tr>';
+    $('#intelGroups').innerHTML=(r.groups||[]).map(x=>`<tr><td>${esc(x.name||x.id)}</td><td>${esc(x.currentMember)}</td><td>${esc(x.messages)}</td><td>${esc(x.reactions)}</td></tr>`).join('')||'<tr><td colspan="4">No matching groups found.</td></tr>';
+  }catch(e){$('#intelSummary').textContent='Analysis error: '+e.message}
+});
 $('#exportData')?.addEventListener('click',async()=>{try{const r=await window.wa.exportData({source:$('#exportSource').value,format:$('#exportFormat').value,limit:Number($('#exportLimit').value)||5000});$('#exportResult').textContent=r.canceled?'Export cancelled':JSON.stringify(r,null,2)}catch(e){$('#exportResult').textContent='Export error: '+e.message}});
+window.wa.on('group:intelligence:event',d=>{if($('#log'))$('#log').textContent+='\\nGroup event: '+(d.type||'')+' '+(d.groupId||'');});
+window.wa.on('group:intelligence:reaction',d=>{if($('#log'))$('#log').textContent+='\\nGroup reaction: '+(d.emoji||'');});
 window.wa.on('message:stream',d=>{const line='\n['+(d.timestamp||new Date().toISOString())+'] '+(d.chatName||d.chatId)+' :: '+(d.senderName||d.senderPhone||'')+' :: '+(d.body||'');$('#log').textContent+=line;refreshDataViews()});
 window.wa.on('message:edited',d=>{if($('#log'))$('#log').textContent+='\nEdited '+d.messageId;refreshDataViews()});
 window.wa.on('message:revoked',d=>{if($('#log'))$('#log').textContent+='\nRevoked '+d.messageId;refreshDataViews()});
