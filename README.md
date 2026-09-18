@@ -1,4 +1,4 @@
-# WhatsApp Scrapper — Professional 3.0
+# WhatsApp Scrapper — Professional 3.1 Data Suite
 
 A local Electron desktop workspace for consent-based WhatsApp campaigns.
 
@@ -22,6 +22,17 @@ A local Electron desktop workspace for consent-based WhatsApp campaigns.
 - Circuit breaker for consecutive send failures.
 - Multi-file media selection for image/audio/video campaigns.
 - Professional dashboard queues, delivery table and reliability controls.
+- Realtime message collection via the upstream `message_create` event for private chats and groups, with local JSONL storage.
+- On-demand chat history synchronization with configurable message limits.
+- Contact directory synchronization with WhatsApp registration state, name, push name, business flags, about text and profile-picture URL when permitted by privacy settings.
+- Business profile fields are captured only when exposed by the active WhatsApp Web account/library; unavailable fields remain empty rather than being fabricated.
+- Group discovery and member metadata including IDs, phone numbers when available, names and admin flags.
+- Number validation through the connected account plus optional profile-picture availability check.
+- Local message search and dataset summaries.
+- One-click exports to Excel-compatible `.xls` (SpreadsheetML), CSV, JSON, XML, HTML, JSONL, RSS and TXT.
+- Optional network proxy configuration for legitimate connectivity requirements; authenticated proxy credentials are held for the session and are not written to the settings file.
+- Channel subscriber discovery is supported only for subscribers visible to the connected account/library.
+- Realtime edit and revoke notifications in the UI.
 
 ## Run
 ```bash
@@ -37,6 +48,10 @@ npm start
 ```
 
 CSV imports default to `consent: false`; review and enable consent in the Clients screen before sending.
+
+## Data and privacy boundary
+
+The data suite is designed for accounts the operator is authorized to access. It does not bypass WhatsApp privacy controls, scrape data that is not exposed to the connected account, or provide a mechanism to evade platform enforcement. Profile-picture and About retrieval can return no data when WhatsApp privacy settings do not permit it. Group/channel discovery is limited to objects and participant/subscriber data exposed by the current WhatsApp Web session. Exports are written locally by the desktop application.
 
 ## Safety
 This project is intended for legitimate, consent-based communications. It does not implement techniques intended to bypass platform enforcement, spoof users, or manufacture engagement. Randomized delays are a scheduling control, not a guarantee against restrictions.
@@ -61,7 +76,7 @@ npm install --ignore-scripts
 npm run termux:test
 ```
 
-The Termux smoke test validates JavaScript syntax, state persistence, bounded concurrency, retry handling, browser detection logic, campaign-manager integration, delivery tracking and account registry behavior. It does not authenticate or send messages through WhatsApp Web.
+The Termux smoke test validates JavaScript syntax, state persistence, bounded concurrency, retry handling, browser detection logic, campaign-manager integration, delivery tracking, account registry, realtime data collection and all supported export writers. It does not authenticate or send messages through WhatsApp Web. It does not authenticate or send messages through WhatsApp Web.
 
 ## Production reliability notes
 
