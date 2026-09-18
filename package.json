@@ -1,16 +1,18 @@
 {
   "name": "whatsapp-scrapper",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Consent-first WhatsApp campaign desktop workspace with durable state, bounded concurrency, browser selection and multi-session QR authentication.",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "lint": "node --check src/main.js && node --check src/preload.js && node --check src/1-state-persistence-fix.js && node --check src/2-parallel-processing-fix.js && node --check src/3-browser-selection-fix.js && node --check src/4-integration-campaign.js",
+    "lint": "node --check src/main.js && node --check src/preload.js && node --check src/1-state-persistence-fix.js && node --check src/2-parallel-processing-fix.js && node --check src/3-browser-selection-fix.js && node --check src/4-integration-campaign.js && node --check src/5-contact-policy.js && node --check src/6-audit-log.js && node --check src/7-scheduler.js",
     "test": "node test/5-tests.js",
     "termux:test": "bash test/termux-smoke.sh",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "test:hardening": "node test/6-hardening-tests.js",
+    "test:all": "npm test && npm run test:hardening"
   },
   "build": {
     "appId": "com.galaxyuniversity.whatsapp-scrapper",
