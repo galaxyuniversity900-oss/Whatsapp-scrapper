@@ -43,6 +43,8 @@ const groupJobs = new Map();
 const accountOrchestrator = new MultiAccountOrchestrator(path.join(dataDir, 'account-schedules.json'));
 const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'));
 const secretStore = new SecretStore(path.join(dataDir, 'secrets.json'));
+const { createPlatform } = require('./26-platform-api');
+const platform = createPlatform(dataDir);
 
 const sessions = new Map();
 const listeners = new Set();
@@ -659,6 +661,28 @@ async function route(req, res) {
     }
     if (req.method === 'GET' && p === '/api/accounts/capacity') return json(res,200,accountOrchestrator.capacity(sessions.size));
     if (req.method === 'GET' && p === '/api/accounts/schedules') return json(res,200,accountOrchestrator.listSchedules());
+    if (req.method === 'GET' && p === '/api/platform/contacts') return json(res,200,platform.contacts.all());
+    if (req.method === 'GET' && p === '/api/platform/segments') return json(res,200,platform.store.list('segments'));
+    if (req.method === 'GET' && p === '/api/platform/tasks') return json(res,200,platform.store.list('tasks'));
+    if (req.method === 'GET' && p === '/api/platform/leads') return json(res,200,platform.store.list('leads'));
+    if (req.method === 'GET' && p === '/api/platform/templates') return json(res,200,platform.store.list('templates'));
+    if (req.method === 'GET' && p === '/api/platform/automations') return json(res,200,platform.store.list('automations'));
+    if (req.method === 'GET' && p === '/api/platform/webhooks') return json(res,200,platform.store.list('webhooks'));
+    if (req.method === 'GET' && p === '/api/platform/activity') return json(res,200,platform.store.list('activity').slice(-500));
+    if (req.method === 'GET' && p === '/api/platform/customer360') return json(res,200,platform.crm.customer360(url.searchParams.get('contactId')));
+    if (req.method === 'POST' && p === '/api/platform/contact') return json(res,200,{ok:true,contact:platform.contacts.upsert(await parseBody(req))});
+    if (req.method === 'POST' && p === '/api/platform/contact/merge') { const x=await parseBody(req); return json(res,200,{ok:true,contact:platform.contacts.merge(x.primaryId,x.duplicateIds||[])}); }
+    if (req.method === 'POST' && p === '/api/platform/segment') { const x=await parseBody(req); return json(res,200,{ok:true,segment:platform.contacts.segment(x.name,x.query||{})}); }
+    if (req.method === 'POST' && p === '/api/platform/task') return json(res,200,{ok:true,task:platform.crm.task(await parseBody(req))});
+    if (req.method === 'POST' && p === '/api/platform/task/update') { const x=await parseBody(req); return json(res,200,{ok:true,task:platform.crm.updateTask(x.id,x.patch||{})}); }
+    if (req.method === 'POST' && p === '/api/platform/lead') return json(res,200,{ok:true,lead:platform.crm.pipeline(await parseBody(req))});
+    if (req.method === 'POST' && p === '/api/platform/template') return json(res,200,{ok:true,template:platform.templates.create(await parseBody(req))});
+    if (req.method === 'POST' && p === '/api/platform/template/version') { const x=await parseBody(req); return json(res,200,{ok:true,template:platform.templates.version(x.id,x.body)}); }
+    if (req.method === 'POST' && p === '/api/platform/automation') return json(res,200,{ok:true,automation:platform.automations.create(await parseBody(req))});
+    if (req.method === 'POST' && p === '/api/platform/webhook') return json(res,200,{ok:true,webhook:platform.webhooks.create(await parseBody(req))});
+    if (req.method === 'POST' && p === '/api/platform/backup') return json(res,200,{ok:true,file:platform.backups.create()});
+    if (req.method === 'POST' && p === '/api/platform/search') { const x=await parseBody(req); return json(res,200,platform.contacts.filter({search:x.q||'',gender:x.gender||'all',tag:x.tag||null})); }
+
     if (req.method === 'GET' && p === '/api/contacts') {
       return json(res, 200, await state.readContacts());
     }
