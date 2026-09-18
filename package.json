@@ -12,8 +12,12 @@
     "termux:test": "bash test/termux-smoke.sh",
     "dist": "electron-builder",
     "test:hardening": "node test/6-hardening-tests.js",
-    "test:all": "npm test && npm run test:hardening && npm run test:professional",
-    "test:professional": "node test/7-professional-tests.js"
+    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform",
+    "test:professional": "node test/7-professional-tests.js",
+    "server": "node src/server.js",
+    "termux": "node src/server.js",
+    "test:platform": "node test/8-platform-tests.js",
+    "start:web": "node src/server.js"
   },
   "build": {
     "appId": "com.galaxyuniversity.whatsapp-scrapper",
