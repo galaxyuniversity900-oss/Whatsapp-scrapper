@@ -14,4 +14,4 @@ ok('template rendering',()=>{const t=p.templates.create({name:'Welcome',body:'He
 ok('webhook signature',()=>{const h=p.webhooks.create({url:'https://example.invalid',events:['x']});assert.equal(p.webhooks.sign('abc',h.secret).length,64);});
 ok('backup',()=>{assert.ok(fs.existsSync(p.backups.create()));});
 ok('XLSX import',()=>{const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet([{name:'X',phone:'201012345680',gender:'male'}]);XLSX.utils.book_append_sheet(wb,ws,'Contacts');const buf=XLSX.write(wb,{type:'buffer',bookType:'xlsx'});assert.equal(parseImport(buf,'xlsx')[0].phone,'201012345680');});
-console.log('RESULT '+n+'/8 passed');
+console.log('RESULT '+n+'/9 passed');
