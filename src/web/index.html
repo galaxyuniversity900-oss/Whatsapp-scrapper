@@ -346,5 +346,39 @@ async function p5Load(x){return p5Get('/api/platform/'+x)}
 async function p5Search(){const q=$('p5Search').value.trim();return p5Get('/api/platform/search?'+new URLSearchParams({q}).toString())}
 async function p5Backup(){try{const r=await fetch('/api/platform/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});$('p5Output').textContent=JSON.stringify(await r.json(),null,2)}catch(e){toast(e.message)}}
 </script>
+<section class="card" id="publicChannelSearch" style="margin:18px">
+<h2>Public WhatsApp Channel Search</h2>
+<div class="grid">
+  <input id="channelSearchAccount" placeholder="Connected account ID">
+  <input id="channelSearchText" placeholder="Channel name or keyword">
+  <input id="channelSearchCountries" placeholder="Country codes, e.g. 20,33,44">
+  <input id="channelSearchLimit" type="number" min="1" max="100" value="20" placeholder="Limit">
+  <label><input id="channelSkipSubscribed" type="checkbox" checked> Skip subscribed channels</label>
+  <button onclick="searchPublicChannels()">Search public channels</button>
+</div>
+<pre id="publicChannelSearchResult" style="max-height:500px;overflow:auto;margin-top:12px">No search performed.</pre>
+</section>
+<script>
+async function searchPublicChannels(){
+  const accountId=$('channelSearchAccount').value.trim();
+  if(!accountId)return toast('Connected account ID required');
+  const searchText=$('channelSearchText').value.trim();
+  const countryCodes=$('channelSearchCountries').value.split(/[\\s,;]+/).filter(Boolean);
+  try{
+    const r=await post('/api/channels/public/search',{
+      accountId,
+      searchText,
+      countryCodes,
+      limit:Number($('channelSearchLimit').value||20),
+      skipSubscribedNewsletters:$('channelSkipSubscribed').checked
+    });
+    $('publicChannelSearchResult').textContent=JSON.stringify(r,null,2);
+    toast('Found '+(r.count||0)+' public channels');
+  }catch(e){
+    $('publicChannelSearchResult').textContent='ERROR: '+e.message;
+    toast(e.message);
+  }
+}
+</script>
 </body>
 </html>
