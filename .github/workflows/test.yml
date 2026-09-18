@@ -1,4 +1,4 @@
-name: Build and Syntax Test
+name: Build and Core Tests
 
 on:
   push:
@@ -19,13 +19,15 @@ jobs:
         run: node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('package.json OK')"
       - name: JavaScript syntax
         run: |
-          node --check src/main.js
-          node --check src/preload.js
-          node --check src/renderer/app.js
+          npm run lint
+          node --check test/5-tests.js
       - name: Required files
         run: |
           test -f src/renderer/index.html
           test -f src/renderer/styles.css
           test -f README.md
-      - name: Install dependencies
+          test -f LICENSE
+      - name: Core integration tests
+        run: npm test
+      - name: Install production dependencies
         run: npm install --ignore-scripts --no-audit --no-fund

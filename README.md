@@ -39,3 +39,30 @@ This project is intended for legitimate, consent-based communications. It does n
 
 ## License
 MIT
+
+
+## Core testing on Termux
+
+The Electron desktop UI is Windows/macOS/Linux desktop software and cannot be launched as an Android/Termux Electron desktop application. Termux can, however, run the platform-independent campaign core tests.
+
+```bash
+pkg update
+pkg install nodejs-lts
+git clone https://github.com/galaxyuniversity900-oss/Whatsapp-scrapper.git
+cd Whatsapp-scrapper
+npm install --ignore-scripts
+npm run termux:test
+```
+
+The Termux smoke test validates JavaScript syntax, state persistence, bounded concurrency, retry handling, browser detection logic, and campaign-manager integration. It does not authenticate or send messages through WhatsApp Web.
+
+## Real WhatsApp account test
+
+For the actual QR account test, run the desktop application on Windows/macOS/Linux:
+
+```bash
+npm install
+npm start
+```
+
+Then open **Accounts → Add / Connect**, choose a browser, and scan the displayed QR code from WhatsApp Linked Devices. Only use recipients who have explicitly opted in.

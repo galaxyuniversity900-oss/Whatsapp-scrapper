@@ -1,0 +1,15 @@
+const fs=require('fs');const {execFileSync}=require('child_process');const os=require('os');
+const PATHS={win32:{chrome:['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe','C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'],edge:['C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe','C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'],chromium:['C:\\Program Files\\Chromium\\Application\\chrome.exe']},darwin:{chrome:['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'],edge:['/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'],chromium:['/Applications/Chromium.app/Contents/MacOS/Chromium']},linux:{chrome:['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/snap/bin/chromium'],edge:['/usr/bin/microsoft-edge','/usr/bin/microsoft-edge-stable'],chromium:['/usr/bin/chromium','/usr/bin/chromium-browser']}}};
+class BrowserManager{
+  constructor({browser='chromium',headless=false,userDataDir=null}={}){this.browser=browser;this.headless=headless;this.userDataDir=userDataDir;}
+  static _pathCandidates(name){return PATHS[process.platform]?.[name]||[]}
+  static _exists(p){try{return fs.existsSync(p)}catch{return false}}
+  static _which(cmd){try{return execFileSync(process.platform==='win32'?'where':'which',[cmd],{stdio:['ignore','pipe','ignore']}).toString().split(/\r?\n/)[0].trim()||null}catch{return null}}
+  static detectInstalledBrowsers(){const out={};for(const name of ['chromium','chrome','edge']){let p=BrowserManager._pathCandidates(name).find(BrowserManager._exists)||null;if(!p){const cmds=name==='chrome'?['google-chrome','google-chrome-stable','chrome']:name==='edge'?['microsoft-edge','microsoft-edge-stable','msedge']:['chromium','chromium-browser'];for(const c of cmds){p=BrowserManager._which(c);if(p)break}}out[name]={available:!!p,path:p};}return out}
+  async getAvailableBrowsers(){return BrowserManager.detectInstalledBrowsers()}
+  async getBrowserInfo(){const all=await this.getAvailableBrowsers();return {browser:this.browser,path:all[this.browser]?.path||null,available:!!all[this.browser]?.available,platform:os.platform()}}
+  async launchBrowser(){const info=await this.getBrowserInfo();if(this.browser!=='chromium'&&!info.available)throw new Error('Selected browser not installed: '+this.browser);return {browser:this.browser,path:info.path,headless:this.headless,userDataDir:this.userDataDir}}
+  async switchBrowser(name){if(!['chromium','chrome','edge'].includes(name))throw new Error('Unsupported browser: '+name);this.browser=name;return this.getBrowserInfo()}
+  puppeteerOptions(){const o={headless:this.headless,args:['--no-sandbox','--disable-setuid-sandbox']};const info=BrowserManager.detectInstalledBrowsers()[this.browser];if(info?.path)o.executablePath=info.path;if(this.userDataDir)o.userDataDir=this.userDataDir;return o}
+}
+module.exports={BrowserManager};
