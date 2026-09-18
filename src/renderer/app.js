@@ -124,3 +124,79 @@ window.wa.on('message:stream',d=>{const line='\n['+(d.timestamp||new Date().toIS
 window.wa.on('message:edited',d=>{if($('#log'))$('#log').textContent+='\nEdited '+d.messageId;refreshDataViews()});
 window.wa.on('message:revoked',d=>{if($('#log'))$('#log').textContent+='\nRevoked '+d.messageId;refreshDataViews()});
 init().catch(e=>{$('#state').textContent='Error';$('#log').textContent='Initialization error: '+e.message});
+
+
+const TG_BASE='http://127.0.0.1:8787';
+let tgLastRows=[];
+async function tgApi(path, options={}) {
+  const r=await fetch(TG_BASE+path,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok||j.ok===false) throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+function tgPayload(){return {id:$('#tgAccountId').value.trim(),apiId:Number($('#tgApiId').value),apiHash:$('#tgApiHash').value.trim(),phone:$('#tgPhone').value.trim()};}
+async function tgStatus(){
+  try{
+    const s=await window.wa.serviceStatus();
+    $('#telegramAdapterState').textContent=s.running?'Local service online · PID '+s.pid:'Local service offline';
+    const cap=await tgApi('/api/telegram/capabilities');
+    $('#telegramAdapterState').textContent=s.running?'Telegram adapter ready · local service':'Adapter unavailable';
+    return cap;
+  }catch(e){$('#telegramAdapterState').textContent='Adapter offline';return null}
+}
+async function tgStartLogin(){
+  try{$('#tgAuthResult').textContent=JSON.stringify(await tgApi('/api/telegram/auth/start',{method:'POST',body:JSON.stringify(tgPayload())}),null,2)}catch(e){$('#tgAuthResult').textContent='ERROR: '+e.message}
+}
+async function tgSubmitCode(){
+  try{$('#tgAuthResult').textContent=JSON.stringify(await tgApi('/api/telegram/auth/code',{method:'POST',body:JSON.stringify({id:$('#tgAccountId').value.trim(),code:$('#tgCode').value.trim()})}),null,2)}catch(e){$('#tgAuthResult').textContent='ERROR: '+e.message}
+}
+async function tgSubmitPassword(){
+  try{$('#tgAuthResult').textContent=JSON.stringify(await tgApi('/api/telegram/auth/password',{method:'POST',body:JSON.stringify({id:$('#tgAccountId').value.trim(),password:$('#tgPassword').value})}),null,2)}catch(e){$('#tgAuthResult').textContent='ERROR: '+e.message}
+}
+async function tgRestore(){
+  try{$('#tgAuthResult').textContent=JSON.stringify(await tgApi('/api/telegram/auth/restore',{method:'POST',body:JSON.stringify(tgPayload())}),null,2)}catch(e){$('#tgAuthResult').textContent='ERROR: '+e.message}
+}
+async function tgRefresh(){
+  try{
+    const a=await tgApi('/api/telegram/accounts'); const id=$('#tgAccountId').value.trim();
+    $('#tgAuthResult').textContent=JSON.stringify({accounts:a,status:id?await tgApi('/api/telegram/auth/status?id='+encodeURIComponent(id)):null},null,2);
+    await tgStatus();
+  }catch(e){$('#tgAuthResult').textContent='ERROR: '+e.message}
+}
+async function tgSearchPublic(){
+  try{
+    const j=await tgApi('/api/telegram/public/search',{method:'POST',body:JSON.stringify({id:$('#tgAccountId').value.trim(),query:$('#tgSearch').value.trim(),limit:Number($('#tgSearchLimit').value)||30})});
+    tgLastRows=j.rows||[];$('#tgDiscoveryResult').textContent=JSON.stringify(j,null,2);
+  }catch(e){$('#tgDiscoveryResult').textContent='ERROR: '+e.message}
+}
+async function tgResolve(){
+  try{$('#tgDiscoveryResult').textContent=JSON.stringify(await tgApi('/api/telegram/resolve',{method:'POST',body:JSON.stringify({id:$('#tgAccountId').value.trim(),target:$('#tgTarget').value.trim()})}),null,2)}catch(e){$('#tgDiscoveryResult').textContent='ERROR: '+e.message}
+}
+async function tgDialogs(){
+  try{const j=await tgApi('/api/telegram/dialogs?id='+encodeURIComponent($('#tgAccountId').value.trim())+'&limit=100');tgLastRows=j;$('#tgDiscoveryResult').textContent=JSON.stringify(j,null,2)}catch(e){$('#tgDiscoveryResult').textContent='ERROR: '+e.message}
+}
+async function tgFetchMessages(){
+  try{
+    const j=await tgApi('/api/telegram/messages',{method:'POST',body:JSON.stringify({id:$('#tgAccountId').value.trim(),target:$('#tgMessageTarget').value.trim(),options:{limit:Number($('#tgMessageLimit').value)||100,search:$('#tgMessageSearch').value.trim(),reverse:$('#tgReverse').checked}})});
+    tgLastRows=j.rows||[];$('#tgMessagesResult').textContent=JSON.stringify(j,null,2);
+  }catch(e){$('#tgMessagesResult').textContent='ERROR: '+e.message}
+}
+async function tgPublicMembers(){
+  try{
+    const j=await tgApi('/api/telegram/public/members',{method:'POST',body:JSON.stringify({id:$('#tgAccountId').value.trim(),target:$('#tgMembersTarget').value.trim(),limit:Number($('#tgMembersLimit').value)||500})});
+    tgLastRows=j.rows||[];$('#tgMembersResult').textContent=JSON.stringify(j,null,2);
+  }catch(e){$('#tgMembersResult').textContent='ERROR: '+e.message}
+}
+async function tgDownloadMedia(){
+  try{$('#tgToolResult').textContent=JSON.stringify(await tgApi('/api/telegram/media/download',{method:'POST',body:JSON.stringify({id:$('#tgAccountId').value.trim(),target:$('#tgMediaTarget').value.trim(),messageId:Number($('#tgMediaMessageId').value)})}),null,2)}catch(e){$('#tgToolResult').textContent='ERROR: '+e.message}
+}
+async function tgExportLast(){
+  try{$('#tgToolResult').textContent=JSON.stringify(await tgApi('/api/telegram/export',{method:'POST',body:JSON.stringify({rows:tgLastRows,format:$('#tgExportFormat').value})}),null,2)}catch(e){$('#tgToolResult').textContent='ERROR: '+e.message}
+}
+async function tgSendText(){
+  try{
+    if(!confirm('Send this Telegram message to the selected target?'))return;
+    $('#tgToolResult').textContent=JSON.stringify(await tgApi('/api/telegram/send',{method:'POST',body:JSON.stringify({id:$('#tgAccountId').value.trim(),target:$('#tgSendTarget').value.trim(),text:$('#tgSendText').value})}),null,2);
+  }catch(e){$('#tgToolResult').textContent='ERROR: '+e.message}
+}
+setTimeout(()=>{tgStatus();setInterval(tgStatus,10000)},700);
