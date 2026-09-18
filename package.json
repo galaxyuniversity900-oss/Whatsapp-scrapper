@@ -7,13 +7,17 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "lint": "node --check src/main.js && node --check src/preload.js && node --check src/1-state-persistence-fix.js && node --check src/2-parallel-processing-fix.js && node --check src/3-browser-selection-fix.js && node --check src/4-integration-campaign.js && node --check src/5-contact-policy.js && node --check src/6-audit-log.js && node --check src/7-scheduler.js && node --check src/8-delivery-tracker.js && node --check src/9-account-registry.js && node --check src/10-data-collector.js && node --check src/11-exporter.js && node --check src/12-whatsapp-directory.js && node --check src/13-group-intelligence.js",
+    "lint": "node --check src/main.js && node --check src/preload.js && node --check src/1-state-persistence-fix.js && node --check src/2-parallel-processing-fix.js && node --check src/3-browser-selection-fix.js && node --check src/4-integration-campaign.js && node --check src/5-contact-policy.js && node --check src/6-audit-log.js && node --check src/7-scheduler.js && node --check src/8-delivery-tracker.js && node --check src/9-account-registry.js && node --check src/10-data-collector.js && node --check src/11-exporter.js && node --check src/12-whatsapp-directory.js && node --check src/13-group-intelligence.js && node --check src/server.js",
     "test": "node test/5-tests.js",
     "termux:test": "bash test/termux-smoke.sh",
     "dist": "electron-builder",
     "test:hardening": "node test/6-hardening-tests.js",
-    "test:all": "npm test && npm run test:hardening && npm run test:professional",
-    "test:professional": "node test/7-professional-tests.js"
+    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform",
+    "test:professional": "node test/7-professional-tests.js",
+    "server": "node src/server.js",
+    "termux": "node src/server.js",
+    "test:platform": "node test/8-platform-tests.js",
+    "start:web": "node src/server.js"
   },
   "build": {
     "appId": "com.galaxyuniversity.whatsapp-scrapper",
