@@ -62,7 +62,7 @@ function json(res, status, data) {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'X-OpenRouter-Title', 'HTTP-Referer',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, X-API-Key, X-OpenRouter-Title, HTTP-Referer',
     'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
   });
   res.end(JSON.stringify(data));
