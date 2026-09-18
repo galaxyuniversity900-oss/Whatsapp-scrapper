@@ -1,6 +1,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
 const ALLOWED=['session:qr','session:status','campaign:progress','campaign:done','campaign:error','delivery:ack','message:received','message:stream','message:edited','message:revoked','data:sync:done','group:intelligence:event','group:intelligence:reaction','group:intelligence:done'];
-contextBridge.exposeInMainWorld('wa',{\n serviceStatus:()=>ipcRenderer.invoke('service:status'),
+contextBridge.exposeInMainWorld('wa',{
+ serviceStatus:()=>ipcRenderer.invoke('service:status'),
  getSettings:()=>ipcRenderer.invoke('settings:get'),setSettings:v=>ipcRenderer.invoke('settings:set',v),
  getContacts:()=>ipcRenderer.invoke('contacts:get'),setContacts:v=>ipcRenderer.invoke('contacts:set',v),importContacts:()=>ipcRenderer.invoke('contacts:import'),
  createSession:(id,headless,browser,proxyUrl,proxyAuth)=>ipcRenderer.invoke('session:create',{id,headless,browser,proxyUrl,proxyAuth}),logoutSession:id=>ipcRenderer.invoke('session:logout',id),deleteSession:id=>ipcRenderer.invoke('session:delete',id),listSessions:()=>ipcRenderer.invoke('session:list'),listAccounts:()=>ipcRenderer.invoke('account:list'),listBrowsers:()=>ipcRenderer.invoke('browser:list'),
