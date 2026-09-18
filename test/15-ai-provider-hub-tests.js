@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('assert');
+const fs=require('fs'),os=require('os'),path=require('path');
+const {AIProviderHub,DEFAULT_MODELS}=require('../src/29-ai-provider-hub');
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ai-hub-'));
+const hub=new AIProviderHub({dataDir:dir,masterKey:'test-key'});
+assert.equal(DEFAULT_MODELS.length,30);
+assert.equal(hub.models().length,30);
+const p=hub.upsert({id:'local-test',name:'Local Test',provider:'openai-compatible',baseUrl:'http://127.0.0.1:1234',model:'local-model',apiKey:'secret'});
+assert.equal(p.apiKey,'••••••••');
+assert.equal(hub.providers()[0].apiKey,'••••••••');
+assert.equal(hub.providers()[0].baseUrl,'http://127.0.0.1:1234');
+console.log('AI provider hub tests passed');
