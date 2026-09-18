@@ -17,6 +17,9 @@ const { DataCollector } = require('./10-data-collector');
 const { WhatsAppDirectory } = require('./12-whatsapp-directory');
 const { GroupIntelligence } = require('./13-group-intelligence');
 const { GroupLinkWorkspace } = require('./14-group-link-workspace');
+const { MultiAccountOrchestrator } = require('./15-multi-account-orchestrator');
+const { ContactDirectory, normPhone } = require('./16-contact-directory');
+const { sendCloud } = require('./17-cloud-api');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -36,6 +39,8 @@ const directory = new WhatsAppDirectory({ includeProfiles: true });
 const groupIntelligence = new GroupIntelligence(path.join(dataDir, 'whatsapp-data', 'group-intelligence.json'));
 const groupWorkspace = new GroupLinkWorkspace(path.join(dataDir, 'group-workspace-latest.json'));
 const groupJobs = new Map();
+const accountOrchestrator = new MultiAccountOrchestrator(path.join(dataDir, 'account-schedules.json'));
+const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'));
 
 const sessions = new Map();
 const listeners = new Set();
@@ -115,15 +120,24 @@ function sessionPublic(s) {
     consecutiveFailures: s.consecutiveFailures || 0,
     authenticated: ['authenticated', 'ready'].includes(s.status),
     campaign: campaignState(s.id),
-    qr: !!s.lastQr
+    qr: !!s.lastQr,
+    transport: s.transport || 'web_qr',
+    phone: s.phone || null,
+    pairingCode: s.pairingCode || null,
+    cloud: s.transport === 'cloud_api' ? { phoneNumberId:s.phoneNumberId, version:s.cloudVersion } : null
   };
 }
 
 async function createSession(input = {}) {
+  const transport=String(input.transport||'web_qr');
+  if(transport==='cloud_api') return createCloudSession(input);
+  if(!['web_qr','web_pairing'].includes(transport)) throw new Error('Unsupported transport');
   const id = normalizeId(input.id);
   if (!id) throw new Error('Account ID required');
   const existing = sessions.get(id);
   if (existing) return { ok: true, id, existing: true, session: sessionPublic(existing) };
+  const cap=accountOrchestrator.capacity(sessions.size);
+  if(!cap.canCreate) throw new Error('Account capacity reached: '+cap.max+' live accounts');
 
   const browser = input.browser || 'chromium';
   const headless = input.headless === true;
@@ -151,12 +165,12 @@ async function createSession(input = {}) {
   });
 
   const s = {
-    id, client, browser, headless, manager, status: 'initializing',
+    id, client, browser, headless, manager, status: 'initializing', transport, phone: transport==='web_pairing'?normPhone(input.phone):null, pairingCode:null,
     sent: 0, consecutiveFailures: 0, paused: false, stopped: false,
     lastQr: null, createdAt: new Date().toISOString()
   };
   sessions.set(id, s);
-  registry.upsert({ id, browser, headless, enabled: true });
+  registry.upsert({ id, browser, headless, enabled: true, transport, phone: s.phone || null });
 
   client.on('qr', async qr => {
     try {
@@ -251,7 +265,14 @@ async function createSession(input = {}) {
 
   try {
     await client.initialize();
-    audit.append('account_initialize_started', { accountId: id, browser });
+    if(transport==='web_pairing'){
+      if(!/^\d{7,15}$/.test(s.phone||'')) throw new Error('A valid international phone number is required for pairing code');
+      if(typeof client.requestPairingCode!=='function') throw new Error('This whatsapp-web.js build does not expose pairing-code support');
+      s.pairingCode=await client.requestPairingCode(s.phone);
+      s.status='pairing_code';
+      broadcast('session:pairing', {id,phone:s.phone,code:s.pairingCode});
+    }
+    audit.append('account_initialize_started', { accountId: id, browser, transport });
     return { ok: true, id, session: sessionPublic(s) };
   } catch (e) {
     sessions.delete(id);
@@ -260,6 +281,48 @@ async function createSession(input = {}) {
     throw e;
   }
 }
+
+async function createCloudSession(input={}) {
+  const id=normalizeId(input.id); if(!id) throw new Error('Account ID required');
+  if(sessions.has(id)) return {ok:true,id,existing:true,session:sessionPublic(sessions.get(id))};
+  const cap=accountOrchestrator.capacity(sessions.size); if(!cap.canCreate) throw new Error('Account capacity reached: '+cap.max+' live accounts');
+  const phoneNumberId=String(input.phoneNumberId||''); if(!/^\d+$/.test(phoneNumberId)) throw new Error('Cloud API phone number ID required');
+  const token=String(input.token||''); if(!token) throw new Error('Cloud API token required');
+  const s={id,client:null,browser:null,headless:true,manager:null,status:'ready',transport:'cloud_api',phoneNumberId,cloudVersion:String(input.version||'v23.0'),cloudToken:token,createdAt:new Date().toISOString(),sent:0,consecutiveFailures:0};
+  sessions.set(id,s);
+  registry.upsert({id,enabled:true,transport:'cloud_api',phoneNumberId,cloudVersion:s.cloudVersion,tokenConfigured:true});
+  audit.append('cloud_account_ready',{accountId:id,phoneNumberId});
+  broadcast('session:status',sessionPublic(s));
+  return {ok:true,id,session:sessionPublic(s)};
+}
+async function sendCloudCampaign(payload={}) {
+  const s=sessions.get(normalizeId(payload.accountId));
+  if(!s||s.transport!=='cloud_api'||s.status!=='ready') throw new Error('Cloud API account is not ready');
+  const text=String(payload.template||'').trim(); if(!text) throw new Error('Campaign message is empty');
+  const gender=String(payload.gender||'all').toLowerCase();
+  const eligible=contactDirectory.filter({gender}).filter(x=>x.consent===true&&x.optOut!==true&&x.status!=='sent'&&x.status!=='suppressed')
+    .slice(0,Math.min(10000,Math.max(1,Number(payload.limit||100))));
+  const results=[]; const delay=Math.min(3600,Math.max(0,Number(payload.intervalSeconds??10)));
+  for(const contact of eligible){
+    try{
+      const body=text.replace(/\{name\}/gi,contact.name||'').replace(/\{phone\}/gi,contact.phone||'');
+      const data=await sendCloud({token:s.cloudToken,phoneNumberId:s.phoneNumberId,to:contact.phone,text:body,version:s.cloudVersion});
+      s.sent++; results.push({phone:contact.phone,name:contact.name,status:'sent',response:data});
+      audit.append('cloud_message_sent',{accountId:s.id,phone:contact.phone});
+    }catch(e){results.push({phone:contact.phone,name:contact.name,status:'failed',error:String(e.message||e)});audit.append('cloud_message_failed',{accountId:s.id,phone:contact.phone,error:String(e.message||e)});}
+    if(delay>0) await sleep(delay*1000);
+  }
+  return {ok:true,total:eligible.length,sent:results.filter(x=>x.status==='sent').length,failed:results.filter(x=>x.status==='failed').length,results};
+}
+async function runAccountSchedule(row){
+  try{
+    if(row.action==='start') await createSession(row.payload||{id:row.accountId});
+    else if(row.action==='cloud_send') await sendCloudCampaign({...row.payload,accountId:row.accountId});
+    else if(row.action==='logout') await logoutSession(row.accountId,false);
+    accountOrchestrator.complete(row.id,'completed'); audit.append('account_schedule_completed',{scheduleId:row.id,accountId:row.accountId});
+  }catch(e){accountOrchestrator.complete(row.id,'failed',e.message);audit.append('account_schedule_failed',{scheduleId:row.id,accountId:row.accountId,error:String(e.message||e)});}
+}
+setInterval(()=>{for(const row of accountOrchestrator.due()) runAccountSchedule(row);},1000);
 
 async function logoutSession(id, removeAuth = false) {
   const key = normalizeId(id);
@@ -588,8 +651,10 @@ async function route(req, res) {
       return json(res, 200, [...sessions.values()].map(sessionPublic));
     }
     if (req.method === 'GET' && p === '/api/accounts') {
-      return json(res, 200, registry.list());
+      return json(res, 200, registry.list().map(a=>({...a,live:!!sessions.get(a.id),session:sessions.get(a.id)?sessionPublic(sessions.get(a.id)):null})));
     }
+    if (req.method === 'GET' && p === '/api/accounts/capacity') return json(res,200,accountOrchestrator.capacity(sessions.size));
+    if (req.method === 'GET' && p === '/api/accounts/schedules') return json(res,200,accountOrchestrator.listSchedules());
     if (req.method === 'GET' && p === '/api/contacts') {
       return json(res, 200, await state.readContacts());
     }
@@ -634,6 +699,9 @@ async function route(req, res) {
     if (req.method === 'POST' && p === '/api/session/create') {
       return json(res, 200, await createSession(await parseBody(req)));
     }
+    if (req.method === 'POST' && p === '/api/accounts/schedule') { const x=await parseBody(req); if(!x.accountId||!x.runAt) throw new Error('accountId and runAt required'); const row=accountOrchestrator.schedule(x); audit.append('account_schedule_created',{scheduleId:row.id,accountId:row.accountId,runAt:row.runAt}); return json(res,200,{ok:true,schedule:row}); }
+    if (req.method === 'POST' && p === '/api/accounts/schedule/cancel') { const x=await parseBody(req); const row=accountOrchestrator.cancel(x.id); if(!row) throw new Error('Schedule not found'); return json(res,200,{ok:true,schedule:row}); }
+    if (req.method === 'POST' && p === '/api/accounts/cloud/send') return json(res,200,await sendCloudCampaign(await parseBody(req)));
     if (req.method === 'POST' && p === '/api/session/logout') {
       const x = await parseBody(req);
       return json(res, 200, await logoutSession(x.id, false));
@@ -685,6 +753,10 @@ async function route(req, res) {
     if (req.method === 'POST' && p === '/api/contacts/import') {
       return json(res, 200, await importContacts(await parseBody(req)));
     }
+    if (req.method === 'POST' && p === '/api/contacts/import-file') { const x=await parseBody(req); if(typeof x.raw!=='string') throw new Error('raw contact file required'); const result=contactDirectory.import(x.raw,x.format); audit.append('contacts_imported_file',{format:x.format,count:result.imported}); return json(res,200,{ok:true,...result}); }
+    if (req.method === 'GET' && p === '/api/contacts/filter') { return json(res,200,contactDirectory.filter({gender:url.searchParams.get('gender')||'all'})); }
+    if (req.method === 'POST' && p === '/api/contacts/upsert') { const x=await parseBody(req); const row=contactDirectory.upsert(x); return json(res,200,{ok:true,contact:row}); }
+    if (req.method === 'POST' && p === '/api/contacts/delete') { const x=await parseBody(req); const removed=contactDirectory.remove(x.phone); return json(res,200,{ok:true,removed}); }
     if (req.method === 'POST' && p === '/api/contacts/suppress') {
       const x = await parseBody(req);
       const phone = policy.normalizePhone(x.phone);
@@ -820,6 +892,23 @@ async function route(req, res) {
       return json(res, 200, { ok: true, ...result, source: groupWorkspace.last().source });
     }
 
+    if (req.method === 'POST' && p === '/api/groups/create') {
+      const x=await parseBody(req); const s=await requireReady(x.accountId); const name=String(x.name||'').trim(); if(!name) throw new Error('Group name required');
+      const contacts=(Array.isArray(x.phones)?x.phones:[]).map(normPhone).filter(Boolean);
+      const all=contactDirectory.read().filter(c=>c.consent===true&&c.optOut!==true&&c.status!=='suppressed');
+      const allowed=new Set(all.map(c=>normPhone(c.phone))); const participants=contacts.filter(p=>allowed.has(p)).map(p=>p+'@c.us');
+      if(!participants.length) throw new Error('No consented participants selected');
+      if(typeof s.client.createGroup!=='function') throw new Error('Group creation is not supported by this WhatsApp runtime');
+      const group=await s.client.createGroup(name,participants); audit.append('group_created',{accountId:s.id,name,participants:participants.length});
+      return json(res,200,{ok:true,group});
+    }
+    if (req.method === 'POST' && p === '/api/groups/add-consented') {
+      const x=await parseBody(req); const s=await requireReady(x.accountId); const groupId=String(x.groupId||''); if(!groupId) throw new Error('groupId required');
+      const allowed=new Set(contactDirectory.read().filter(c=>c.consent===true&&c.optOut!==true&&c.status!=='suppressed').map(c=>normPhone(c.phone)));
+      const participants=(Array.isArray(x.phones)?x.phones:[]).map(normPhone).filter(p=>allowed.has(p)).map(p=>p+'@c.us');
+      const chat=await s.client.getChatById(groupId); if(!chat||typeof chat.addParticipants!=='function') throw new Error('Group participant management unavailable');
+      const result=await chat.addParticipants(participants); audit.append('group_consented_participants_added',{accountId:s.id,groupId,participants:participants.length}); return json(res,200,{ok:true,result});
+    }
     if (req.method === 'POST' && p === '/api/data/export') {
       const x = await parseBody(req);
       const format = String(x.format || 'json').toLowerCase();
