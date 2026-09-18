@@ -57,7 +57,7 @@ async function sendCampaign(p={}){
 async function route(req,res){
  const u=new URL(req.url,'http://localhost');const p=u.pathname;
  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type'});return res.end()}
- if(req.method==='GET'&&p==='/'){const html=fs.readFileSync(path.join(__dirname,'web','index.html'),'utf8');return send(res,200,html,'text/html; charset=utf-8')}
+ if(req.method==='GET'&&p==='/'){const html=fs.readFileSync(path.join(__dirname,'web','index.html'),'utf8');return send(res,200,html,'text/html; charset=utf-8')}\n if(req.method==='GET'&&p==='/manifest.json'){return send(res,200,fs.readFileSync(path.join(__dirname,'web','manifest.json'),'utf8'),'application/manifest+json')}\n if(req.method==='GET'&&p==='/sw.js'){return send(res,200,fs.readFileSync(path.join(__dirname,'web','sw.js'),'utf8'),'application/javascript')}
  if(req.method==='GET'&&p==='/events'){res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive','Access-Control-Allow-Origin':'*'});res.write(': connected\n\n');listeners.add(res);req.on('close',()=>listeners.delete(res));return}
  if(req.method==='GET'&&p==='/api/health')return send(res,200,{ok:true,platform:process.platform,node:process.version,root:ROOT,sessions:sessions.size});
  try{
