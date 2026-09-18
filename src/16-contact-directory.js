@@ -1,16 +1,27 @@
 'use strict';
 const fs=require('fs');
 const path=require('path');
+const XLSX=require('xlsx');
 
 function normPhone(v){return String(v??'').replace(/[^0-9]/g,'');}
 function bool(v){return v===true||/^(1|true|yes|y)$/i.test(String(v??''));}
 function splitCsv(line){const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++;}else q=!q;}else if(c===','&&!q){out.push(cur);cur='';}else cur+=c;}out.push(cur);return out;}
-function parseCsv(raw){const lines=String(raw).replace(/^\uFEFF/,'').split(/\r?\n/).filter(x=>x.trim());if(!lines.length)return[];const h=splitCsv(lines.shift()).map(x=>x.trim().toLowerCase());return lines.map(l=>{const v=splitCsv(l),o={};h.forEach((k,i)=>o[k]=v[i]??'');return o;});}
+function parseCsv(raw,delimiter=','){const lines=String(raw).replace(/^\uFEFF/,'').split(/\r?\n/).filter(x=>x.trim());if(!lines.length)return[];const h=splitCsv(lines.shift()).map(x=>x.trim().toLowerCase());return lines.map(l=>{const v=delimiter===','?splitCsv(l):l.split(delimiter),o={};h.forEach((k,i)=>o[k]=v[i]??'');return o;});}
 function parseJson(raw){const j=JSON.parse(raw);return Array.isArray(j)?j:(Array.isArray(j.contacts)?j.contacts:Array.isArray(j.data)?j.data:[]);}
 function unfoldVcf(raw){return String(raw).replace(/\r\n[ \t]/g,'').replace(/\n[ \t]/g,'\n');}
-function parseVcf(raw){const lines=unfoldVcf(raw).split(/\r?\n/);const out=[];let c=null;for(const line of lines){if(/^BEGIN:VCARD/i.test(line)){c={};continue;}if(/^END:VCARD/i.test(line)){if(c)out.push(c);c=null;continue;}if(!c)continue;const m=line.match(/^([^:;]+)(?:;[^:]*)?:(.*)$/);if(!m)continue;const k=m[1].toUpperCase(),v=m[2];if(k==='FN')c.name=v;else if(k==='TEL')c.phone=v;else if(k==='GENDER')c.gender=v;else if(k==='EMAIL')c.email=v;else if(k==='ORG')c.company=v;}return out;}
+function parseVcf(raw){const lines=unfoldVcf(raw).split(/\r?\n/);const out=[];let c=null;for(const line of lines){if(/^BEGIN:VCARD/i.test(line)){c={};continue;}if(/^END:VCARD/i.test(line)){if(c)out.push(c);c=null;continue;}if(!c)continue;const m=line.match(/^([^:;]+)(?:;[^:]*)?:(.*)$/);if(!m)continue;const k=m[1].toUpperCase(),v=m[2];if(k==='FN')c.name=v;else if(k==='TEL'){c.phone=c.phone||v;c.phones=c.phones||[];c.phones.push(v);}else if(k==='GENDER')c.gender=v;else if(k==='EMAIL')c.email=v;else if(k==='ORG')c.company=v;}return out;}
 function parseText(raw){return String(raw).split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(phone=>({phone}));}
-function parseImport(raw,format){const f=String(format||'').toLowerCase();if(f==='json')return parseJson(raw);if(f==='vcf'||f==='vcard')return parseVcf(raw);if(f==='txt'||f==='text')return parseText(raw);if(f==='jsonl'||f==='ndjson')return String(raw).split(/\r?\n/).filter(Boolean).map(x=>JSON.parse(x));return parseCsv(raw);}
+function parseImport(raw,format){
+ const f=String(format||'').toLowerCase();
+ if(f==='xlsx'||f==='xls'){const buf=Buffer.isBuffer(raw)?raw:Buffer.from(raw,'base64');const wb=XLSX.read(buf,{type:'buffer'});return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});}
+ if(f==='tsv')return parseCsv(raw,'\t');
+ if(f==='csv'||f==='semicolon-csv'){const text=String(raw);return parseCsv(text,text.split(/\r?\n/)[0].includes(';')?';':',');}
+ if(f==='json')return parseJson(raw);
+ if(f==='vcf'||f==='vcard')return parseVcf(raw);
+ if(f==='txt'||f==='text')return parseText(raw);
+ if(f==='jsonl'||f==='ndjson')return String(raw).split(/\r?\n/).filter(Boolean).map(x=>JSON.parse(x));
+ throw new Error('Unsupported import format');
+}
 function normalizeRows(rows){return rows.map((x,i)=>{const phone=normPhone(x.phone||x.tel||x.mobile||x.number||x.phoneNumber);return {...x,phone,name:String(x.name||x.fn||x.fullName||'').trim(),gender:String(x.gender||'').trim().toLowerCase(),consent:bool(x.consent),optOut:bool(x.optOut),status:x.status||'pending',importedAt:x.importedAt||new Date().toISOString(),sourceIndex:i};}).filter(x=>/^\d{7,15}$/.test(x.phone));}
 class ContactDirectory{
  constructor(file){this.file=path.resolve(file);fs.mkdirSync(path.dirname(this.file),{recursive:true});}
