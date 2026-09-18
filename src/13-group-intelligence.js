@@ -43,6 +43,10 @@ class GroupIntelligence{
   }
   async analyze(client,number,options={}){
     const target=targetJid(number);
+    let resolvedTarget=target;try{const id=await client.getNumberId(phoneOf(target));if(id)resolvedTarget=jid(id)}catch{}
+    const targetPhone=phoneOf(target);const aliases=new Set([target,resolvedTarget]);try{if(client.getContactLidAndPhone){const map=await client.getContactLidAndPhone([target,resolvedTarget]);for(const x of map||[]){if(x?.lid)aliases.add(jid(x.lid));if(x?.pn)aliases.add(jid(x.pn))}}}catch{}
+    const contactCache=new Map();
+    const samePerson=async id=>{const s=jid(id);if(aliases.has(s)||phoneOf(s)===targetPhone)return true;if(!s)return false;if(contactCache.has(s))return contactCache.get(s);let ok=false;try{const c=await client.getContactById(s);ok=phoneOf(c?.number)===targetPhone||phoneOf(c?.id)===targetPhone}catch{}contactCache.set(s,ok);return ok};
     if(!target)throw new Error('A valid phone number is required');
     const metrics={addedBy:options.addedBy!==false,groups:options.groups!==false,messages:options.messages!==false,reactions:options.reactions!==false};
     const limit=Math.min(5000,Math.max(1,Number(options.limitMessages)||200));
@@ -57,7 +61,7 @@ class GroupIntelligence{
       const groupId=jid(group.id);
       if(!groupId)continue;
       let isMember=false;
-      try{isMember=(group.participants||[]).some(p=>jid(p.id)===target||phoneOf(p.id)===phoneOf(target))}catch{}
+      try{for(const p of (group.participants||[])){if(await samePerson(p.id)){isMember=true;break}}}catch{}
       let messages=[];
       try{messages=await group.fetchMessages({limit})}catch{}
       let groupMessages=0,groupReactions=0;
@@ -65,11 +69,11 @@ class GroupIntelligence{
         const raw=m?.rawData||m?._data||{};
         const subtype=raw.subtype;
         const recipients=unique((raw.recipients||[]).map(jid));
-        if(metrics.addedBy&&m?.type==='gp2'&&['add','invite','linked_group_join'].includes(subtype)&&recipients.some(x=>phoneOf(x)===phoneOf(target))){
+        if(metrics.addedBy&&m?.type==='gp2'&&['add','invite','linked_group_join'].includes(subtype)&&(await Promise.all(recipients.map(samePerson))).some(Boolean)){
           additions.push({groupId,groupName:group.name||'',addedBy:jid(m.author||raw.author)||null,addedByPhone:phoneOf(m.author||raw.author)||null,targetPhone:phoneOf(target),action:subtype,timestamp:iso(m.timestamp||raw.t)});
         }
         const author=jid(m.author||raw.author||m.from);
-        const authoredByTarget=phoneOf(author)===phoneOf(target);
+        const authoredByTarget=await samePerson(author);
         if(authoredByTarget){
           seenMessageIds.add(jid(m.id));
           if(metrics.messages){messageCount++;}groupMessages++;
@@ -90,7 +94,7 @@ class GroupIntelligence{
         matchedGroups.set(groupId,{id:groupId,name:group.name||'',participantCount:(group.participants||[]).length,currentMember:isMember,messages:groupMessages,reactions:groupReactions});
       }
     }
-    const stored=this.read().filter(x=>['join','add','invite','linked_group_join'].includes(x.action)&&x.recipients?.some(r=>phoneOf(r)===phoneOf(target)));
+    const stored=this.read().filter(x=>['join','add','invite','linked_group_join'].includes(x.action)&&x.recipients?.some(r=>aliases.has(jid(r))||phoneOf(r)===targetPhone));
     for(const x of stored){
       if(metrics.addedBy){
         additions.push({groupId:x.groupId,groupName:'',addedBy:x.addedBy||null,addedByPhone:phoneOf(x.addedBy)||null,targetPhone:phoneOf(target),action:x.action,timestamp:x.timestamp});
@@ -107,7 +111,7 @@ class GroupIntelligence{
     const adders=[];
     for(const id of adderIds){const c=await this.contactLabel(client,id);adders.push({id,phone:c.phone,name:c.name,pushname:c.pushname,groups:[...new Set(finalAdditions.filter(x=>x.addedBy===id).map(x=>x.groupId))].length,additions:finalAdditions.filter(x=>x.addedBy===id).length})}
     const result={
-      targetPhone:phoneOf(target),targetId:target,
+      targetPhone:targetPhone,targetId:resolvedTarget,
       scannedGroups:groups.length,groupsEncountered:matchedGroups.size,
       addedTimes:metrics.addedBy?finalAdditions.length:undefined,
       addedBy:metrics.addedBy?adders:undefined,
