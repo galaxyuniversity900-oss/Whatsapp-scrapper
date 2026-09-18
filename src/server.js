@@ -23,6 +23,7 @@ const { ContactDirectory, normPhone } = require('./16-contact-directory');
 const { sendCloud } = require('./17-cloud-api');
 const { SecretStore } = require('./18-secret-store');
 const { TelegramAdapter } = require('./28-telegram-adapter');
+const { AIProviderHub } = require('./29-ai-provider-hub');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -47,6 +48,7 @@ const accountOrchestrator = new MultiAccountOrchestrator(path.join(dataDir, 'acc
 const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'));
 const secretStore = new SecretStore(path.join(dataDir, 'secrets.json'));
 const telegram = new TelegramAdapter({ dataDir: path.join(dataDir, 'telegram'), audit });
+const aiHub = new AIProviderHub({ dataDir: path.join(dataDir, 'ai'), masterKey: process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY });
 const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 
@@ -647,6 +649,14 @@ async function route(req, res) {
   }
 
   try {
+    if (req.method === 'GET' && p === '/api/ai/models') return json(res, 200, { ok:true, models: aiHub.models(), count: aiHub.models().length });
+    if (req.method === 'GET' && p === '/api/ai/providers') return json(res, 200, { ok:true, providers: aiHub.providers() });
+    if (req.method === 'POST' && p === '/api/ai/providers') { const x=await parseBody(req); return json(res,200,{ok:true,provider:aiHub.upsert(x)}); }
+    if (req.method === 'DELETE' && p === '/api/ai/providers') { return json(res,200,aiHub.remove(url.searchParams.get('id'))); }
+    if (req.method === 'POST' && p === '/api/ai/providers/discover') { const x=await parseBody(req); return json(res,200,{ok:true,models:await aiHub.discover(x.id)}); }
+    if (req.method === 'POST' && p === '/api/ai/chat') { const x=await parseBody(req); return json(res,200,{ok:true,result:await aiHub.chat(x.id,x)}); }
+    if (req.method === 'POST' && p === '/api/ai/compare') { const x=await parseBody(req); return json(res,200,{ok:true,results:await aiHub.compare(x)}); }
+
     if (req.method === 'GET' && p === '/api/telegram/capabilities') return json(res, 200, telegram.capabilities());
     if (req.method === 'GET' && p === '/api/telegram/accounts') return json(res, 200, telegram.listAccounts());
     if (req.method === 'GET' && p === '/api/telegram/auth/status') return json(res, 200, telegram.authStatus(url.searchParams.get('id')));
