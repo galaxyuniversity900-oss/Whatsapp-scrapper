@@ -92,3 +92,35 @@ npm start
 ```
 
 Then open **Accounts → Add / Connect**, choose a browser, and scan the displayed QR code from WhatsApp Linked Devices. Only use recipients who have explicitly opted in.
+
+
+## Telegram Adapter 5.1
+
+The project now includes a **Telegram Adapter** backed by the maintained `teleproto` MTProto client. The adapter is a provider-neutral boundary: the UI/API talks to one consistent interface while the Telegram-specific implementation handles authentication, dialogs, public discovery, message history, media download and exports. This makes it possible to add future providers without rewriting the desktop workspace.
+
+### Telegram tools
+- Account login with API ID/API hash + phone code + optional Telegram 2FA.
+- Encrypted local Telegram StringSession storage using the app's local master key.
+- Saved-session restore on later launches.
+- Public channel/group search.
+- Authorized-account dialog listing.
+- Message history extraction with text search, limits and ordering.
+- Public-member listing only for entities with a public username.
+- Entity resolution and metadata.
+- Media download by selected message.
+- JSON/CSV/XLS/HTML/XML/JSONL/RSS/TXT exports.
+- Explicit single-target message sending from the operator UI.
+- Adapter capability discovery.
+- Audit events for connection, public search, public-member listing and explicit sends.
+
+The Telegram layer intentionally does not bypass private/invite-only access controls or implement bulk-DM/anti-spam-evasion behavior.
+
+### Windows local service
+
+The Electron desktop app now starts `src/server.js` as a **hidden Electron Utility Process** bound to `127.0.0.1:8787`. The service is not exposed publicly and is started automatically whenever the desktop application starts. Its data directory is aligned with Electron's user-data directory, and a local master key is generated once for encrypted Telegram/Cloud secrets. The service is terminated cleanly when the application exits.
+
+This follows Electron's UtilityProcess model for running a Node.js child service from the main process. The process has no visible command window in normal Windows operation.
+
+### Telegram API credentials
+
+Telegram MTProto requires an `api_id` and `api_hash` obtained from Telegram's developer portal. The saved session string is equivalent to a long-lived login credential and must be treated as a secret.
