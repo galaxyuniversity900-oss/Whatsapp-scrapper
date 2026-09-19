@@ -21,6 +21,15 @@ const TASKS = Object.freeze({
   code: { required: ['prompt'] }
 });
 
+function isLocalBaseUrl(baseUrl) {
+  try {
+    const u = new URL(String(baseUrl || ''));
+    return ['localhost', '127.0.0.1', '::1'].includes(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
 class CapabilityFoundation {
   constructor({ hub, audit = null, policy = {} } = {}) {
     if (!hub) throw new Error('AIProviderHub is required');
@@ -45,9 +54,13 @@ class CapabilityFoundation {
   }
 
   async health(providerId) {
+    const id = String(providerId || '').trim();
+    if (!id) throw new CapabilityError('PROVIDER_REQUIRED', 'Provider is required');
     const started = Date.now();
     try {
-      const models = await this.hub.discover(providerId);
+      const provider = this.hub._raw ? this.hub._raw().find(x => x.id === id) : null;
+      this._assertPolicy(provider);
+      const models = await this.hub.discover(id, { timeoutMs: this.policy.timeoutMs });
       return { provider: providerId, ok: true, latencyMs: Date.now() - started, models };
     } catch (error) {
       return { provider: providerId, ok: false, latencyMs: Date.now() - started, error: String(error.message || error) };
@@ -60,7 +73,10 @@ class CapabilityFoundation {
     const provider = String(request.provider || '').trim();
     if (!provider) throw new CapabilityError('PROVIDER_REQUIRED', 'Provider is required');
     const started = Date.now();
-    const payload = this._payload(task, request);
+    this._validateTask(task, request);
+    const providerConfig = this.hub._raw ? this.hub._raw().find(x => x.id === provider) : null;
+    this._assertPolicy(providerConfig);
+    const payload = { ...this._payload(task, request), timeoutMs: this.policy.timeoutMs };
     try {
       const result = await this.hub.chat(provider, payload);
       const output = {
@@ -93,7 +109,28 @@ class CapabilityFoundation {
 
   async compare(request = {}) {
     const providers = Array.isArray(request.providers) ? request.providers.slice(0, this.policy.maxProviders) : [];
-    return this.hub.compare({ ...request, providers });
+    if (!providers.length) throw new CapabilityError('COMPARE_EMPTY', 'At least one provider is required');
+    for (const id of providers) {
+      const provider = this.hub._raw ? this.hub._raw().find(x => x.id === id) : null;
+      this._assertPolicy(provider);
+    }
+    return this.hub.compare({ ...request, providers, timeoutMs: this.policy.timeoutMs });
+  }
+
+  _validateTask(task, request) {
+    for (const field of TASKS[task].required) {
+      const value = request[field];
+      const valid = task === 'chat' ? Array.isArray(value) && value.length > 0 : typeof value === 'string' && value.trim().length > 0;
+      if (!valid) throw new CapabilityError('INPUT_REQUIRED', 'Required AI input is missing', { task, field });
+    }
+  }
+
+  _assertPolicy(provider) {
+    if (!provider) throw new CapabilityError('PROVIDER_NOT_FOUND', 'AI provider not found');
+    if (provider.enabled === false) throw new CapabilityError('PROVIDER_DISABLED', 'AI provider is disabled');
+    const local = isLocalBaseUrl(provider.baseUrl);
+    if (local && !this.policy.allowLocal) throw new CapabilityError('LOCAL_DISABLED', 'Local AI providers are disabled');
+    if (!local && !this.policy.allowExternal) throw new CapabilityError('EXTERNAL_DISABLED', 'External AI providers are disabled');
   }
 
   _payload(task, request) {
