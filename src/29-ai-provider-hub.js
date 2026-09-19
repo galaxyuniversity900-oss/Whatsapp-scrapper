@@ -30,6 +30,19 @@ function open(row,key){
  try{const k=crypto.createHash('sha256').update(String(key)).digest(),d=crypto.createDecipheriv('aes-256-gcm',k,Buffer.from(row.iv,'base64'));d.setAuthTag(Buffer.from(row.tag,'base64'));return Buffer.concat([d.update(Buffer.from(row.data,'base64')),d.final()]).toString()}catch{return null}
 }
 function joinUrl(base,pathPart){return String(base||'').replace(/\/$/,'')+'/'+String(pathPart||'').replace(/^\//,'')}
+function normalizeBaseUrl(value){
+ const raw=String(value||'').trim();
+ if(!raw) throw new Error('Provider base URL is required');
+ let u; try{u=new URL(raw)}catch{throw new Error('Provider base URL must be a valid URL')}
+ if(!['http:','https:'].includes(u.protocol)) throw new Error('Provider base URL must use HTTP or HTTPS');
+ if(u.username||u.password) throw new Error('Provider base URL must not contain credentials');
+ return u.toString().replace(/\/$/,'');
+}
+function withTimeout(ms){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),Math.max(1000,Number(ms)||120000));
+ return {controller,clear:()=>clearTimeout(timer)};
+}
 
 class AIProviderHub{
  constructor(options={}){
@@ -47,7 +60,7 @@ class AIProviderHub{
   const rows=this._raw().filter(x=>x.id!==id);
   const old=this._raw().find(x=>x.id===id);
   const row={id,name:input.name||id,provider:input.provider||'openai-compatible',
-   baseUrl:String(input.baseUrl||old?.baseUrl||'').trim(),model:input.model||old?.model||'',
+   baseUrl:normalizeBaseUrl(input.baseUrl||old?.baseUrl||''),model:input.model||old?.model||'',
    enabled:input.enabled!==false,apiKey:input.apiKey?seal(input.apiKey,this.key):(old?.apiKey||null),
    headers:input.headers||old?.headers||{},createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
   rows.push(row);this._save(rows);return {...row,apiKey:row.apiKey?'••••••••':''};
@@ -68,7 +81,15 @@ class AIProviderHub{
    temperature:payload.temperature,max_tokens:payload.maxTokens||payload.max_tokens,stream:false};
   Object.keys(body).forEach(k=>body[k]===undefined&&delete body[k]);
   const url=payload.endpoint||joinUrl(p.baseUrl,'v1/chat/completions');
-  const r=await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});const text=await r.text();
+  let parsedUrl; try{parsedUrl=new URL(url)}catch{throw new Error('AI endpoint must be a valid URL')}
+  if(!['http:','https:'].includes(parsedUrl.protocol)||parsedUrl.username||parsedUrl.password)throw new Error('AI endpoint URL is invalid');
+  const t=withTimeout(payload.timeoutMs||120000);
+  let r,text;
+  try{
+   r=await fetch(url,{method:'POST',headers,body:JSON.stringify(body),signal:t.controller.signal});
+   text=await r.text();
+  }catch(e){if(e.name==='AbortError')throw new Error('AI request timed out');throw e}
+  finally{t.clear()}
   if(!r.ok)throw new Error('AI HTTP '+r.status+': '+text.slice(0,500));
   let j;try{j=JSON.parse(text)}catch{j={text}};
   return {provider:id,model:body.model,raw:j,text:j?.choices?.[0]?.message?.content??j?.output_text??j?.content?.[0]?.text??j?.text??'',usage:j?.usage||null};
