@@ -52,6 +52,8 @@ const secretStore = new SecretStore(path.join(dataDir, 'secrets.json'));
 const telegram = new TelegramAdapter({ dataDir: path.join(dataDir, 'telegram'), audit });
 const aiHub = new AIProviderHub({ dataDir: path.join(dataDir, 'ai'), masterKey: process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY });
 const aiCapabilities = new CapabilityFoundation({ hub: aiHub, audit });
+const { OperationsSuite } = require('./31-operations-suite');
+const operations = new OperationsSuite(dataDir, audit, policy);
 const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 
@@ -130,7 +132,7 @@ function parseBody(req) {
     let raw = '';
     req.on('data', chunk => {
       raw += chunk;
-      if (raw.length > 30 * 1024 * 1024) {
+      if (raw.length > 140 * 1024 * 1024) {
         reject(new Error('Request too large'));
         req.destroy();
       }
@@ -447,8 +449,7 @@ async function sendCampaign(payload = {}) {
       if (n >= eligible.length) return;
       const item = eligible[n];
       while (s.paused && !s.stopped) await sleep(250);
-      if (s.stopped) {
-        results[n] = { index: item.index, status: 'stopped' };
+      if (s.stopped) {        results[n] = { index: item.index, status: 'stopped' };
         done++;
         continue;
       }
@@ -841,6 +842,65 @@ async function route(req, res) {
     if (req.method === 'GET' && p === '/api/audit') {
       return json(res, 200, audit.read(Math.min(1000, Number(url.searchParams.get('limit') || 200))));
     }
+    if (req.method === 'GET' && p === '/api/operations/files') {
+      return json(res,200,{ok:true,files:operations.listFiles({q:url.searchParams.get('q')||'',collection:url.searchParams.get('collection')||'',tag:url.searchParams.get('tag')||''})});
+    }
+    if (req.method === 'POST' && p === '/api/operations/files/import') {
+      const x=await parseBody(req);
+      if(typeof x.data!=='string'||!x.data) throw new Error('File data required');
+      const comma=x.data.indexOf(',');
+      const buffer=Buffer.from(comma>=0?x.data.slice(comma+1):x.data,'base64');
+      const row=operations.importBuffer(x.name,buffer,{mimeType:x.mimeType,tags:x.tags,collection:x.collection});
+      return json(res,200,{ok:true,file:{...row,path:undefined}});
+    }
+    if (req.method === 'POST' && p === '/api/operations/files/update') {
+      const x=await parseBody(req); return json(res,200,{ok:true,file:operations.updateFile(x.id,x.patch||{})});
+    }
+    if (req.method === 'POST' && p === '/api/operations/files/remove') {
+      const x=await parseBody(req); return json(res,200,{ok:true,removed:operations.removeFile(x.id)});
+    }
+    if (req.method === 'GET' && p === '/api/operations/campaigns') {
+      return json(res,200,{ok:true,campaigns:operations.listCampaigns()});
+    }
+    if (req.method === 'POST' && p === '/api/operations/campaigns') {
+      const x=await parseBody(req); return json(res,200,{ok:true,campaign:operations.createCampaign(x)});
+    }
+    if (req.method === 'POST' && p === '/api/operations/campaigns/dry-run') {
+      const x=await parseBody(req); const contacts=await state.readContacts(); return json(res,200,{ok:true,...operations.dryRun(x.id,contacts)});
+    }
+    if (req.method === 'POST' && p === '/api/operations/campaigns/start') {
+      const x=await parseBody(req); const contacts=await state.readContacts();
+      const accountId=operations.getCampaign(x.id).accountId; const session=await requireReady(accountId);
+      const sendFile=async task=>{
+        if(task.type==='text') return session.client.sendMessage(task.contact.phone+'@c.us',task.body);
+        const media=MessageMedia.fromFilePath(task.file.path);
+        return session.client.sendMessage(task.contact.phone+'@c.us',media,task.caption?{caption:task.caption}:{});
+      };
+      const result=await operations.startCampaign(x.id,contacts,sendFile,{onProgress:p=>broadcast('operations:campaign:progress',p),onDone:p=>broadcast('operations:campaign:done',p)});
+      return json(res,200,{ok:true,campaign:result});
+    }
+    if (req.method === 'POST' && p === '/api/operations/campaigns/pause') {
+      const x=await parseBody(req); return json(res,200,{ok:true,campaign:operations.pause(x.id)});
+    }
+    if (req.method === 'POST' && p === '/api/operations/campaigns/stop') {
+      const x=await parseBody(req); return json(res,200,{ok:true,campaign:operations.stop(x.id)});
+    }
+    if (req.method === 'GET' && p === '/api/operations/products') {
+      return json(res,200,{ok:true,products:operations.listProducts()});
+    }
+    if (req.method === 'POST' && p === '/api/operations/products') {
+      return json(res,200,{ok:true,product:operations.upsertProduct(await parseBody(req))});
+    }
+    if (req.method === 'DELETE' && p === '/api/operations/products') {
+      return json(res,200,{ok:true,removed:operations.removeProduct(url.searchParams.get('sku'))});
+    }
+    if (req.method === 'GET' && p === '/api/operations/tickets') {
+      return json(res,200,{ok:true,tickets:operations.listTickets()});
+    }
+    if (req.method === 'POST' && p === '/api/operations/tickets') {
+      return json(res,200,{ok:true,ticket:operations.upsertTicket(await parseBody(req))});
+    }
+
     if (req.method === 'GET' && p === '/api/media') {
       const files = fs.readdirSync(mediaDir).map(name => {
         const file = path.join(mediaDir, name);
@@ -897,8 +957,7 @@ async function route(req, res) {
       s.paused = true;
       emitCampaign(s.id, { paused: true, status: 'paused' });
       return json(res, 200, { ok: true });
-    }
-    if (req.method === 'POST' && p === '/api/campaign/resume') {
+    }    if (req.method === 'POST' && p === '/api/campaign/resume') {
       const x = await parseBody(req); const s = sessions.get(String(x.accountId || ''));
       if (!s) throw new Error('Account not found');
       s.paused = false;
