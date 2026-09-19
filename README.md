@@ -171,3 +171,13 @@ The same AI Hub can be used as the capability layer for:
 - Multi-provider comparison and fallback routing.
 
 API keys are stored encrypted in the local AI provider store; they are never rendered back to the UI. The application keeps operator/consent controls around actual messaging actions.
+
+## Production Hardening 5.3
+
+The 5.3 hardening layer adds a provider-neutral AI capability foundation with explicit task validation, provider policy enforcement, health checks, bounded fallback/compare operations, request timeouts and audit hooks. Capability execution remains side-effect free with respect to WhatsApp/Telegram messaging.
+
+The local HTTP service is protected by an installation-specific API token. The web console obtains the token from its same-origin security endpoint and sends it as X-API-Key; Server-Sent Events use the same token as a query credential because native EventSource cannot set custom headers. Cross-origin access is restricted by default to the local service origin and can be explicitly configured with WA_ALLOWED_ORIGINS.
+
+AI provider credentials and Cloud API secrets use installation-specific encryption keys when an explicit AI_MASTER_KEY / WA_MASTER_KEY is not supplied. Provider URLs are validated to HTTP/HTTPS without embedded credentials, and AI model discovery/chat requests have bounded timeouts.
+
+The full test suite now includes capability and production-hardening regression tests, and the Windows packaging workflow remains part of CI.
