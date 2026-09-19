@@ -5,7 +5,7 @@ const {CapabilityFoundation,CapabilityError}=require('../src/30-capability-found
  const calls=[];
  const hub={
   models:()=>[{id:'m1'}],
-  _raw:()=>[{id:'local',enabled:true,baseUrl:'http://127.0.0.1:1234'},{id:'external',enabled:true,baseUrl:'https://example.com'}],
+  _raw:()=>[{id:'local',enabled:true,baseUrl:'http://127.0.0.1:1234'},{id:'external',enabled:true,baseUrl:'https://example.com'},{id:'a',enabled:true,baseUrl:'http://127.0.0.1:1234'},{id:'b',enabled:true,baseUrl:'http://127.0.0.1:1234'}],
   discover:async()=>[{id:'m1'}],
   chat:async(id,p)=>{calls.push([id,p]);return {model:'m1',text:'ok',usage:null}},
   compare:async p=>p.providers.map(provider=>({provider,ok:true}))
