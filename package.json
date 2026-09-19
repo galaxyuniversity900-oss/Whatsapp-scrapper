@@ -16,7 +16,7 @@
     "test:platform": "node test/12-platform-tests.js",
     "test:web": "node test/9-web-ui-tests.js",
     "test:runtime": "node test/10-runtime-tests.js",
-    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime && npm run test:4.3 && npm run test:platform && npm run test:channels && npm run test:telegram && npm run test:ai && npm run test:capabilities && npm run test:security",
+    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime && npm run test:4.3 && npm run test:platform && npm run test:channels && npm run test:telegram && npm run test:ai && npm run test:capabilities && npm run test:security && npm run test:completion",
     "server": "node src/server.js",
     "termux": "node src/server.js",
     "start:web": "node src/server.js",
@@ -25,36 +25,16 @@
     "test:telegram": "node test/14-telegram-adapter-tests.js",
     "test:ai": "node test/15-ai-provider-hub-tests.js",
     "test:capabilities": "node test/16-capability-foundation-tests.js",
-    "test:security": "node test/17-production-hardening-tests.js"
+    "test:security": "node test/17-production-hardening-tests.js",
+    "test:completion": "node test/18-completion-gate-tests.js"
   },
   "build": {
     "appId": "com.galaxyuniversity.whatsapp-scrapper",
     "productName": "WhatsApp Scrapper",
-    "files": [
-      "src/**/*",
-      "test/**/*",
-      "package.json",
-      "README.md",
-      "LICENSE"
-    ],
-    "directories": {
-      "output": "dist"
-    },
-    "win": {
-      "target": [
-        "nsis",
-        "portable"
-      ]
-    }
+    "files": ["src/**/*","test/**/*","package.json","README.md","LICENSE"],
+    "directories": {"output": "dist"},
+    "win": {"target": ["nsis","portable"]}
   },
-  "dependencies": {
-    "whatsapp-web.js": "1.34.7",
-    "qrcode": "^1.5.4",
-    "xlsx": "^0.18.5",
-    "teleproto": "^1.229.0"
-  },
-  "devDependencies": {
-    "electron": "^38.0.0",
-    "electron-builder": "^26.0.12"
-  }
+  "dependencies": {"whatsapp-web.js":"1.34.7","qrcode":"^1.5.4","xlsx":"^0.18.5","teleproto":"^1.229.0"},
+  "devDependencies": {"electron":"^38.0.0","electron-builder":"^26.0.12"}
 }
