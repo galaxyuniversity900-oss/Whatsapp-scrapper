@@ -26,6 +26,7 @@ const { SecretStore } = require('./18-secret-store');
 const { TelegramAdapter } = require('./28-telegram-adapter');
 const { AIProviderHub } = require('./29-ai-provider-hub');
 const { CapabilityFoundation } = require('./30-capability-foundation');
+const { InboxEngine } = require('./32-inbox-engine');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -54,6 +55,7 @@ const aiHub = new AIProviderHub({ dataDir: path.join(dataDir, 'ai'), masterKey: 
 const aiCapabilities = new CapabilityFoundation({ hub: aiHub, audit });
 const { OperationsSuite } = require('./31-operations-suite');
 const operations = new OperationsSuite(dataDir, audit, policy);
+const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
 const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 
@@ -793,6 +795,14 @@ async function route(req, res) {
     }
     if (req.method === 'GET' && p === '/api/accounts/capacity') return json(res,200,accountOrchestrator.capacity(sessions.size));
     if (req.method === 'GET' && p === '/api/accounts/schedules') return json(res,200,accountOrchestrator.listSchedules());
+    if (req.method === 'GET' && p === '/api/inbox') {
+      return json(res,200,{ok:true,conversations:inbox.list({status:url.searchParams.get('status')||'all',priority:url.searchParams.get('priority')||'all',assignee:url.searchParams.get('assignee')||'',q:url.searchParams.get('q')||''})});
+    }
+    if (req.method === 'GET' && p === '/api/inbox/summary') return json(res,200,{ok:true,...inbox.summary()});
+    if (req.method === 'GET' && p === '/api/inbox/conversation') return json(res,200,{ok:true,conversation:inbox.get(url.searchParams.get('id'))});
+    if (req.method === 'POST' && p === '/api/inbox/sync') return json(res,200,{ok:true,conversations:inbox.sync()});
+    if (req.method === 'POST' && p === '/api/inbox/update') { const x=await parseBody(req); return json(res,200,{ok:true,conversation:inbox.update(x.id,x.patch||{})}); }
+
     if (req.method === 'GET' && p === '/api/platform/contacts') return json(res,200,platform.contacts.all());
     if (req.method === 'GET' && p === '/api/platform/segments') return json(res,200,platform.store.list('segments'));
     if (req.method === 'GET' && p === '/api/platform/tasks') return json(res,200,platform.store.list('tasks'));
