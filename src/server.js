@@ -4,6 +4,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const qrcode = require('qrcode');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
@@ -58,14 +59,59 @@ const sessions = new Map();
 const listeners = new Set();
 const campaigns = new Map();
 const serverStartedAt = new Date().toISOString();
+const API_TOKEN_FILE = path.join(ROOT, 'data', 'api-token');
+function loadApiToken() {
+  if (process.env.WA_API_TOKEN) return String(process.env.WA_API_TOKEN);
+  try {
+    const existing = fs.readFileSync(API_TOKEN_FILE, 'utf8').trim();
+    if (existing) return existing;
+  } catch {}
+  const token = crypto.randomBytes(32).toString('hex');
+  try { fs.writeFileSync(API_TOKEN_FILE, token + '\n', { mode: 0o600 }); } catch {}
+  return token;
+}
+const API_TOKEN = loadApiToken();
+const configuredOrigins = new Set(String(process.env.WA_ALLOWED_ORIGINS || '').split(',').map(x => x.trim()).filter(Boolean));
+function allowedOrigin(origin) {
+  if (!origin) return null;
+  if (configuredOrigins.has('*')) return origin;
+  if (configuredOrigins.has(origin)) return origin;
+  try {
+    const u = new URL(origin);
+    if (!['http:', 'https:'].includes(u.protocol)) return null;
+    const localHost = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(u.hostname);
+    const localPort = String(u.port || (u.protocol === 'https:' ? 443 : 80)) === String(port);
+    return localHost && localPort ? origin : null;
+  } catch { return null; }
+}
+function applySecurityHeaders(req, res) {
+  const origin = allowedOrigin(req.headers.origin);
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-API-Key, X-OpenRouter-Title, HTTP-Referer');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+}
+function isAuthorized(req) {
+  const header = String(req.headers['x-api-key'] || req.headers.authorization || '').trim();
+  const bearer = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : header;
+  const queryToken = req.url ? new URL(req.url, 'http://127.0.0.1').searchParams.get('token') : '';
+  return bearer === API_TOKEN || queryToken === API_TOKEN;
+}
+function rejectUnauthorized(req, res) {
+  applySecurityHeaders(req, res);
+  return json(res, 401, { ok: false, error: 'API authorization required' });
+}
 
 function json(res, status, data) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, X-API-Key, X-OpenRouter-Title, HTTP-Referer',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
   });
   res.end(JSON.stringify(data));
 }
@@ -624,9 +670,16 @@ async function startGroupMessageJob(payload = {}) {
 async function route(req, res) {
   const url = new URL(req.url, 'http://127.0.0.1');
   const p = url.pathname;
+  applySecurityHeaders(req, res);
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' });
     return res.end();
+  }
+  if (p === '/api/security/token') {
+    if (!allowedOrigin(req.headers.origin) && req.headers.origin) return rejectUnauthorized(req, res);
+    return json(res, 200, { ok: true, token: API_TOKEN });
+  }
+  if ((p.startsWith('/api/') || p === '/events') && !isAuthorized(req)) {
+    return rejectUnauthorized(req, res);
   }
   if (req.method === 'GET' && p === '/') {
     return html(res, fs.readFileSync(path.join(__dirname, 'web', 'index.html'), 'utf8'));
@@ -642,8 +695,7 @@ async function route(req, res) {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*'
+      'Connection': 'keep-alive'
     });
     res.write(': connected\n\n');
     listeners.add(res);
@@ -1070,6 +1122,8 @@ async function route(req, res) {
 const port = Math.max(1, Number(process.env.PORT || 8787));
 const host = process.env.HOST || '127.0.0.1';
 const server = http.createServer(route);
+server.requestTimeout = Math.max(10000, Number(process.env.WA_REQUEST_TIMEOUT_MS || 120000));
+server.headersTimeout = Math.max(5000, Number(process.env.WA_HEADERS_TIMEOUT_MS || 10000));
 
 server.listen(port, host, () => {
   console.log('WhatsApp Scrapper Web Server listening on http://' + host + ':' + port);

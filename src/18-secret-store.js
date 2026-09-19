@@ -4,14 +4,21 @@ const crypto=require('crypto');
 const path=require('path');
 
 class SecretStore{
-  constructor(file){
+  constructor(file, options={}){
     this.file=path.resolve(file);
     fs.mkdirSync(path.dirname(this.file),{recursive:true});
+    this.keyFile=options.keyFile||path.join(path.dirname(this.file),'secret-store.key');
+    this.masterKey=options.masterKey||process.env.WA_MASTER_KEY||this._loadLocalKey();
+  }
+  _loadLocalKey(){
+    try{const value=fs.readFileSync(this.keyFile,'utf8').trim();if(value)return value}catch{}
+    const value=crypto.randomBytes(32).toString('hex');
+    try{fs.writeFileSync(this.keyFile,value+'\\n',{mode:0o600})}catch{}
+    return value;
   }
   _key(){
-    const raw=process.env.WA_MASTER_KEY||'';
-    if(!raw)return null;
-    return crypto.createHash('sha256').update(raw).digest();
+    if(!this.masterKey)return null;
+    return crypto.createHash('sha256').update(String(this.masterKey)).digest();
   }
   set(id,value){
     const key=this._key(); if(!key) return false;
