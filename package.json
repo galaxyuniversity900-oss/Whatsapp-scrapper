@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-scrapper",
-  "version": "5.3.0",
+  "version": "5.5.0",
   "private": true,
   "description": "Professional consent-first WhatsApp + Telegram desktop workspace with local service runtime for Windows, Termux and Android PWA control.",
   "main": "src/main.js",
