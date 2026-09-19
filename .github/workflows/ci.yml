@@ -1,25 +1,32 @@
-name: Node Validation
+name: Platform 5.3 Verification
 on:
   push:
-    branches: ["main", "feature/**"]
+    branches: ["main", "feature/**", "completion-gate-**"]
   pull_request:
     branches: ["main", "feature/**"]
 jobs:
-  validate:
+  test:
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        node: [20, 22]
+      matrix: { node: [20, 22] }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
+        with: { node-version: ${{ matrix.node }}, cache: npm }
       - run: npm install
       - run: npm run lint
-      - run: npm test
-      - run: npm run test:hardening
-      - run: npm run test:professional
-      - run: npm run test:platform
-      - run: npm run test:web
-      - run: npm run test:4.3
+      - run: npm run test:all
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:completion
+      - run: npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whatsapp-scrapper-windows-build
+          path: dist/*
