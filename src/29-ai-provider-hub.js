@@ -20,6 +20,12 @@ const DEFAULT_MODELS=[
 ].map((x,i)=>({id:'model-'+String(i+1).padStart(2,'0'),provider:x[0],label:x[1],model:x[2],task:x[3]}));
 
 function read(file,f){try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return f}}
+function loadLocalKey(file){
+ try{const existing=fs.readFileSync(file,'utf8').trim();if(existing)return existing}catch{}
+ const key=crypto.randomBytes(32).toString('hex');
+ try{fs.writeFileSync(file,key+'\\n',{mode:0o600})}catch{}
+ return key;
+}
 function write(file,v){const t=file+'.tmp-'+process.pid;fs.writeFileSync(t,JSON.stringify(v,null,2)+'\n');fs.renameSync(t,file)}
 function seal(value,key){
  const k=crypto.createHash('sha256').update(String(key)).digest(),iv=crypto.randomBytes(12);
@@ -48,7 +54,8 @@ class AIProviderHub{
  constructor(options={}){
   this.dataDir=path.resolve(options.dataDir||path.join(process.cwd(),'.ai'));
   fs.mkdirSync(this.dataDir,{recursive:true});this.file=path.join(this.dataDir,'providers.json');
-  this.key=options.masterKey||process.env.AI_MASTER_KEY||process.env.WA_MASTER_KEY||'local-ai-master-key';
+  this.legacyKey='local-ai-master-key';
+  this.key=options.masterKey||process.env.AI_MASTER_KEY||process.env.WA_MASTER_KEY||loadLocalKey(path.join(this.dataDir,'master.key'));
  }
  models(){return DEFAULT_MODELS}
  providers(){return read(this.file,[]).map(x=>({...x,apiKey:x.apiKey?'••••••••':''}))}
@@ -68,14 +75,14 @@ class AIProviderHub{
  remove(id){this._save(this._raw().filter(x=>x.id!==String(id)));return {ok:true}}
  _get(id){const row=this._raw().find(x=>x.id===String(id));if(!row)throw new Error('AI provider not found: '+id);return row}
  async discover(id){
-  const p=this._get(id);const key=p.apiKey?open(p.apiKey,this.key):'';
-  const headers={'Content-Type':'application/json',...p.headers};if(key)headers.Authorization='Bearer '+key;
+  const p=this._get(id);const key=p.apiKey?(open(p.apiKey,this.key)||open(p.apiKey,this.legacyKey)||''):' ';
+  const headers={'Content-Type':'application/json',...p.headers};if(key.trim())headers.Authorization='Bearer '+key.trim();
   const r=await fetch(joinUrl(p.baseUrl,'v1/models'),{headers});if(!r.ok)throw new Error('Model discovery HTTP '+r.status);
   const j=await r.json();return j.data||j.models||j;
  }
  async chat(id,payload={}){
   const p=this._get(id);if(!p.enabled)throw new Error('AI provider disabled');
-  const key=p.apiKey?open(p.apiKey,this.key):'';
+  const key=p.apiKey?(open(p.apiKey,this.key)||open(p.apiKey,this.legacyKey)||''):' ';
   const headers={'Content-Type':'application/json',...p.headers};if(key)headers.Authorization='Bearer '+key;
   const body={model:payload.model||p.model,messages:payload.messages||[{role:'user',content:String(payload.prompt||'')}],
    temperature:payload.temperature,max_tokens:payload.maxTokens||payload.max_tokens,stream:false};
