@@ -24,6 +24,7 @@ const { sendCloud } = require('./17-cloud-api');
 const { SecretStore } = require('./18-secret-store');
 const { TelegramAdapter } = require('./28-telegram-adapter');
 const { AIProviderHub } = require('./29-ai-provider-hub');
+const { CapabilityFoundation } = require('./30-capability-foundation');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -49,6 +50,7 @@ const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'
 const secretStore = new SecretStore(path.join(dataDir, 'secrets.json'));
 const telegram = new TelegramAdapter({ dataDir: path.join(dataDir, 'telegram'), audit });
 const aiHub = new AIProviderHub({ dataDir: path.join(dataDir, 'ai'), masterKey: process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY });
+const aiCapabilities = new CapabilityFoundation({ hub: aiHub, audit });
 const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 
@@ -760,6 +762,10 @@ async function route(req, res) {
     if (req.method === 'POST' && p === '/api/platform/backup') return json(res,200,{ok:true,file:platform.backups.create()});
     if (req.method === 'POST' && p === '/api/platform/search') { const x=await parseBody(req); return json(res,200,platform.contacts.filter({search:x.q||'',gender:x.gender||'all',tag:x.tag||null})); }
 
+    if (req.method === 'GET' && p === '/api/ai/capabilities') return json(res, 200, aiCapabilities.catalog());
+    if (req.method === 'POST' && p === '/api/ai/health') { const x=await parseBody(req); return json(res,200,await aiCapabilities.health(String(x.provider||''))); }
+    if (req.method === 'POST' && p === '/api/ai/execute') return json(res,200,await aiCapabilities.execute(await parseBody(req)));
+    if (req.method === 'POST' && p === '/api/ai/fallback') return json(res,200,await aiCapabilities.fallback(await parseBody(req)));
     if (req.method === 'GET' && p === '/api/contacts') {
       return json(res, 200, await state.readContacts());
     }
