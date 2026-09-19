@@ -74,11 +74,16 @@ class AIProviderHub{
  }
  remove(id){this._save(this._raw().filter(x=>x.id!==String(id)));return {ok:true}}
  _get(id){const row=this._raw().find(x=>x.id===String(id));if(!row)throw new Error('AI provider not found: '+id);return row}
- async discover(id){
-  const p=this._get(id);const key=p.apiKey?(open(p.apiKey,this.key)||open(p.apiKey,this.legacyKey)||''):' ';
-  const headers={'Content-Type':'application/json',...p.headers};if(key.trim())headers.Authorization='Bearer '+key.trim();
-  const r=await fetch(joinUrl(p.baseUrl,'v1/models'),{headers});if(!r.ok)throw new Error('Model discovery HTTP '+r.status);
-  const j=await r.json();return j.data||j.models||j;
+ async discover(id, options={}){
+  const p=this._get(id);const key=p.apiKey?(open(p.apiKey,this.key)||open(p.apiKey,this.legacyKey)||''):'';
+  const headers={'Content-Type':'application/json',...p.headers};if(key)headers.Authorization='Bearer '+key;
+  const t=withTimeout(options.timeoutMs||120000);
+  try{
+   const r=await fetch(joinUrl(p.baseUrl,'v1/models'),{headers,signal:t.controller.signal});
+   if(!r.ok)throw new Error('Model discovery HTTP '+r.status);
+   const j=await r.json();return j.data||j.models||j;
+  }catch(e){if(e.name==='AbortError')throw new Error('Model discovery timed out');throw e}
+  finally{t.clear()}
  }
  async chat(id,payload={}){
   const p=this._get(id);if(!p.enabled)throw new Error('AI provider disabled');
