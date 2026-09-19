@@ -16,7 +16,7 @@
     "test:platform": "node test/12-platform-tests.js",
     "test:web": "node test/9-web-ui-tests.js",
     "test:runtime": "node test/10-runtime-tests.js",
-    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime && npm run test:4.3 && npm run test:platform && npm run test:channels && npm run test:telegram && npm run test:ai && npm run test:capabilities",
+    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime && npm run test:4.3 && npm run test:platform && npm run test:channels && npm run test:telegram && npm run test:ai && npm run test:capabilities && npm run test:security",
     "server": "node src/server.js",
     "termux": "node src/server.js",
     "start:web": "node src/server.js",
@@ -24,7 +24,8 @@
     "test:channels": "node test/13-public-channel-search-tests.js",
     "test:telegram": "node test/14-telegram-adapter-tests.js",
     "test:ai": "node test/15-ai-provider-hub-tests.js",
-    "test:capabilities": "node test/16-capability-foundation-tests.js"
+    "test:capabilities": "node test/16-capability-foundation-tests.js",
+    "test:security": "node test/17-production-hardening-tests.js"
   },
   "build": {
     "appId": "com.galaxyuniversity.whatsapp-scrapper",
