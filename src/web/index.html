@@ -382,5 +382,88 @@ async function searchPublicChannels(){
   }
 }
 </script>
+
+<section class="card" id="operationsSuite" style="margin:18px">
+<h2>Platform 5.4 — Media Library & Broadcast Operations</h2>
+<div class="grid">
+  <input id="opFileInput" type="file" multiple>
+  <input id="opCollection" placeholder="Collection">
+  <input id="opTags" placeholder="Tags: catalog,summer">
+  <button onclick="opImportFiles()">Import selected files</button>
+  <button onclick="opLoadFiles()">Refresh library</button>
+</div>
+<pre id="opFiles" style="max-height:260px;overflow:auto">Media library ready.</pre>
+<hr>
+<div class="grid">
+  <input id="opCampaignName" placeholder="Campaign name">
+  <input id="opCampaignAccount" placeholder="Connected account ID">
+  <textarea id="opCampaignMessage" placeholder="Message / caption. Supports {name} and {phone}"></textarea>
+  <input id="opMinDelay" type="number" min="0" value="0" placeholder="Min delay seconds">
+  <input id="opMaxDelay" type="number" min="0" value="0" placeholder="Max delay seconds">
+</div>
+<div>
+  <label>File IDs (comma separated):</label>
+  <input id="opFileIds" style="width:80%" placeholder="file-...">
+</div>
+<div class="grid">
+  <button onclick="opCreateCampaign()">Create campaign</button>
+  <button onclick="opDryRun()">Dry run / validate</button>
+  <button onclick="opStartCampaign()">Start / resume</button>
+  <button onclick="opPauseCampaign()">Pause</button>
+  <button onclick="opStopCampaign()">Stop</button>
+  <button onclick="opLoadCampaigns()">Campaigns</button>
+</div>
+<pre id="opCampaigns" style="max-height:360px;overflow:auto">Campaigns ready.</pre>
+<hr>
+<h3>Product Catalog</h3>
+<div class="grid">
+  <input id="opSku" placeholder="SKU">
+  <input id="opProductName" placeholder="Product name">
+  <input id="opProductPrice" placeholder="Price">
+  <input id="opProductCurrency" placeholder="Currency">
+  <input id="opProductCategory" placeholder="Category">
+  <textarea id="opProductDescription" placeholder="Description"></textarea>
+</div>
+<button onclick="opSaveProduct()">Save product</button>
+<button onclick="opLoadProducts()">Products</button>
+<pre id="opProducts" style="max-height:260px;overflow:auto">Products ready.</pre>
+</section>
+<script>
+async function opJson(path,opts={}){return api(path,opts)}
+async function opPost(path,data){return post(path,data)}
+async function opImportFiles(){
+  const input=$('opFileInput'); const files=[...(input.files||[])]; if(!files.length)return toast('Choose one or more files');
+  for(const f of files){
+    const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(f)});
+    await opPost('/api/operations/files/import',{name:f.name,mimeType:f.type,data,collection:$('opCollection').value.trim()||'default',tags:$('opTags').value.split(',').map(x=>x.trim()).filter(Boolean)});
+  }
+  toast('Imported '+files.length+' files'); await opLoadFiles();
+}
+async function opLoadFiles(){try{$('opFiles').textContent=JSON.stringify(await opJson('/api/operations/files'),null,2)}catch(e){toast(e.message)}}
+async function opCreateCampaign(){
+  try{
+    const r=await opPost('/api/operations/campaigns',{
+      name:$('opCampaignName').value.trim(),
+      accountId:$('opCampaignAccount').value.trim(),
+      message:$('opCampaignMessage').value,
+      fileIds:$('opFileIds').value.split(',').map(x=>x.trim()).filter(Boolean),
+      minDelaySeconds:Number($('opMinDelay').value||0),
+      maxDelaySeconds:Number($('opMaxDelay').value||0),
+      mode:'bundle'
+    });
+    $('opCampaigns').textContent=JSON.stringify(r,null,2); toast('Campaign created');
+  }catch(e){toast(e.message)}
+}
+async function opLoadCampaigns(){try{$('opCampaigns').textContent=JSON.stringify(await opJson('/api/operations/campaigns'),null,2)}catch(e){toast(e.message)}}
+async function opSelectedCampaign(){const rows=(await opJson('/api/operations/campaigns')).campaigns||[];return rows[0]?.id||''}
+async function opDryRun(){try{const id=await opSelectedCampaign();if(!id)return toast('Create a campaign first');$('opCampaigns').textContent=JSON.stringify(await opPost('/api/operations/campaigns/dry-run',{id}),null,2)}catch(e){toast(e.message)}}
+async function opStartCampaign(){try{const id=await opSelectedCampaign();if(!id)return toast('Create a campaign first');$('opCampaigns').textContent=JSON.stringify(await opPost('/api/operations/campaigns/start',{id}),null,2)}catch(e){toast(e.message)}}
+async function opPauseCampaign(){try{const id=await opSelectedCampaign();if(!id)return;await opPost('/api/operations/campaigns/pause',{id});await opLoadCampaigns()}catch(e){toast(e.message)}}
+async function opStopCampaign(){try{const id=await opSelectedCampaign();if(!id)return;await opPost('/api/operations/campaigns/stop',{id});await opLoadCampaigns()}catch(e){toast(e.message)}}
+async function opSaveProduct(){try{const r=await opPost('/api/operations/products',{sku:$('opSku').value,name:$('opProductName').value,price:$('opProductPrice').value,currency:$('opProductCurrency').value,category:$('opProductCategory').value,description:$('opProductDescription').value});$('opProducts').textContent=JSON.stringify(r,null,2);toast('Product saved')}catch(e){toast(e.message)}}
+async function opLoadProducts(){try{$('opProducts').textContent=JSON.stringify(await opJson('/api/operations/products'),null,2)}catch(e){toast(e.message)}}
+window.addEventListener('load',()=>{setTimeout(()=>{opLoadFiles();opLoadCampaigns();opLoadProducts()},500)});
+</script>
+
 </body>
 </html>
