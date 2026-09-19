@@ -55,9 +55,9 @@ const aiHub = new AIProviderHub({ dataDir: path.join(dataDir, 'ai'), masterKey: 
 const aiCapabilities = new CapabilityFoundation({ hub: aiHub, audit });
 const { OperationsSuite } = require('./31-operations-suite');
 const operations = new OperationsSuite(dataDir, audit, policy);
-const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
 const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
+const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
 
 const sessions = new Map();
 const listeners = new Set();
