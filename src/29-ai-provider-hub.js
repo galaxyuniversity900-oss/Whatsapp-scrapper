@@ -29,7 +29,7 @@ function seal(value,key){
 function open(row,key){
  try{const k=crypto.createHash('sha256').update(String(key)).digest(),d=crypto.createDecipheriv('aes-256-gcm',k,Buffer.from(row.iv,'base64'));d.setAuthTag(Buffer.from(row.tag,'base64'));return Buffer.concat([d.update(Buffer.from(row.data,'base64')),d.final()]).toString()}catch{return null}
 }
-function joinUrl(base,pathPart){return String(base||'').replace(/\/$/,'')+'/'+String(pathPart||'').replace(/^\//,'')}
+function joinUrl(base,pathPart){const b=String(base||'').replace(/\/$/,'');const p=String(pathPart||'').replace(/^\//,'');if(b.endsWith('/v1')&&p.startsWith('v1/'))return b+'/'+p.slice(3);return b+'/'+p}
 function normalizeBaseUrl(value){
  const raw=String(value||'').trim();
  if(!raw) throw new Error('Provider base URL is required');
