@@ -64,7 +64,8 @@ function tmp(){return fs.mkdtempSync(path.join(os.tmpdir(),'wa-scrapper-gate-'))
 
   const telegram=fs.readFileSync(path.join(__dirname,'..','src','28-telegram-adapter.js'),'utf8');
   assert.ok(telegram.includes('Private/invite-only participant scraping is disabled.'));
-  assert.ok(telegram.includes('Public-member listing'));
+  assert.ok(telegram.includes('publicMembers'));
+  assert.ok(telegram.includes('publicSearch'));
 
   console.log('Completion gate tests passed');
 })().catch(e=>{console.error(e);process.exit(1)});
