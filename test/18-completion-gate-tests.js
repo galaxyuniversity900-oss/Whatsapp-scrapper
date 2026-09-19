@@ -24,7 +24,7 @@ function tmp(){return fs.mkdtempSync(path.join(os.tmpdir(),'wa-scrapper-gate-'))
 
   const {AIProviderHub}=require('../src/29-ai-provider-hub');
   const aiDir=path.join(root,'ai');
-  const hub=new AIProviderHub({dataDir:aiDir,masterKey:'gate-ai'});
+  const hub=new AIProviderHub({dataDir:aiDir});
   assert.equal(hub.models().length,30);
   assert.ok(hub.presets().length>=6);
   assert.throws(()=>hub.upsert({id:'bad',baseUrl:'ftp://example.com',model:'x'}),/HTTP or HTTPS/);
