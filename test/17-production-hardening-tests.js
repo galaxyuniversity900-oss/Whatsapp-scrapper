@@ -4,7 +4,7 @@ const fs=require('fs');
 const path=require('path');
 
 const pkg=JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8'));
-assert.equal(pkg.version,'5.3.0');
+assert.equal(pkg.version,'5.5.0');
 assert.ok(pkg.scripts['test:all'].includes('test:capabilities'));
 
 const foundation=fs.readFileSync(path.join(__dirname,'..','src','30-capability-foundation.js'),'utf8');
