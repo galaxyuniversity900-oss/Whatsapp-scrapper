@@ -12,7 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: ${{ matrix.node }}, cache: npm }
+        with:
+          node-version: ${{ matrix.node }}
       - run: npm install
       - run: npm run lint
       - run: npm run test:all
@@ -21,7 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with:
+          node-version: 22
       - run: npm install
       - run: npm run lint
       - run: npm run test:completion
