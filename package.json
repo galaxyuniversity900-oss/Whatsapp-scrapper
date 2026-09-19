@@ -16,7 +16,7 @@
     "test:platform": "node test/12-platform-tests.js",
     "test:web": "node test/9-web-ui-tests.js",
     "test:runtime": "node test/10-runtime-tests.js",
-    "test:all": "npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime && npm run test:4.3 && npm run test:platform && npm run test:channels && npm run test:telegram && npm run test:ai && npm run test:capabilities && npm run test:security && npm run test:completion && npm run test:operations",
+    "test:all": "npm run test:inbox && npm test && npm run test:hardening && npm run test:professional && npm run test:platform && npm run test:web && npm run test:runtime && npm run test:4.3 && npm run test:platform && npm run test:channels && npm run test:telegram && npm run test:ai && npm run test:capabilities && npm run test:security && npm run test:completion && npm run test:operations",
     "server": "node src/server.js",
     "termux": "node src/server.js",
     "start:web": "node src/server.js",
@@ -27,7 +27,8 @@
     "test:capabilities": "node test/16-capability-foundation-tests.js",
     "test:security": "node test/17-production-hardening-tests.js",
     "test:completion": "node test/18-completion-gate-tests.js",
-    "test:operations": "node test/19-operations-suite-tests.js"
+    "test:operations": "node test/19-operations-suite-tests.js",
+    "test:inbox": "node test/20-inbox-tests.js"
   },
   "build": {
     "appId": "com.galaxyuniversity.whatsapp-scrapper",
