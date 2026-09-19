@@ -23,7 +23,7 @@ function read(file,f){try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{
 function loadLocalKey(file){
  try{const existing=fs.readFileSync(file,'utf8').trim();if(existing)return existing}catch{}
  const key=crypto.randomBytes(32).toString('hex');
- try{fs.writeFileSync(file,key+'\\n',{mode:0o600})}catch{}
+ try{fs.writeFileSync(file,key+'\n',{mode:0o600})}catch{}
  return key;
 }
 function write(file,v){const t=file+'.tmp-'+process.pid;fs.writeFileSync(t,JSON.stringify(v,null,2)+'\n');fs.renameSync(t,file)}
@@ -35,87 +35,71 @@ function seal(value,key){
 function open(row,key){
  try{const k=crypto.createHash('sha256').update(String(key)).digest(),d=crypto.createDecipheriv('aes-256-gcm',k,Buffer.from(row.iv,'base64'));d.setAuthTag(Buffer.from(row.tag,'base64'));return Buffer.concat([d.update(Buffer.from(row.data,'base64')),d.final()]).toString()}catch{return null}
 }
-function joinUrl(base,pathPart){const b=String(base||'').replace(/\/$/,'');const p=String(pathPart||'').replace(/^\//,'');if(b.endsWith('/v1')&&p.startsWith('v1/'))return b+'/'+p.slice(3);return b+'/'+p}
+function joinUrl(base,pathPart){const b=String(base||'').replace(/\/$/,''),p=String(pathPart||'').replace(/^\//,'');if(b.endsWith('/v1')&&p.startsWith('v1/'))return b+'/'+p.slice(3);return b+'/'+p}
 function normalizeBaseUrl(value){
- const raw=String(value||'').trim();
- if(!raw) throw new Error('Provider base URL is required');
- let u; try{u=new URL(raw)}catch{throw new Error('Provider base URL must be a valid URL')}
- if(!['http:','https:'].includes(u.protocol)) throw new Error('Provider base URL must use HTTP or HTTPS');
- if(u.username||u.password) throw new Error('Provider base URL must not contain credentials');
+ const raw=String(value||'').trim();if(!raw)throw new Error('Provider base URL is required');
+ let u;try{u=new URL(raw)}catch{throw new Error('Provider base URL must be a valid URL')}
+ if(!['http:','https:'].includes(u.protocol))throw new Error('Provider base URL must use HTTP or HTTPS');
+ if(u.username||u.password)throw new Error('Provider base URL must not contain credentials');
  return u.toString().replace(/\/$/,'');
 }
-function withTimeout(ms){
- const controller=new AbortController();
- const timer=setTimeout(()=>controller.abort(),Math.max(1000,Number(ms)||120000));
- return {controller,clear:()=>clearTimeout(timer)};
-}
+function withTimeout(ms){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),Math.max(1000,Number(ms)||120000));return{controller,clear:()=>clearTimeout(timer)}}
 
 class AIProviderHub{
  constructor(options={}){
-  this.dataDir=path.resolve(options.dataDir||path.join(process.cwd(),'.ai'));
-  fs.mkdirSync(this.dataDir,{recursive:true});this.file=path.join(this.dataDir,'providers.json');
-  this.legacyKey='local-ai-master-key';
+  this.dataDir=path.resolve(options.dataDir||path.join(process.cwd(),'.ai'));fs.mkdirSync(this.dataDir,{recursive:true});
+  this.file=path.join(this.dataDir,'providers.json');this.legacyKey='local-ai-master-key';
   this.key=options.masterKey||process.env.AI_MASTER_KEY||process.env.WA_MASTER_KEY||loadLocalKey(path.join(this.dataDir,'master.key'));
  }
  models(){return DEFAULT_MODELS}
  providers(){return read(this.file,[]).map(x=>({...x,apiKey:x.apiKey?'••••••••':''}))}
  _raw(){return read(this.file,[])}
  _save(rows){write(this.file,rows)}
+ _secret(row){
+  if(!row?.apiKey)return '';
+  const current=open(row.apiKey,this.key);if(current)return current;
+  const legacy=open(row.apiKey,this.legacyKey);
+  if(!legacy)return '';
+  const rows=this._raw(),index=rows.findIndex(x=>x.id===row.id);
+  if(index>=0){rows[index]={...rows[index],apiKey:seal(legacy,this.key),updatedAt:new Date().toISOString()};this._save(rows)}
+  return legacy;
+ }
  upsert(input){
-  const id=String(input.id||input.name||input.provider||'').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'-');
-  if(!id)throw new Error('Provider id is required');
-  const rows=this._raw().filter(x=>x.id!==id);
-  const old=this._raw().find(x=>x.id===id);
-  const row={id,name:input.name||id,provider:input.provider||'openai-compatible',
-   baseUrl:normalizeBaseUrl(input.baseUrl||old?.baseUrl||''),model:input.model||old?.model||'',
-   enabled:input.enabled!==false,apiKey:input.apiKey?seal(input.apiKey,this.key):(old?.apiKey||null),
-   headers:input.headers||old?.headers||{},createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+  const id=String(input.id||input.name||input.provider||'').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'-');if(!id)throw new Error('Provider id is required');
+  const old=this._raw().find(x=>x.id===id),rows=this._raw().filter(x=>x.id!==id);
+  const row={id,name:input.name||id,provider:input.provider||'openai-compatible',baseUrl:normalizeBaseUrl(input.baseUrl||old?.baseUrl||''),model:input.model||old?.model||'',enabled:input.enabled!==false,apiKey:input.apiKey?seal(input.apiKey,this.key):(old?.apiKey||null),headers:input.headers||old?.headers||{},createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
   rows.push(row);this._save(rows);return {...row,apiKey:row.apiKey?'••••••••':''};
  }
- remove(id){this._save(this._raw().filter(x=>x.id!==String(id)));return {ok:true}}
+ remove(id){this._save(this._raw().filter(x=>x.id!==String(id)));return{ok:true}}
  _get(id){const row=this._raw().find(x=>x.id===String(id));if(!row)throw new Error('AI provider not found: '+id);return row}
- async discover(id, options={}){
-  const p=this._get(id);const key=p.apiKey?(open(p.apiKey,this.key)||open(p.apiKey,this.legacyKey)||''):'';
-  const headers={'Content-Type':'application/json',...p.headers};if(key)headers.Authorization='Bearer '+key;
+ async discover(id,options={}){
+  const p=this._get(id),key=this._secret(p),headers={'Content-Type':'application/json',...p.headers};if(key)headers.Authorization='Bearer '+key;
   const t=withTimeout(options.timeoutMs||120000);
-  try{
-   const r=await fetch(joinUrl(p.baseUrl,'v1/models'),{headers,signal:t.controller.signal});
-   if(!r.ok)throw new Error('Model discovery HTTP '+r.status);
-   const j=await r.json();return j.data||j.models||j;
-  }catch(e){if(e.name==='AbortError')throw new Error('Model discovery timed out');throw e}
-  finally{t.clear()}
+  try{const r=await fetch(joinUrl(p.baseUrl,'v1/models'),{headers,signal:t.controller.signal});if(!r.ok)throw new Error('Model discovery HTTP '+r.status);const j=await r.json();return j.data||j.models||j}
+  catch(e){if(e.name==='AbortError')throw new Error('Model discovery timed out');throw e}finally{t.clear()}
  }
  async chat(id,payload={}){
   const p=this._get(id);if(!p.enabled)throw new Error('AI provider disabled');
-  const key=p.apiKey?(open(p.apiKey,this.key)||open(p.apiKey,this.legacyKey)||''):'';
-  const headers={'Content-Type':'application/json',...p.headers};if(key)headers.Authorization='Bearer '+key;
-  const body={model:payload.model||p.model,messages:payload.messages||[{role:'user',content:String(payload.prompt||'')}],
-   temperature:payload.temperature,max_tokens:payload.maxTokens||payload.max_tokens,stream:false};
+  const key=this._secret(p),headers={'Content-Type':'application/json',...p.headers};if(key)headers.Authorization='Bearer '+key;
+  const body={model:payload.model||p.model,messages:payload.messages||[{role:'user',content:String(payload.prompt||'')}],temperature:payload.temperature,max_tokens:payload.maxTokens||payload.max_tokens,stream:false};
   Object.keys(body).forEach(k=>body[k]===undefined&&delete body[k]);
-  const url=payload.endpoint||joinUrl(p.baseUrl,'v1/chat/completions');
-  let parsedUrl; try{parsedUrl=new URL(url)}catch{throw new Error('AI endpoint must be a valid URL')}
+  const url=payload.endpoint||joinUrl(p.baseUrl,'v1/chat/completions');let parsedUrl;try{parsedUrl=new URL(url)}catch{throw new Error('AI endpoint must be a valid URL')}
   if(!['http:','https:'].includes(parsedUrl.protocol)||parsedUrl.username||parsedUrl.password)throw new Error('AI endpoint URL is invalid');
-  const t=withTimeout(payload.timeoutMs||120000);
-  let r,text;
-  try{
-   r=await fetch(url,{method:'POST',headers,body:JSON.stringify(body),signal:t.controller.signal});
-   text=await r.text();
-  }catch(e){if(e.name==='AbortError')throw new Error('AI request timed out');throw e}
-  finally{t.clear()}
+  const t=withTimeout(payload.timeoutMs||120000);let r,text;
+  try{r=await fetch(url,{method:'POST',headers,body:JSON.stringify(body),signal:t.controller.signal});text=await r.text()}
+  catch(e){if(e.name==='AbortError')throw new Error('AI request timed out');throw e}finally{t.clear()}
   if(!r.ok)throw new Error('AI HTTP '+r.status+': '+text.slice(0,500));
-  let j;try{j=JSON.parse(text)}catch{j={text}};
-  return {provider:id,model:body.model,raw:j,text:j?.choices?.[0]?.message?.content??j?.output_text??j?.content?.[0]?.text??j?.text??'',usage:j?.usage||null};
+  let j;try{j=JSON.parse(text)}catch{j={text}}
+  return{provider:id,model:body.model,raw:j,text:j?.choices?.[0]?.message?.content??j?.output_text??j?.content?.[0]?.text??j?.text??'',usage:j?.usage||null};
  }
- presets(){
-  return [
-   {id:'openrouter',name:'OpenRouter',provider:'openrouter',baseUrl:'https://openrouter.ai/api',model:'openrouter/auto'},
-   {id:'ollama',name:'Ollama Local',provider:'ollama',baseUrl:'http://127.0.0.1:11434',model:'llama4'},
-   {id:'lmstudio',name:'LM Studio Local',provider:'lmstudio',baseUrl:'http://127.0.0.1:1234',model:'local-model'},
-   {id:'vllm',name:'vLLM Local',provider:'vllm',baseUrl:'http://127.0.0.1:8000',model:'auto'},
-   {id:'llamacpp',name:'llama.cpp Local',provider:'llama.cpp',baseUrl:'http://127.0.0.1:8080',model:'local-model'},
-   {id:'unikey',name:'UniKey',provider:'unikey',baseUrl:'https://www.getunikey.ai/v1',model:'gpt-5.5'}
-  ];
- }
+ presets(){return[
+  {id:'openrouter',name:'OpenRouter',provider:'openrouter',baseUrl:'https://openrouter.ai/api',model:'openrouter/auto'},
+  {id:'ollama',name:'Ollama Local',provider:'ollama',baseUrl:'http://127.0.0.1:11434',model:'llama4'},
+  {id:'lmstudio',name:'LM Studio Local',provider:'lmstudio',baseUrl:'http://127.0.0.1:1234',model:'local-model'},
+  {id:'vllm',name:'vLLM Local',provider:'vllm',baseUrl:'http://127.0.0.1:8000',model:'auto'},
+  {id:'llamacpp',name:'llama.cpp Local',provider:'llama.cpp',baseUrl:'http://127.0.0.1:8080',model:'local-model'},
+  {id:'unikey',name:'UniKey',provider:'unikey',baseUrl:'https://www.getunikey.ai/v1',model:'gpt-5.5'}
+ ]}
  async compare(request={}){
   const ids=Array.isArray(request.providers)?request.providers:this._raw().filter(x=>x.enabled).map(x=>x.id);
   const results=await Promise.allSettled(ids.slice(0,30).map(id=>this.chat(id,request)));
