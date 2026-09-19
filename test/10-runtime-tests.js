@@ -26,6 +26,8 @@ async function waitForServer(){
 }
 (async()=>{
   try{
+    const unauth=await waitForServer();
+    assert.strictEqual(unauth.status,401);
     const tokenResponse=await get('/api/security/token');
     assert.strictEqual(tokenResponse.status,200);
     const token=tokenResponse.body.token;
