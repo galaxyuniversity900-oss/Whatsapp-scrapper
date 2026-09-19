@@ -13,9 +13,9 @@ let output='';
 child.stdout.on('data',d=>output+=d.toString());
 child.stderr.on('data',d=>output+=d.toString());
 
-function get(pathname){
+function get(pathname,headers={}){
   return new Promise((resolve,reject)=>{
-    const req=http.get({host:'127.0.0.1',port,path:pathname},res=>{
+    const req=http.get({host:'127.0.0.1',port,path:pathname,headers},res=>{
       let raw='';res.on('data',d=>raw+=d);res.on('end',()=>{try{resolve({status:res.statusCode,body:JSON.parse(raw)})}catch(e){reject(e)}})
     });req.on('error',reject)
   });
@@ -26,16 +26,21 @@ async function waitForServer(){
 }
 (async()=>{
   try{
-    const health=await waitForServer();
+    const tokenResponse=await get('/api/security/token');
+    assert.strictEqual(tokenResponse.status,200);
+    const token=tokenResponse.body.token;
+    assert.ok(token);
+    const auth={'X-API-Key':token};
+    const health=await get('/api/health',auth);
     assert.strictEqual(health.status,200);
     assert.strictEqual(health.body.ok,true);
-    const browser=await get('/api/browser');
+    const browser=await get('/api/browser',auth);
     assert.strictEqual(browser.status,200);
-    const sessions=await get('/api/sessions');
+    const sessions=await get('/api/sessions',auth);
     assert.deepStrictEqual(sessions.body,[]);
-    const contacts=await get('/api/contacts');
+    const contacts=await get('/api/contacts',auth);
     assert.deepStrictEqual(contacts.body,[]);
-    const runtime=await get('/api/runtime');
+    const runtime=await get('/api/runtime',auth);
     assert.strictEqual(runtime.body.health.sessions,0);
     assert.ok(Array.isArray(runtime.body.sessions));
     console.log('PASS real server health');
