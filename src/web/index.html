@@ -465,5 +465,36 @@ async function opLoadProducts(){try{$('opProducts').textContent=JSON.stringify(a
 window.addEventListener('load',()=>{setTimeout(()=>{opLoadFiles();opLoadCampaigns();opLoadProducts()},500)});
 </script>
 
+
+<section class="card" id="unifiedInbox" style="margin:18px">
+<h2>Platform 5.5 — Unified Team Inbox</h2>
+<div class="grid">
+<input id="inboxSearch" placeholder="Search conversations">
+<select id="inboxStatus"><option value="all">All status</option><option>open</option><option>pending</option><option>resolved</option><option>closed</option></select>
+<select id="inboxPriority"><option value="all">All priority</option><option>low</option><option>normal</option><option>high</option><option>urgent</option></select>
+<input id="inboxAssignee" placeholder="Assignee">
+<button onclick="loadInbox()">Refresh</button><button onclick="syncInbox()">Sync</button>
+</div>
+<pre id="inboxSummary">Loading...</pre>
+<div id="inboxRows"></div>
+<pre id="inboxConversation">Select a conversation.</pre>
+</section>
+<script>
+async function loadInbox(){
+ try{
+  const q=new URLSearchParams({q:$('inboxSearch').value,status:$('inboxStatus').value,priority:$('inboxPriority').value,assignee:$('inboxAssignee').value});
+  const [a,b]=await Promise.all([opJson('/api/inbox?'+q),opJson('/api/inbox/summary')]);
+  $('inboxSummary').textContent=JSON.stringify(b,null,2);
+  $('inboxRows').innerHTML=(a.conversations||[]).map(x=>'<button style="display:block;width:100%;text-align:left;margin:4px 0;padding:8px" onclick="openInboxConversation(\''+x.id+'\')">'+escapeHtml(x.chatName||x.chatId)+' · '+escapeHtml(x.status)+' · '+escapeHtml(x.priority)+'<br><small>'+escapeHtml(x.lastMessage||'')+'</small></button>').join('');
+ }catch(e){toast(e.message)}
+}
+async function openInboxConversation(id){
+ try{$('inboxConversation').textContent=JSON.stringify((await opJson('/api/inbox/conversation?id='+encodeURIComponent(id))).conversation,null,2)}catch(e){toast(e.message)}
+}
+async function syncInbox(){try{await opPost('/api/inbox/sync',{});await loadInbox();toast('Inbox synchronized')}catch(e){toast(e.message)}}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+window.addEventListener('load',()=>setTimeout(loadInbox,700));
+</script>
+
 </body>
 </html>
