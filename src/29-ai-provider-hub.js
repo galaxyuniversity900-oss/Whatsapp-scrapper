@@ -87,7 +87,7 @@ class AIProviderHub{
  }
  async chat(id,payload={}){
   const p=this._get(id);if(!p.enabled)throw new Error('AI provider disabled');
-  const key=p.apiKey?(open(p.apiKey,this.key)||open(p.apiKey,this.legacyKey)||''):' ';
+  const key=p.apiKey?(open(p.apiKey,this.key)||open(p.apiKey,this.legacyKey)||''):'';
   const headers={'Content-Type':'application/json',...p.headers};if(key)headers.Authorization='Bearer '+key;
   const body={model:payload.model||p.model,messages:payload.messages||[{role:'user',content:String(payload.prompt||'')}],
    temperature:payload.temperature,max_tokens:payload.maxTokens||payload.max_tokens,stream:false};
@@ -105,6 +105,16 @@ class AIProviderHub{
   if(!r.ok)throw new Error('AI HTTP '+r.status+': '+text.slice(0,500));
   let j;try{j=JSON.parse(text)}catch{j={text}};
   return {provider:id,model:body.model,raw:j,text:j?.choices?.[0]?.message?.content??j?.output_text??j?.content?.[0]?.text??j?.text??'',usage:j?.usage||null};
+ }
+ presets(){
+  return [
+   {id:'openrouter',name:'OpenRouter',provider:'openrouter',baseUrl:'https://openrouter.ai/api',model:'openrouter/auto'},
+   {id:'ollama',name:'Ollama Local',provider:'ollama',baseUrl:'http://127.0.0.1:11434',model:'llama4'},
+   {id:'lmstudio',name:'LM Studio Local',provider:'lmstudio',baseUrl:'http://127.0.0.1:1234',model:'local-model'},
+   {id:'vllm',name:'vLLM Local',provider:'vllm',baseUrl:'http://127.0.0.1:8000',model:'auto'},
+   {id:'llamacpp',name:'llama.cpp Local',provider:'llama.cpp',baseUrl:'http://127.0.0.1:8080',model:'local-model'},
+   {id:'unikey',name:'UniKey',provider:'unikey',baseUrl:'https://www.getunikey.ai/v1',model:'gpt-5.5'}
+  ];
  }
  async compare(request={}){
   const ids=Array.isArray(request.providers)?request.providers:this._raw().filter(x=>x.enabled).map(x=>x.id);
