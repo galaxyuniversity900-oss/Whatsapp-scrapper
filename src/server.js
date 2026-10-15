@@ -29,6 +29,7 @@ const { CapabilityFoundation } = require('./30-capability-foundation');
 const { InboxEngine } = require('./32-inbox-engine');
 const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
 const { SmartCampaignPlanner } = require('./35-smart-campaign-planner');
+const { ConsentLedger } = require('./36-consent-ledger');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -62,6 +63,7 @@ const platform = createPlatform(dataDir);
 const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
 const veritasAudit = new VeritasCampaignAudit({ audit });
 const smartCampaignPlanner = new SmartCampaignPlanner();
+const consentLedger = new ConsentLedger(path.join(dataDir, 'consent-ledger.json'));
 
 const sessions = new Map();
 const listeners = new Set();
@@ -878,6 +880,23 @@ async function route(req, res) {
       const message = x.message !== undefined ? x.message : (campaign?.message || campaign?.template || '');
       return json(res, 200, { ok: true, report: veritasAudit.preflight({ contacts, message, campaignId: x.campaignId || null }) });
     }
+    if (req.method === 'GET' && p === '/api/consent/summary') {
+      return json(res, 200, { ok: true, summary: consentLedger.summary() });
+    }
+    if (req.method === 'GET' && p === '/api/consent/status') {
+      const phone = url.searchParams.get('phone') || '';
+      const channel = url.searchParams.get('channel') || null;
+      return json(res, 200, { ok: true, status: consentLedger.status(phone, channel) });
+    }
+    if (req.method === 'POST' && p === '/api/consent/record') {
+      const input = await parseBody(req);
+      const event = consentLedger.record(input);
+      audit.append('consent_ledger_event_recorded', {
+        eventId: event.id, subjectKey: event.subjectKey, decision: event.decision,
+        channel: event.channel, purpose: event.purpose, recordedAt: event.recordedAt
+      });
+      return json(res, 201, { ok: true, event, status: consentLedger.status(input.phone || input.number, input.channel || null) });
+    }
     if (req.method === 'GET' && p === '/api/integrity/summary') {
       const contacts = await state.readContacts();
       return json(res, 200, { ok: true, report: veritasAudit.auditSummary({
@@ -886,7 +905,16 @@ async function route(req, res) {
     }
     if (req.method === 'POST' && p === '/api/integrity/campaign-plan') {
       const x = await parseBody(req);
-      const contacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();
+      const rawContacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();
+      const contacts = rawContacts.map(contact => {
+        const phone = contact && (contact.phone || contact.number);
+        if (!phone) return contact;
+        const status = consentLedger.status(phone, 'whatsapp');
+        if (status.status === 'opted_out' || status.status === 'revoked') {
+          return { ...contact, consent: false, optOut: true };
+        }
+        return status.status === 'granted' ? { ...contact, consent: true } : contact;
+      });
       const campaign = x.campaignId ? operations.getCampaign(x.campaignId) : null;
       const message = x.message !== undefined ? x.message : (campaign?.message || campaign?.template || '');
       const report = smartCampaignPlanner.plan({
