@@ -643,6 +643,43 @@ window.addEventListener('load',()=>setTimeout(loadInbox,700));
 
 
 
+
+<section class="card" id="veritasControlCenter" style="margin:18px">
+  <h2>VERITAS Control Center — Diagnostics / Mission / Data Intelligence</h2>
+  <p>Deterministic tools work without AI. This center reports evidence and proposes actions; it does not silently send messages or change imported records.</p>
+  <div class="grid">
+    <button onclick="vccHealth()">Run system preflight</button>
+    <button onclick="vccPlaybooks()">Load playbooks</button>
+    <input id="vccGoal" placeholder="Describe a mission in Arabic or English">
+    <button onclick="vccMission()">Plan mission</button>
+  </div>
+  <h3>Data tools (paste JSON arrays)</h3>
+  <div class="grid">
+    <textarea id="vccRecords" placeholder='Records JSON, e.g. [{"id":"1","name":"Customer","phone":"+201001234567","consent":true}]'></textarea>
+    <textarea id="vccBefore" placeholder="Previous records JSON for Change Radar (optional)"></textarea>
+    <textarea id="vccAfter" placeholder="New records JSON for Change Radar (optional)"></textarea>
+    <textarea id="vccMessage" placeholder="Message text for simulation only"></textarea>
+  </div>
+  <div class="grid">
+    <button onclick="vccQuality()">Data Quality Doctor</button>
+    <button onclick="vccOpportunities()">Opportunity Radar</button>
+    <button onclick="vccDiff()">Change Radar</button>
+    <button onclick="vccSimulate()">Campaign Simulation (no sending)</button>
+  </div>
+  <pre id="vccOutput" style="max-height:480px;overflow:auto;margin-top:10px">Control Center ready.</pre>
+</section>
+<script>
+async function vccPost(path,data){return post(path,data)}
+async function vccHealth(){try{$('vccOutput').textContent=JSON.stringify(await api('/api/control-center/health'),null,2)}catch(e){toast(e.message)}}
+async function vccPlaybooks(){try{$('vccOutput').textContent=JSON.stringify(await api('/api/control-center/playbooks'),null,2)}catch(e){toast(e.message)}}
+async function vccMission(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/mission',{goal:$('vccGoal').value}),null,2)}catch(e){toast(e.message)}}
+function vccParse(id){const v=$(id).value.trim();if(!v)return [];const j=JSON.parse(v);if(!Array.isArray(j))throw Error(id+' must contain a JSON array');return j}
+async function vccQuality(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/data-quality',{records:vccParse('vccRecords')}),null,2)}catch(e){toast(e.message);$('vccOutput').textContent=e.message}}
+async function vccOpportunities(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/opportunities',{records:vccParse('vccRecords')}),null,2)}catch(e){toast(e.message);$('vccOutput').textContent=e.message}}
+async function vccDiff(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/change-radar',{before:vccParse('vccBefore'),after:vccParse('vccAfter')}),null,2)}catch(e){toast(e.message);$('vccOutput').textContent=e.message}}
+async function vccSimulate(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/simulate',{contacts:vccParse('vccRecords'),message:$('vccMessage').value}),null,2)}catch(e){toast(e.message);$('vccOutput').textContent=e.message}}
+</script>
+
 <section class="card" id="aiProviderWorkspace" style="margin:18px">
   <h2>AI Provider Hub — Cloud / Local / NVIDIA NIM</h2>
   <p>Configure model APIs separately from MCP and workflow connectors. AI is optional; no provider is required for local deterministic features.</p>
