@@ -21,6 +21,7 @@ const { UniversalConnectorHub, AGENT_CATALOG } = require('../src/35-universal-co
   assert.equal(hub.credentials('cookie-test').cookie, 'sid=secret-session-value');
   assert.throws(() => hub.upsert({ id:'bad', type:'api', endpoint:'file:///etc/passwd' }), /HTTP or HTTPS/);
   assert.throws(() => hub.upsert({ id:'bad-url', type:'api', endpoint:'https://user:pass@example.com' }), /credentials/);
+  assert.throws(() => hub.upsert({ id:'bad-query', type:'api', endpoint:'https://example.com/api?api_key=secret' }), /query parameters/);
   assert.throws(() => hub.upsert({ id:'bad-type', type:'other', endpoint:'https://example.com' }), /Unsupported connector type/);
   assert.equal(hub.remove('cookie-test').removed, true);
   assert.equal(hub.list().length, 0);
