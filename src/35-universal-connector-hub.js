@@ -98,6 +98,7 @@ class UniversalConnectorHub {
     this.key = String(options.masterKey || process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY || this._loadKey());
     this.timeoutMs = Math.min(120000, Math.max(1000, Number(options.timeoutMs) || 20000));
     this.mcpSessions = new Map();
+    this.mcpInitialized = new Set();
   }
   _loadKey() {
     const file = path.join(this.dataDir, 'master.key');
@@ -109,7 +110,7 @@ class UniversalConnectorHub {
   _rows() { return safeRead(this.file, []); }
   catalog() { return { version: '1.0.0', connectors: AGENT_CATALOG, authModes: ['none','apiKey','bearer','cookie','session','customHeaders'], protocols: ['openai-compatible','http-json','mcp','custom'], safety: { credentialsEncryptedAtRest: true, secretsReturned: false, mcpToolsRequireExplicitCall: true } }; }
   list() {
-    return this._rows().map(row => ({ ...row, credentials: undefined, hasCredentials: !!row.credentialsBox, credentialMode: row.credentialMode || 'none' }));
+    return this._rows().map(row => { const { credentialsBox, ...publicRow } = row; return { ...publicRow, hasCredentials: !!credentialsBox, credentialMode: row.credentialMode || 'none' }; });
   }
   get(id) { const row = this._rows().find(x => x.id === cleanId(id)); if (!row) throw new Error('Connector not found'); return row; }
   credentials(id) { return decrypt(this.get(id).credentialsBox, this.key); }
@@ -197,13 +198,15 @@ class UniversalConnectorHub {
   }
   async _mcpRequest(row, method, params = {}) {
     const id = crypto.randomBytes(6).readUIntBE(0, 6);
-    const headers = { 'MCP-Protocol-Version': '2025-03-26' };
+    const headers = {};
+    if (method !== 'initialize') headers['MCP-Protocol-Version'] = '2025-03-26';
     const sessionId = this.mcpSessions.get(row.id);
     if (sessionId && method !== 'initialize') headers['Mcp-Session-Id'] = sessionId;
     const result = await this._request(row, { jsonrpc: '2.0', id, method, params }, 'POST', headers);
     if (method === 'initialize') {
       const issuedSession = result.response.headers.get('mcp-session-id');
       if (issuedSession) this.mcpSessions.set(row.id, issuedSession);
+      this.mcpInitialized.add(row.id);
       const protocol = result.response.headers.get('mcp-protocol-version') || '2025-03-26';
       const initializedHeaders = { 'MCP-Protocol-Version': protocol };
       if (issuedSession) initializedHeaders['Mcp-Session-Id'] = issuedSession;
@@ -213,9 +216,14 @@ class UniversalConnectorHub {
     if (payload.error) throw new Error('MCP ' + payload.error.code + ': ' + String(payload.error.message || 'request failed'));
     return payload.result || payload;
   }
+  async _ensureMcpInitialized(row) {
+    if (this.mcpInitialized.has(row.id)) return;
+    await this._mcpRequest(row, 'initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'whatsapp-scrapper', version: '5.7.0' } });
+  }
   async mcpTools(id) {
     const row = this.get(id);
     if (row.protocol !== 'mcp' && row.type !== 'mcp') throw new Error('Connector is not an MCP server');
+    await this._ensureMcpInitialized(row);
     const result = await this._mcpRequest(row, 'tools/list', {});
     return { ok: true, tools: Array.isArray(result.tools) ? result.tools : [], nextCursor: result.nextCursor || null };
   }
