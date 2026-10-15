@@ -670,10 +670,48 @@ async function startGroupMessageJob(payload = {}) {
   return { ok: true, job };
 }
 
+function requireAdminBasicAuth(req, res) {
+  const expectedUser = process.env.WA_ADMIN_USER || 'admin';
+  const expectedPassword = process.env.WA_ADMIN_PASSWORD || '';
+  if (!expectedPassword) {
+    if (process.env.NODE_ENV === 'production') {
+      res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: false, error: 'Server admin password is not configured.' }));
+      return false;
+    }
+    return true;
+  }
+  const header = String(req.headers.authorization || '');
+  const match = /^Basic\s+(.+)$/i.exec(header);
+  let user = '', password = '';
+  if (match) {
+    try {
+      const decoded = Buffer.from(match[1], 'base64').toString('utf8');
+      const split = decoded.indexOf(':');
+      if (split >= 0) { user = decoded.slice(0, split); password = decoded.slice(split + 1); }
+    } catch {}
+  }
+  const safeEqual = (a, b) => {
+    const aa = crypto.createHash('sha256').update(String(a)).digest();
+    const bb = crypto.createHash('sha256').update(String(b)).digest();
+    return crypto.timingSafeEqual(aa, bb);
+  };
+  if (safeEqual(user, expectedUser) && safeEqual(password, expectedPassword)) return true;
+  res.writeHead(401, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'WWW-Authenticate': 'Basic realm="WhatsApp Scrapper Admin", charset="UTF-8"',
+    'Cache-Control': 'no-store'
+  });
+  res.end(JSON.stringify({ ok: false, error: 'Administrator login required.' }));
+  return false;
+}
+
 async function route(req, res) {
   const url = new URL(req.url, 'http://127.0.0.1');
   const p = url.pathname;
   applySecurityHeaders(req, res);
+  if (p === '/healthz' && req.method === 'GET') return json(res, 200, { ok: true, status: 'healthy' });
+  if (!requireAdminBasicAuth(req, res)) return;
   if (req.method === 'OPTIONS') {
     return res.end();
   }
