@@ -27,6 +27,7 @@ const { TelegramAdapter } = require('./28-telegram-adapter');
 const { AIProviderHub } = require('./29-ai-provider-hub');
 const { CapabilityFoundation } = require('./30-capability-foundation');
 const { InboxEngine } = require('./32-inbox-engine');
+const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -58,6 +59,7 @@ const operations = new OperationsSuite(dataDir, audit, policy);
 const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
+const veritasAudit = new VeritasCampaignAudit({ audit });
 
 const sessions = new Map();
 const listeners = new Set();
@@ -851,6 +853,21 @@ async function route(req, res) {
     }
     if (req.method === 'GET' && p === '/api/audit') {
       return json(res, 200, audit.read(Math.min(1000, Number(url.searchParams.get('limit') || 200))));
+    }
+
+    if (req.method === 'POST' && p === '/api/integrity/campaign-preflight') {
+      const x = await parseBody(req);
+      const contacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();
+      const campaign = x.campaignId ? operations.getCampaign(x.campaignId) : null;
+      const message = x.message !== undefined ? x.message : (campaign?.message || campaign?.template || '');
+      const report = veritasAudit.preflight({ contacts, message, campaignId: x.campaignId || null });
+      return json(res, 200, { ok: true, report });
+    }
+    if (req.method === 'GET' && p === '/api/integrity/summary') {
+      const contacts = await state.readContacts();
+      return json(res, 200, { ok: true, report: veritasAudit.auditSummary({
+        contacts, delivery: delivery.list(100000), auditEvents: audit.read(100000)
+      }) });
     }
     if (req.method === 'GET' && p === '/api/operations/files') {
       return json(res,200,{ok:true,files:operations.listFiles({q:url.searchParams.get('q')||'',collection:url.searchParams.get('collection')||'',tag:url.searchParams.get('tag')||''})});
