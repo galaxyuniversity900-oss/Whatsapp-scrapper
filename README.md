@@ -181,3 +181,31 @@ The local HTTP service is protected by an installation-specific API token. The w
 AI provider credentials and Cloud API secrets use installation-specific encryption keys when an explicit AI_MASTER_KEY / WA_MASTER_KEY is not supplied. Provider URLs are validated to HTTP/HTTPS without embedded credentials, and AI model discovery/chat requests have bounded timeouts.
 
 The full test suite now includes capability and production-hardening regression tests, and the Windows packaging workflow remains part of CI.
+
+## VERITAS X campaign integrity tools
+
+The VERITAS X integration adds an evidence-first preflight and an integrity summary. It is intentionally read-only: it does not send messages, alter consent, or claim that WhatsApp delivery has been independently verified.
+
+### Campaign preflight
+
+`POST /api/integrity/campaign-preflight` (requires the local API token).
+
+Example body:
+
+```json
+{
+  "campaignId": "campaign-123",
+  "message": "Hello {name}"
+}
+```
+
+If `contacts` is omitted, the endpoint reads the existing local contact store. To audit a supplied list, pass `contacts` explicitly. The report includes eligible/blocked counts, masked phone identifiers, reasons a record is blocked, duplicate detection, missing consent evidence, opt-out suppression, empty-message blockers, and unresolved template variables. Only an explicit `consent: true` is accepted; unknown consent is not treated as permission. A preflight result is not a send authorization and requires operator review.
+
+### Integrity summary
+
+`GET /api/integrity/summary` (requires the local API token) summarizes consent-field coverage, local delivery status counts, and malformed audit timestamps. It states its limitations and does not infer actual delivery from a send API response.
+
+### Tests
+
+Run `npm run test:veritas` for the focused tests or `npm run test:all` for the full suite. The code has been added to the repository's test scripts; test execution must still be confirmed by CI or by running the commands in the target environment.
+
