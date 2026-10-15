@@ -18,7 +18,7 @@ assert.equal(plan.summary.capped, 1);
 assert.equal(plan.summary.batches, 1);
 assert.equal(plan.guarantees.sentMessages, 0);
 assert.equal(plan.guarantees.contactsModified, false);
-assert.equal(plan.batches[0].recipients[0].phoneMasked, '*********4567');
+assert.equal(plan.batches[0].recipients[0].phoneMasked, '********4567');
 assert.ok(plan.excluded.some(x => x.reasons.includes('consent_not_confirmed')));
 assert.ok(plan.excluded.some(x => x.reasons.includes('opted_out')));
 assert.ok(plan.excluded.some(x => x.reasons.includes('duplicate_phone')));
