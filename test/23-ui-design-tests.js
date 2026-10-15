@@ -1,0 +1,15 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'web', 'index.html'), 'utf8');
+assert.match(html, /--bg:#111411/, 'graphite base token missing');
+assert.match(html, /--green:#a7d46f/, 'intentional mineral-lime accent missing');
+assert.match(html, /prefers-reduced-motion:reduce/, 'reduced-motion accessibility support missing');
+assert.match(html, /@media\(max-width:650px\)/, 'mobile layout rules missing');
+assert.match(html, /data-view="dashboard"/, 'existing navigation contract missing');
+assert.match(html, /function connectSSE\(/, 'existing live event connection must remain');
+assert.match(html, /function refreshAll\(/, 'existing runtime refresh must remain');
+assert.match(html, /initSecurity\(/, 'existing security initialization must remain');
+assert.doesNotMatch(html, /fonts\.googleapis\.com|cdn\.jsdelivr\.net|unpkg\.com/, 'UI must not require third-party CDN');
+console.log('PASS UI design tokens, mobile layout, accessibility, no-CDN and runtime-contract checks');
