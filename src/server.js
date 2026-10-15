@@ -888,6 +888,10 @@ async function route(req, res) {
     if (req.method === 'POST' && p === '/api/control-center/change-radar') { const x = await parseBody(req); return json(res, 200, { ok:true, report:controlCenter.changeRadar(x.before || [], x.after || []) }); }
     if (req.method === 'POST' && p === '/api/control-center/opportunities') { const x = await parseBody(req); return json(res, 200, { ok:true, report:controlCenter.opportunities(x.records || []) }); }
     if (req.method === 'POST' && p === '/api/control-center/simulate') { const x = await parseBody(req); return json(res, 200, { ok:true, report:controlCenter.simulate(x) }); }
+    if (req.method === 'POST' && p === '/api/control-center/feature-proposal') { const x = await parseBody(req); return json(res, 200, { ok:true, proposal:controlCenter.featureProposal(x) }); }
+    if (req.method === 'POST' && p === '/api/control-center/what-if') { const x = await parseBody(req); return json(res, 200, { ok:true, scenario:controlCenter.whatIf(x) }); }
+    if (req.method === 'GET' && p === '/api/control-center/failure-lab') return json(res, 200, controlCenter.failureLab());
+    if (req.method === 'POST' && p === '/api/ai/council') return json(res, 200, { ok:true, results:await aiCapabilities.compare(await parseBody(req)) });
     if (req.method === 'POST' && p === '/api/integrity/campaign-preflight') {
       const x = await parseBody(req);
       const contacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();
