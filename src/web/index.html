@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#07090b">
+<meta name="theme-color" content="#111411">
 <link rel="manifest" href="/manifest.json">
 <title>WhatsApp Message Sender — Professional Operations</title>
 <style>
@@ -154,7 +154,7 @@ input[type=checkbox]{accent-color:#a7d46f}
  <div class="sideInfo"><div>ENGINE <b id="engine">ONLINE</b></div><div>Platform <span id="platform">—</span></div><div>Node <span id="node">—</span></div><div>WhatsApp <span id="waState">—</span></div></div>
 </aside>
 <main class="main">
-<header class="top"><div class="title">WhatsApp Message Sender</div><div class="topRight"><span class="pill live">● LIVE ENGINE</span><span class="pill" id="clock">—</span></div></header>
+<header class="top"><div class="title">WhatsApp Message Sender</div><div class="topRight"><span class="pill live">● LIVE ENGINE</span><span class="pill" id="clock">—</span><button id="installAppBtn" class="ghost hidden" type="button" aria-label="Install app">Install app</button></div></header>
 <div class="content">
 
 <section id="dashboard" class="view active">
@@ -616,6 +616,39 @@ async function openInboxConversation(id){
 async function syncInbox(){try{await opPost('/api/inbox/sync',{});await loadInbox();toast('Inbox synchronized')}catch(e){toast(e.message)}}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 window.addEventListener('load',()=>setTimeout(loadInbox,700));
+</script>
+
+
+<script>
+/* Installable local workspace. The service worker caches only the app shell; API requests remain network-only. */
+(function(){
+ let installPrompt=null;
+ const installButton=document.getElementById('installAppBtn');
+ function showInstall(){if(installButton && installPrompt) installButton.classList.remove('hidden')}
+ window.addEventListener('beforeinstallprompt',function(event){
+   event.preventDefault(); installPrompt=event; showInstall();
+ });
+ if(installButton) installButton.addEventListener('click',async function(){
+   if(!installPrompt)return;
+   installPrompt.prompt();
+   try{await installPrompt.userChoice}catch{}
+   installPrompt=null; installButton.classList.add('hidden');
+ });
+ window.addEventListener('appinstalled',function(){
+   installPrompt=null;
+   if(installButton)installButton.classList.add('hidden');
+   try{if(typeof toast==='function')toast('Workspace installed on this device')}catch{}
+ });
+ if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')){
+   window.addEventListener('load',function(){
+     navigator.serviceWorker.register('/sw.js').then(function(reg){
+       if(reg.waiting && navigator.serviceWorker.controller){
+         try{if(typeof toast==='function')toast('An app update is ready. Reload to apply it.')}catch{}
+       }
+     }).catch(function(err){console.warn('Offline shell registration unavailable:',err.message)});
+   });
+ }
+})();
 </script>
 
 </body>
