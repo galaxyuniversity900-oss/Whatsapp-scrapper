@@ -130,6 +130,29 @@ input[type=checkbox]{accent-color:#a7d46f}
  .nav button{font-size:10px}
  .qr{min-height:250px}
 }
+/* Mobile layout repair: prevent the desktop sidebar/grid from reserving a full viewport row. */
+@media(max-width:1000px){
+ .app{display:block!important;grid-template-columns:minmax(0,1fr)!important;min-height:100dvh}
+ .side{display:block!important;position:relative!important;top:auto!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;padding:8px 10px!important}
+ .sideInfo{display:none!important}
+ .main{display:block!important;min-width:0!important;width:100%!important}
+ .top{position:relative!important;top:auto!important;width:100%!important}
+ .content{width:100%!important;max-width:none!important;margin:0!important;padding:10px!important}
+ .view{min-width:0!important}
+ .grid{grid-template-columns:minmax(0,1fr)!important}
+ .panel{min-width:0}
+ body{overflow-x:hidden}
+}
+@media(max-width:650px){
+ .app{display:block!important}
+ .side{width:100%!important}
+ .nav{max-width:100%;min-width:0}
+ .content{padding:8px!important}
+ .top{height:auto!important;min-height:49px;padding:8px 10px!important}
+ .topRight{gap:4px}
+ .pill{font-size:9px;padding:4px 6px}
+ .table{min-width:560px}
+}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 
 </style>
