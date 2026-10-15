@@ -28,7 +28,7 @@ class VeritasCampaignAudit {
 
     for (let i = 0; i < contacts.length; i++) {
       const c = contacts[i] && typeof contacts[i] === 'object' ? contacts[i] : {};
-      const phone = phoneKey(c.phone || c.number || c.id);
+      const phone = phoneKey(c.phone || c.number);
       const reasons = [];
       if (!phone) { reasons.push('missing_phone'); counts.missingPhone++; }
       else if (phone.length < 7 || phone.length > 15) { reasons.push('invalid_phone'); counts.invalidPhone++; }
