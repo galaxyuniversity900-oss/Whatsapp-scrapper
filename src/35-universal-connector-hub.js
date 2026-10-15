@@ -97,6 +97,7 @@ class UniversalConnectorHub {
     this.file = path.join(this.dataDir, 'connectors.json');
     this.key = String(options.masterKey || process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY || this._loadKey());
     this.timeoutMs = Math.min(120000, Math.max(1000, Number(options.timeoutMs) || 20000));
+    this.mcpSessions = new Map();
   }
   _loadKey() {
     const file = path.join(this.dataDir, 'master.key');
@@ -155,10 +156,10 @@ class UniversalConnectorHub {
     }
     return headers;
   }
-  async _request(row, body, method = 'POST') {
+  async _request(row, body, method = 'POST', extraHeaders = {}) {
     if (!row.enabled) throw new Error('Connector is disabled');
     const endpoint = normalizeUrl(row.endpoint);
-    const headers = { ...this._headers(row) };
+    const headers = { ...this._headers(row), ...extraHeaders };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), row.timeoutMs || this.timeoutMs);
     try {
@@ -196,7 +197,18 @@ class UniversalConnectorHub {
   }
   async _mcpRequest(row, method, params = {}) {
     const id = crypto.randomBytes(6).readUIntBE(0, 6);
-    const result = await this._request(row, { jsonrpc: '2.0', id, method, params }, 'POST');
+    const headers = { 'MCP-Protocol-Version': '2025-03-26' };
+    const sessionId = this.mcpSessions.get(row.id);
+    if (sessionId && method !== 'initialize') headers['Mcp-Session-Id'] = sessionId;
+    const result = await this._request(row, { jsonrpc: '2.0', id, method, params }, 'POST', headers);
+    if (method === 'initialize') {
+      const issuedSession = result.response.headers.get('mcp-session-id');
+      if (issuedSession) this.mcpSessions.set(row.id, issuedSession);
+      const protocol = result.response.headers.get('mcp-protocol-version') || '2025-03-26';
+      const initializedHeaders = { 'MCP-Protocol-Version': protocol };
+      if (issuedSession) initializedHeaders['Mcp-Session-Id'] = issuedSession;
+      try { await this._request(row, { jsonrpc: '2.0', method: 'notifications/initialized' }, 'POST', initializedHeaders); } catch {}
+    }
     const payload = parseMcpBody(result.text);
     if (payload.error) throw new Error('MCP ' + payload.error.code + ': ' + String(payload.error.message || 'request failed'));
     return payload.result || payload;
