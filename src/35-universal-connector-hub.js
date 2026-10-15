@@ -51,6 +51,7 @@ function normalizeUrl(value, allowEmpty = false) {
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Connector URL must use HTTP or HTTPS');
   if (url.username || url.password) throw new Error('Do not put credentials in the URL; use the encrypted credential field');
   if (url.hash) throw new Error('Connector URL must not contain a fragment');
+  if ([...url.searchParams.keys()].some(key => /token|api.?key|secret|password|session|cookie|auth/i.test(key))) throw new Error('Do not put credentials in URL query parameters; use the encrypted credential field');
   return url.toString().replace(/\/$/, '');
 }
 function isLocalUrl(value) {
@@ -166,7 +167,7 @@ class UniversalConnectorHub {
     try {
       const response = await fetch(endpoint, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal, redirect: 'error' });
       const text = await response.text();
-      if (!response.ok) throw new Error('Connector HTTP ' + response.status + (text ? ': ' + text.slice(0, 240) : ''));
+      if (!response.ok) throw new Error('Connector HTTP ' + response.status + '; response body omitted to protect credentials');
       return { response, text };
     } catch (error) {
       if (error.name === 'AbortError') throw new Error('Connector request timed out');
