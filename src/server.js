@@ -28,6 +28,7 @@ const { AIProviderHub } = require('./29-ai-provider-hub');
 const { CapabilityFoundation } = require('./30-capability-foundation');
 const { InboxEngine } = require('./32-inbox-engine');
 const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
+const { UniversalConnectorHub } = require('./35-universal-connector-hub');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -53,6 +54,7 @@ const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'
 const secretStore = new SecretStore(path.join(dataDir, 'secrets.json'));
 const telegram = new TelegramAdapter({ dataDir: path.join(dataDir, 'telegram'), audit });
 const aiHub = new AIProviderHub({ dataDir: path.join(dataDir, 'ai'), masterKey: process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY });
+const connectors = new UniversalConnectorHub({ dataDir: path.join(dataDir, 'connectors'), masterKey: process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY });
 const aiCapabilities = new CapabilityFoundation({ hub: aiHub, audit });
 const { OperationsSuite } = require('./31-operations-suite');
 const operations = new OperationsSuite(dataDir, audit, policy);
@@ -869,6 +871,14 @@ async function route(req, res) {
     if (req.method === 'POST' && p === '/api/ai/health') { const x=await parseBody(req); return json(res,200,await aiCapabilities.health(String(x.provider||''))); }
     if (req.method === 'POST' && p === '/api/ai/execute') return json(res,200,await aiCapabilities.execute(await parseBody(req)));
     if (req.method === 'POST' && p === '/api/ai/fallback') return json(res,200,await aiCapabilities.fallback(await parseBody(req)));
+    if (req.method === 'GET' && p === '/api/connectors/catalog') return json(res, 200, connectors.catalog());
+    if (req.method === 'GET' && p === '/api/connectors') return json(res, 200, { ok: true, connectors: connectors.list() });
+    if (req.method === 'POST' && p === '/api/connectors') { const x = await parseBody(req); return json(res, 200, { ok: true, connector: connectors.upsert(x) }); }
+    if (req.method === 'DELETE' && p === '/api/connectors') return json(res, 200, connectors.remove(url.searchParams.get('id')));
+    if (req.method === 'POST' && p === '/api/connectors/health') { const x = await parseBody(req); return json(res, 200, await connectors.health(x.id)); }
+    if (req.method === 'POST' && p === '/api/connectors/request') { const x = await parseBody(req); return json(res, 200, await connectors.request(x.id, x)); }
+    if (req.method === 'GET' && p === '/api/connectors/mcp/tools') return json(res, 200, await connectors.mcpTools(url.searchParams.get('id')));
+    if (req.method === 'POST' && p === '/api/connectors/mcp/call') { const x = await parseBody(req); return json(res, 200, await connectors.callMcpTool(x.id, x.name, x.arguments || {})); }
     if (req.method === 'POST' && p === '/api/integrity/campaign-preflight') {
       const x = await parseBody(req);
       const contacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();
