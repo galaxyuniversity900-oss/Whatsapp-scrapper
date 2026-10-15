@@ -19,4 +19,13 @@ const simulation=cc.simulate({message:'Hello',contacts:[{phone:'+201001234567',c
 assert.equal(simulation.counts.eligible,1);
 assert.equal(simulation.effects.messagesSent,0);
 assert.ok(cc.playbooks().some(x=>x.id==='mcp-connection'));
+
+const proposal=cc.featureProposal({title:'MCP tool permissions',goal:'Add explicit approval for MCP side effects'});
+assert.equal(proposal.effects.codeGenerated,false);
+assert.ok(proposal.validationPlan.length>=3);
+const whatIf=cc.whatIf({baseline:{leads:100,orders:20},adjustments:{leads:10,orders:-5}});
+assert.equal(whatIf.metrics.leads.scenarioEstimate,110);
+assert.equal(whatIf.metrics.orders.scenarioEstimate,19);
+assert.equal(whatIf.effects.actionsExecuted,false);
+assert.ok(cc.failureLab().scenarios.some(x=>x.id==='mcp-session-expired'));
 console.log('Control Center tests passed');
