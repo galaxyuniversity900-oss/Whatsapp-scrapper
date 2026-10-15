@@ -119,6 +119,51 @@ class ControlCenter {
     }
     return { generatedAt:new Date().toISOString(), mode:'simulation-only', counts, recipients:rows, effects:{ messagesSent:0, dataChanged:false }, rules:{ consentRequired:true, optOutOverridesConsent:true, duplicatesBlocked:true } };
   }
+  featureProposal(input = {}) {
+    const title = str(input.title || input.goal);
+    const goal = str(input.goal || input.title);
+    if (!title || !goal) throw new Error('Feature title and goal are required');
+    const criteria = Array.isArray(input.acceptanceCriteria) ? input.acceptanceCriteria.map(str).filter(Boolean).slice(0,20) : [];
+    return {
+      proposalId:'feature-' + Date.now().toString(36),
+      title:title.slice(0,160), goal:goal.slice(0,2000),
+      status:'proposal-only', generatedAt:new Date().toISOString(),
+      scope:{ requestedBy:'operator', acceptanceCriteria:criteria.length ? criteria : ['Implementation exists in the current project','Automated regression test covers success and failure paths','No existing user data is deleted','Feature status is backed by observed test output'] },
+      implementationPlan:['Inspect the current project and avoid creating a replacement demo','Define API contract and UI entry points','Implement the smallest complete vertical slice','Add regression tests and security checks','Run tests and report actual evidence'],
+      risks:[{id:'regression',mitigation:'Run existing and new tests'},{id:'secrets',mitigation:'Keep credentials encrypted and out of logs'},{id:'scope',mitigation:'Mark unsupported capabilities explicitly'}],
+      validationPlan:['Syntax check','Unit tests','Integration test where feasible','Manual Termux smoke test'],
+      effects:{filesChanged:false,codeGenerated:false,commandsExecuted:false}
+    };
+  }
+  whatIf(input = {}) {
+    const baseline = input.baseline && typeof input.baseline === 'object' ? input.baseline : {};
+    const adjustments = input.adjustments && typeof input.adjustments === 'object' ? input.adjustments : {};
+    const metrics = {};
+    for (const [key,value] of Object.entries(baseline)) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) continue;
+      const delta = Number(adjustments[key] || 0);
+      if (!Number.isFinite(delta)) continue;
+      metrics[key] = { baseline:n, adjustmentPercent:delta, scenarioEstimate:Math.round(n * (1 + delta / 100) * 100) / 100 };
+    }
+    return { generatedAt:new Date().toISOString(), mode:'arithmetic-scenario-only', metrics, caveat:'This is a mathematical scenario based only on supplied assumptions, not a forecast or causal estimate.', effects:{dataChanged:false,actionsExecuted:false} };
+  }
+  failureLab() {
+    return {
+      generatedAt:new Date().toISOString(), mode:'test-plan-only',
+      scenarios:[
+        {id:'missing-dependency', title:'Required dependency unavailable', expected:'Preflight names the missing module and does not claim startup success'},
+        {id:'data-dir-readonly', title:'Data directory read-only', expected:'Write check reports a critical blocker'},
+        {id:'ai-provider-offline', title:'AI provider unreachable', expected:'AI request fails clearly while deterministic tools remain available'},
+        {id:'mcp-session-expired', title:'MCP session expires', expected:'Connector reports failure without exposing credentials; operator can reconnect'},
+        {id:'duplicate-import', title:'Duplicate customer import', expected:'Data quality report identifies duplicate keys before any mutation'},
+        {id:'campaign-optout', title:'Opted-out contact in campaign', expected:'Simulation blocks the recipient even if consent is true'},
+        {id:'interrupted-task', title:'Task interrupted during processing', expected:'Recovery behavior is verified with a test fixture before production use'}
+      ],
+      safety:{faultInjectionPerformed:false,productionDataChanged:false,messagesSent:0},
+      nextStep:'Run each scenario in a disposable test environment and attach logs before marking it verified.'
+    };
+  }
   playbooks() {
     return [
       { id:'termux-preflight', title:'Termux startup preflight', steps:['Run diagnostics','Verify required modules','Check port and data-directory permissions','Start server only after blockers are resolved'], aiRequired:false },
