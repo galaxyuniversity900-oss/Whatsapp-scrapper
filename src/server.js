@@ -28,6 +28,7 @@ const { AIProviderHub } = require('./29-ai-provider-hub');
 const { CapabilityFoundation } = require('./30-capability-foundation');
 const { InboxEngine } = require('./32-inbox-engine');
 const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
+const { SmartCampaignPlanner } = require('./35-smart-campaign-planner');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -60,6 +61,7 @@ const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
 const veritasAudit = new VeritasCampaignAudit({ audit });
+const smartCampaignPlanner = new SmartCampaignPlanner();
 
 const sessions = new Map();
 const listeners = new Set();
@@ -881,6 +883,21 @@ async function route(req, res) {
       return json(res, 200, { ok: true, report: veritasAudit.auditSummary({
         contacts, delivery: delivery.list(100000), auditEvents: audit.read(100000)
       }) });
+    }
+    if (req.method === 'POST' && p === '/api/integrity/campaign-plan') {
+      const x = await parseBody(req);
+      const contacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();
+      const campaign = x.campaignId ? operations.getCampaign(x.campaignId) : null;
+      const message = x.message !== undefined ? x.message : (campaign?.message || campaign?.template || '');
+      const report = smartCampaignPlanner.plan({
+        campaignId: x.campaignId || null, contacts, message,
+        batchSize: x.batchSize, maxRecipients: x.maxRecipients, dryRun: true
+      });
+      audit.append('smart_campaign_plan_created', {
+        planId: report.planId, campaignId: report.campaignId,
+        verdict: report.verdict, summary: report.summary, sentMessages: 0
+      });
+      return json(res, 200, { ok: true, report });
     }
 
     if (req.method === 'GET' && p === '/api/contacts') {
