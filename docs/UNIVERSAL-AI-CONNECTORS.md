@@ -43,3 +43,15 @@ The universal connector stores endpoints and credentials; it does not claim that
 
 ## No-AI mode
 AI routes are optional. The CRM, import/export, contact policies, deterministic validation, local reporting and core server continue to work without API keys or external AI services. Local inference endpoints are optional and must already be running on the device/network.
+
+## VERITAS Control Center
+The deterministic control center provides:
+- `GET /api/control-center/health`: runtime preflight, writable data directory, optional spreadsheet module check, and AI-optional status.
+- `GET /api/control-center/playbooks`: safe, reviewable operational playbooks.
+- `POST /api/control-center/mission`: turn a plain-language goal into a plan; does not execute side effects.
+- `POST /api/control-center/data-quality`: report missing/invalid/duplicate contact fields and opt-outs.
+- `POST /api/control-center/change-radar`: compare before/after arrays and report added, removed and changed records.
+- `POST /api/control-center/opportunities`: rank repeated topics in supplied records; frequency is not proof of demand.
+- `POST /api/control-center/simulate`: deterministic consent, opt-out, duplicate and phone checks; sending count is always zero.
+
+All Control Center endpoints are behind the existing admin and API-token protections. Reports do not mutate source records.
