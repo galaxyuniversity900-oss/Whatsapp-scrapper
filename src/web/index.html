@@ -641,5 +641,93 @@ function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 window.addEventListener('load',()=>setTimeout(loadInbox,700));
 </script>
 
+
+<section class="card" id="universalConnectors" style="margin:18px">
+  <h2>5.7 — Universal AI / MCP / Session Connector Hub</h2>
+  <p>Connect cloud or local AI, MCP tool servers, authorized API endpoints, session tokens, cookies, and agent workflow endpoints. AI is optional; existing local features remain available without providers.</p>
+  <div class="grid">
+    <input id="ucId" placeholder="Connector ID (e.g. nvidia-nim)">
+    <input id="ucName" placeholder="Display name">
+    <select id="ucType">
+      <option value="openai-compatible">OpenAI-compatible AI API</option>
+      <option value="api">Generic API</option>
+      <option value="mcp">MCP Streamable HTTP</option>
+      <option value="agent">Agent workflow endpoint</option>
+      <option value="session">Authorized session-token endpoint</option>
+      <option value="cookie">Authorized cookie-based endpoint</option>
+      <option value="webhook">Webhook</option>
+    </select>
+    <select id="ucProtocol">
+      <option value="openai-compatible">OpenAI-compatible</option>
+      <option value="mcp">MCP</option>
+      <option value="http-json">HTTP JSON</option>
+      <option value="custom">Custom</option>
+    </select>
+    <input id="ucEndpoint" placeholder="Endpoint URL (e.g. https://integrate.api.nvidia.com/v1/chat/completions)">
+    <select id="ucAuth">
+      <option value="none">No authentication</option>
+      <option value="apiKey">API key header</option>
+      <option value="bearer">Bearer token</option>
+      <option value="session">Authorized session token</option>
+      <option value="cookie">Authorized Cookie header</option>
+      <option value="customHeaders">Custom headers JSON</option>
+    </select>
+    <input id="ucSecret" type="password" autocomplete="off" placeholder="API key / token / cookie (never shown again)">
+    <input id="ucHeaderName" placeholder="API key header name (default X-API-Key)">
+    <input id="ucModel" placeholder="Model ID (optional)">
+    <button onclick="ucSave()">Save connector</button>
+    <button onclick="ucRefresh()">Refresh connectors</button>
+    <button onclick="ucCatalog()">Browse AI / Agent catalog</button>
+  </div>
+  <small>Credentials are encrypted on disk. Use a stable AI_MASTER_KEY or WA_MASTER_KEY before saving credentials. Do not use cookies to bypass third-party access controls or terms.</small>
+  <pre id="ucCatalog" style="max-height:280px;overflow:auto;margin-top:10px">Catalog not loaded.</pre>
+  <div id="ucRows" style="margin-top:12px"></div>
+  <hr>
+  <h3>MCP tools (manual execution only)</h3>
+  <div class="grid">
+    <input id="ucMcpId" placeholder="MCP connector ID">
+    <button onclick="ucMcpTools()">List MCP tools</button>
+    <input id="ucMcpTool" placeholder="Exact tool name">
+    <textarea id="ucMcpArgs" placeholder='Tool arguments JSON, e.g. {"query":"status"}'></textarea>
+    <button onclick="ucMcpCall()">Call selected MCP tool</button>
+  </div>
+  <pre id="ucOutput" style="max-height:380px;overflow:auto;margin-top:10px">Connector hub ready.</pre>
+</section>
+<script>
+async function ucJson(path,opts={}){return api(path,opts)}
+async function ucPost(path,data){return post(path,data)}
+async function ucCatalog(){try{$('ucCatalog').textContent=JSON.stringify(await ucJson('/api/connectors/catalog'),null,2)}catch(e){toast(e.message)}}
+async function ucRefresh(){
+ try{
+  const data=await ucJson('/api/connectors');
+  $('ucRows').innerHTML=(data.connectors||[]).map(x=>'<div class="card" style="margin:8px 0;padding:10px"><strong>'+escapeHtml(x.name)+'</strong> <small>('+escapeHtml(x.id)+')</small><br>'+escapeHtml(x.type)+' · '+escapeHtml(x.protocol)+' · '+(x.enabled?'enabled':'disabled')+' · credentials: '+(x.hasCredentials?'stored':'none')+'<br><code>'+escapeHtml(x.endpoint)+'</code><div class="grid"><button onclick="ucHealth(\''+escapeHtml(x.id)+'\')">Test connection</button><button onclick="ucDelete(\''+escapeHtml(x.id)+'\')">Delete</button><button onclick="ucUseMcp(\''+escapeHtml(x.id)+'\')">Use for MCP</button></div></div>').join('')||'<p>No connectors configured.</p>';
+  $('ucOutput').textContent=JSON.stringify({ok:true,count:(data.connectors||[]).length},null,2);
+ }catch(e){toast(e.message);$('ucOutput').textContent=e.message}
+}
+async function ucSave(){
+ try{
+  const id=$('ucId').value.trim(),name=$('ucName').value.trim()||id,type=$('ucType').value,protocol=$('ucProtocol').value,endpoint=$('ucEndpoint').value.trim(),credentialMode=$('ucAuth').value,secret=$('ucSecret').value;
+  const credentials={};
+  if(credentialMode==='apiKey'&&secret){credentials.apiKey=secret;credentials.headerName=$('ucHeaderName').value.trim()||'X-API-Key'}
+  if(credentialMode==='bearer'&&secret)credentials.token=secret;
+  if(credentialMode==='session'&&secret)credentials.sessionToken=secret;
+  if(credentialMode==='cookie'&&secret)credentials.cookie=secret;
+  if(credentialMode==='customHeaders'&&secret)credentials.headers=JSON.parse(secret);
+  const payload={id,name,type,protocol,endpoint,credentialMode,enabled:true};
+  if(Object.keys(credentials).length)payload.credentials=credentials;
+  const r=await ucPost('/api/connectors',payload);
+  $('ucSecret').value='';
+  $('ucOutput').textContent=JSON.stringify(r,null,2);
+  toast('Connector saved');await ucRefresh();
+ }catch(e){toast(e.message);$('ucOutput').textContent=e.message}
+}
+async function ucHealth(id){try{$('ucOutput').textContent=JSON.stringify(await ucPost('/api/connectors/health',{id}),null,2)}catch(e){$('ucOutput').textContent=e.message;toast(e.message)}}
+async function ucDelete(id){if(!confirm('Delete connector '+id+'?'))return;try{const r=await fetch('/api/connectors?id='+encodeURIComponent(id),{method:'DELETE'});const j=await r.json();$('ucOutput').textContent=JSON.stringify(j,null,2);await ucRefresh()}catch(e){toast(e.message)}}
+function ucUseMcp(id){$('ucMcpId').value=id;$('ucType').value='mcp';$('ucProtocol').value='mcp'}
+async function ucMcpTools(){try{const id=$('ucMcpId').value.trim();const r=await ucJson('/api/connectors/mcp/tools?id='+encodeURIComponent(id));$('ucOutput').textContent=JSON.stringify(r,null,2)}catch(e){$('ucOutput').textContent=e.message;toast(e.message)}}
+async function ucMcpCall(){try{const id=$('ucMcpId').value.trim(),name=$('ucMcpTool').value.trim(),args=JSON.parse($('ucMcpArgs').value||'{}');$('ucOutput').textContent=JSON.stringify(await ucPost('/api/connectors/mcp/call',{id,name,arguments:args}),null,2)}catch(e){$('ucOutput').textContent=e.message;toast(e.message)}}
+window.addEventListener('load',()=>setTimeout(()=>{ucCatalog();ucRefresh()},900));
+</script>
+
 </body>
 </html>
