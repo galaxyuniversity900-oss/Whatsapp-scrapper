@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: whatsapp-scrapper
+    runtime: docker
+    plan: starter
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: WA_DATA_DIR
+        value: /var/data
+      - key: WA_MASTER_KEY
+        generateValue: true
+      - key: WA_API_TOKEN
+        generateValue: true
+      - key: WA_ADMIN_USER
+        value: admin
+      - key: WA_ADMIN_PASSWORD
+        generateValue: true
+    disk:
+      name: whatsapp-scrapper-data
+      mountPath: /var/data
+      sizeGB: 1

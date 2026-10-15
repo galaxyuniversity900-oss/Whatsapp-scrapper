@@ -181,3 +181,35 @@ The local HTTP service is protected by an installation-specific API token. The w
 AI provider credentials and Cloud API secrets use installation-specific encryption keys when an explicit AI_MASTER_KEY / WA_MASTER_KEY is not supplied. Provider URLs are validated to HTTP/HTTPS without embedded credentials, and AI model discovery/chat requests have bounded timeouts.
 
 The full test suite now includes capability and production-hardening regression tests, and the Windows packaging workflow remains part of CI.
+
+## Full web deployment (Docker + Render)
+
+The existing web dashboard is served by the Node.js server at `src/web/index.html`; this is the operational UI, not a separate mockup. GitHub stores the source and CI checks the deployment configuration. GitHub Pages alone cannot run this Node.js API, WhatsApp sessions, or persistent background processes.
+
+### Deploy from GitHub
+
+1. Push/merge this branch after reviewing its pull request.
+2. In Render, create a new **Blueprint** and connect this repository. Render reads `render.yaml` and builds the `Dockerfile`.
+3. Wait for the first deployment, then open the generated service URL.
+4. In the Render service environment, retrieve or rotate `WA_ADMIN_PASSWORD` and `WA_API_TOKEN`. The admin page is protected by HTTP Basic Authentication; the default username is `admin`. Change it by setting `WA_ADMIN_USER`.
+5. Keep the persistent disk mounted at `/var/data`. WhatsApp authentication sessions and local application data are stored there. Do not remove the disk during redeployments.
+6. Pair WhatsApp accounts only after opening the authenticated dashboard. Verify login, QR/pairing, campaign preflight, a small opted-in test audience, and delivery logging before using any real campaign.
+
+### Security and deployment limits
+
+- Production startup fails closed with HTTP 503 if `WA_ADMIN_PASSWORD` is missing.
+- `/healthz` is the only unauthenticated route and reveals only a health status.
+- Use HTTPS, strong unique admin credentials, and rotate secrets if they are exposed. Never put secrets in Git or browser code.
+- WhatsApp Web sessions can be fragile in container environments and may require re-pairing. Test the actual deployment; a green container health check does not prove WhatsApp connectivity.
+- A public Render service is not deployed merely by adding these files. A repository owner must connect/authorize the service in Render and review its generated secrets and billing plan.
+- For production use, contact recipients only with appropriate consent and honor opt-outs.
+
+### Local run
+
+```bash
+npm install
+npm run server
+```
+
+The local server defaults to `http://127.0.0.1:8787`. For local development, admin Basic Authentication is optional; production mode requires `WA_ADMIN_PASSWORD`.
+

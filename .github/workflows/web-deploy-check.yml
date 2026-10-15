@@ -1,0 +1,29 @@
+name: Web Deployment Readiness
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "deploy/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: node --check src/server.js
+      - run: node --check src/34-veritas-campaign-audit.js
+      - run: node test/22-veritas-campaign-audit-tests.js
+      - name: Validate deployment files
+        run: |
+          test -s Dockerfile
+          test -s render.yaml
+          grep -q 'HOST=0.0.0.0' Dockerfile
+          grep -q 'mountPath: /var/data' render.yaml

@@ -27,6 +27,7 @@ const { TelegramAdapter } = require('./28-telegram-adapter');
 const { AIProviderHub } = require('./29-ai-provider-hub');
 const { CapabilityFoundation } = require('./30-capability-foundation');
 const { InboxEngine } = require('./32-inbox-engine');
+const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -58,6 +59,7 @@ const operations = new OperationsSuite(dataDir, audit, policy);
 const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
+const veritasAudit = new VeritasCampaignAudit({ audit });
 
 const sessions = new Map();
 const listeners = new Set();
@@ -670,10 +672,48 @@ async function startGroupMessageJob(payload = {}) {
   return { ok: true, job };
 }
 
+function requireAdminBasicAuth(req, res) {
+  const expectedUser = process.env.WA_ADMIN_USER || 'admin';
+  const expectedPassword = process.env.WA_ADMIN_PASSWORD || '';
+  if (!expectedPassword) {
+    if (process.env.NODE_ENV === 'production') {
+      res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: false, error: 'Server admin password is not configured.' }));
+      return false;
+    }
+    return true;
+  }
+  const header = String(req.headers.authorization || '');
+  const match = /^Basic\s+(.+)$/i.exec(header);
+  let user = '', password = '';
+  if (match) {
+    try {
+      const decoded = Buffer.from(match[1], 'base64').toString('utf8');
+      const split = decoded.indexOf(':');
+      if (split >= 0) { user = decoded.slice(0, split); password = decoded.slice(split + 1); }
+    } catch {}
+  }
+  const safeEqual = (a, b) => {
+    const aa = crypto.createHash('sha256').update(String(a)).digest();
+    const bb = crypto.createHash('sha256').update(String(b)).digest();
+    return crypto.timingSafeEqual(aa, bb);
+  };
+  if (safeEqual(user, expectedUser) && safeEqual(password, expectedPassword)) return true;
+  res.writeHead(401, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'WWW-Authenticate': 'Basic realm="WhatsApp Scrapper Admin", charset="UTF-8"',
+    'Cache-Control': 'no-store'
+  });
+  res.end(JSON.stringify({ ok: false, error: 'Administrator login required.' }));
+  return false;
+}
+
 async function route(req, res) {
   const url = new URL(req.url, 'http://127.0.0.1');
   const p = url.pathname;
   applySecurityHeaders(req, res);
+  if (p === '/healthz' && req.method === 'GET') return json(res, 200, { ok: true, status: 'healthy' });
+  if (!requireAdminBasicAuth(req, res)) return;
   if (req.method === 'OPTIONS') {
     return res.end();
   }
@@ -829,6 +869,20 @@ async function route(req, res) {
     if (req.method === 'POST' && p === '/api/ai/health') { const x=await parseBody(req); return json(res,200,await aiCapabilities.health(String(x.provider||''))); }
     if (req.method === 'POST' && p === '/api/ai/execute') return json(res,200,await aiCapabilities.execute(await parseBody(req)));
     if (req.method === 'POST' && p === '/api/ai/fallback') return json(res,200,await aiCapabilities.fallback(await parseBody(req)));
+    if (req.method === 'POST' && p === '/api/integrity/campaign-preflight') {
+      const x = await parseBody(req);
+      const contacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();
+      const campaign = x.campaignId ? operations.getCampaign(x.campaignId) : null;
+      const message = x.message !== undefined ? x.message : (campaign?.message || campaign?.template || '');
+      return json(res, 200, { ok: true, report: veritasAudit.preflight({ contacts, message, campaignId: x.campaignId || null }) });
+    }
+    if (req.method === 'GET' && p === '/api/integrity/summary') {
+      const contacts = await state.readContacts();
+      return json(res, 200, { ok: true, report: veritasAudit.auditSummary({
+        contacts, delivery: delivery.list(100000), auditEvents: audit.read(100000)
+      }) });
+    }
+
     if (req.method === 'GET' && p === '/api/contacts') {
       return json(res, 200, await state.readContacts());
     }
