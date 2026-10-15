@@ -93,7 +93,7 @@ class AIProviderHub{
   return{provider:id,model:body.model,raw:j,text:j?.choices?.[0]?.message?.content??j?.output_text??j?.content?.[0]?.text??j?.text??'',usage:j?.usage||null};
  }
  presets(){return[
-  {id:'nvidia-nim',name:'NVIDIA NIM',provider:'nvidia',baseUrl:'https://integrate.api.nvidia.com/v1',model:'meta/llama-3.1-70b-instruct'},
+  {id:'nvidia-nim',name:'NVIDIA NIM',provider:'nvidia',baseUrl:'https://integrate.api.nvidia.com/v1',model:'meta/llama-3.3-70b-instruct'},
   {id:'deepseek',name:'DeepSeek',provider:'openai-compatible',baseUrl:'https://api.deepseek.com/v1',model:'deepseek-chat'},
   {id:'groq',name:'Groq',provider:'openai-compatible',baseUrl:'https://api.groq.com/openai/v1',model:'llama-3.3-70b-versatile'},
   {id:'openrouter',name:'OpenRouter',provider:'openrouter',baseUrl:'https://openrouter.ai/api',model:'openrouter/auto'},
