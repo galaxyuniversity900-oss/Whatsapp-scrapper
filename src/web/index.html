@@ -641,5 +641,168 @@ function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 window.addEventListener('load',()=>setTimeout(loadInbox,700));
 </script>
 
+
+
+
+<section class="card" id="veritasControlCenter" style="margin:18px">
+  <h2>VERITAS Control Center — Diagnostics / Mission / Data Intelligence</h2>
+  <p>Deterministic tools work without AI. This center reports evidence and proposes actions; it does not silently send messages or change imported records.</p>
+  <div class="grid">
+    <button onclick="vccHealth()">Run system preflight</button>
+    <button onclick="vccPlaybooks()">Load playbooks</button>
+    <input id="vccGoal" placeholder="Describe a mission in Arabic or English"><input id="vccFeatureTitle" placeholder="Feature Foundry: feature title">
+    <button onclick="vccMission()">Plan mission</button><button onclick="vccFeature()">Draft feature spec</button><button onclick="vccFailureLab()">Failure Lab scenarios</button>
+  </div>
+  <h3>Data tools (paste JSON arrays)</h3>
+  <div class="grid">
+    <textarea id="vccRecords" placeholder='Records JSON, e.g. [{"id":"1","name":"Customer","phone":"+201001234567","consent":true}]'></textarea>
+    <textarea id="vccBefore" placeholder="Previous records JSON for Change Radar (optional)"></textarea>
+    <textarea id="vccAfter" placeholder="New records JSON for Change Radar (optional)"></textarea>
+    <textarea id="vccMessage" placeholder="Message text for simulation only"></textarea><textarea id="vccBaseline" placeholder="What-if baseline JSON"></textarea><textarea id="vccAdjustments" placeholder="What-if percent adjustments JSON"></textarea>
+  </div>
+  <div class="grid">
+    <button onclick="vccQuality()">Data Quality Doctor</button>
+    <button onclick="vccOpportunities()">Opportunity Radar</button>
+    <button onclick="vccDiff()">Change Radar</button>
+    <button onclick="vccSimulate()">Campaign Simulation (no sending)</button><button onclick="vccWhatIf()">What-if calculator</button>
+  </div>
+  <pre id="vccOutput" style="max-height:480px;overflow:auto;margin-top:10px">Control Center ready.</pre>
+</section>
+<script>
+async function vccPost(path,data){return post(path,data)}
+async function vccHealth(){try{$('vccOutput').textContent=JSON.stringify(await api('/api/control-center/health'),null,2)}catch(e){toast(e.message)}}
+async function vccPlaybooks(){try{$('vccOutput').textContent=JSON.stringify(await api('/api/control-center/playbooks'),null,2)}catch(e){toast(e.message)}}
+async function vccMission(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/mission',{goal:$('vccGoal').value}),null,2)}catch(e){toast(e.message)}}
+async function vccFeature(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/feature-proposal',{title:$('vccFeatureTitle').value,goal:$('vccGoal').value}),null,2)}catch(e){toast(e.message)}}
+async function vccFailureLab(){try{$('vccOutput').textContent=JSON.stringify(await api('/api/control-center/failure-lab'),null,2)}catch(e){toast(e.message)}}
+async function vccWhatIf(){try{const baseline=JSON.parse($('vccBaseline').value||'{}'),adjustments=JSON.parse($('vccAdjustments').value||'{}');$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/what-if',{baseline,adjustments}),null,2)}catch(e){toast(e.message);$('vccOutput').textContent=e.message}}
+function vccParse(id){const v=$(id).value.trim();if(!v)return [];const j=JSON.parse(v);if(!Array.isArray(j))throw Error(id+' must contain a JSON array');return j}
+async function vccQuality(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/data-quality',{records:vccParse('vccRecords')}),null,2)}catch(e){toast(e.message);$('vccOutput').textContent=e.message}}
+async function vccOpportunities(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/opportunities',{records:vccParse('vccRecords')}),null,2)}catch(e){toast(e.message);$('vccOutput').textContent=e.message}}
+async function vccDiff(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/change-radar',{before:vccParse('vccBefore'),after:vccParse('vccAfter')}),null,2)}catch(e){toast(e.message);$('vccOutput').textContent=e.message}}
+async function vccSimulate(){try{$('vccOutput').textContent=JSON.stringify(await vccPost('/api/control-center/simulate',{contacts:vccParse('vccRecords'),message:$('vccMessage').value}),null,2)}catch(e){toast(e.message);$('vccOutput').textContent=e.message}}
+</script>
+
+<section class="card" id="aiProviderWorkspace" style="margin:18px">
+  <h2>AI Provider Hub — Cloud / Local / NVIDIA NIM</h2>
+  <p>Configure model APIs separately from MCP and workflow connectors. AI is optional; no provider is required for local deterministic features.</p>
+  <div class="grid">
+    <input id="aipId" placeholder="Provider ID (nvidia-nim)">
+    <input id="aipName" placeholder="Provider name">
+    <select id="aipProvider">
+      <option value="nvidia">NVIDIA NIM</option><option value="openai-compatible">OpenAI-compatible</option><option value="openrouter">OpenRouter</option><option value="ollama">Ollama</option><option value="lmstudio">LM Studio</option><option value="vllm">vLLM</option><option value="huggingface">Hugging Face</option><option value="groq">Groq</option><option value="deepseek">DeepSeek</option><option value="custom">Custom endpoint</option>
+    </select>
+    <input id="aipBase" placeholder="Base URL, e.g. https://integrate.api.nvidia.com/v1">
+    <input id="aipModel" placeholder="Model ID (discover it from provider)">
+    <input id="aipKey" type="password" autocomplete="off" placeholder="API key (optional for local endpoints)">
+    <button onclick="aipSave()">Save AI provider</button>
+    <button onclick="aipLoad()">List providers</button>
+    <button onclick="aipDiscover()">Discover models</button>
+    <button onclick="aipTest()">Test chat</button><input id="aipCouncilProviders" placeholder="AI Council provider IDs, comma-separated"><button onclick="aipCouncil()">Compare providers</button>
+  </div>
+  <pre id="aipOutput" style="max-height:360px;overflow:auto;margin-top:10px">No AI provider selected.</pre>
+</section>
+<script>
+async function aipLoad(){try{$('aipOutput').textContent=JSON.stringify(await api('/api/ai/providers'),null,2)}catch(e){toast(e.message)}}
+async function aipSave(){
+ try{
+  const id=$('aipId').value.trim(),payload={id,name:$('aipName').value.trim()||id,provider:$('aipProvider').value,baseUrl:$('aipBase').value.trim(),model:$('aipModel').value.trim(),enabled:true};
+  if($('aipKey').value)payload.apiKey=$('aipKey').value;
+  const r=await post('/api/ai/providers',payload);$('aipKey').value='';$('aipOutput').textContent=JSON.stringify(r,null,2);toast('AI provider saved');
+ }catch(e){$('aipOutput').textContent=e.message;toast(e.message)}
+}
+async function aipDiscover(){try{$('aipOutput').textContent=JSON.stringify(await post('/api/ai/providers/discover',{id:$('aipId').value.trim()}),null,2)}catch(e){$('aipOutput').textContent=e.message;toast(e.message)}}
+async function aipTest(){try{$('aipOutput').textContent=JSON.stringify(await post('/api/ai/chat',{id:$('aipId').value.trim(),prompt:'Reply with exactly: connector test passed',maxTokens:80}),null,2)}catch(e){$('aipOutput').textContent=e.message;toast(e.message)}}
+async function aipCouncil(){try{const providers=$('aipCouncilProviders').value.split(',').map(x=>x.trim()).filter(Boolean);$('aipOutput').textContent=JSON.stringify(await post('/api/ai/council',{providers,prompt:'Review the following project goal and provide a concise implementation plan: '+$('vccGoal').value}),null,2)}catch(e){$('aipOutput').textContent=e.message;toast(e.message)}}
+window.addEventListener('load',()=>setTimeout(aipLoad,1000));
+</script>
+
+<section class="card" id="universalConnectors" style="margin:18px">
+  <h2>5.7 — Universal AI / MCP / Session Connector Hub</h2>
+  <p>Connect cloud or local AI, MCP tool servers, authorized API endpoints, session tokens, cookies, and agent workflow endpoints. AI is optional; existing local features remain available without providers.</p>
+  <div class="grid">
+    <input id="ucId" placeholder="Connector ID (e.g. nvidia-nim)">
+    <input id="ucName" placeholder="Display name">
+    <select id="ucType">
+      <option value="openai-compatible">OpenAI-compatible AI API</option>
+      <option value="api">Generic API</option>
+      <option value="mcp">MCP Streamable HTTP</option>
+      <option value="agent">Agent workflow endpoint</option>
+      <option value="session">Authorized session-token endpoint</option>
+      <option value="cookie">Authorized cookie-based endpoint</option>
+      <option value="webhook">Webhook</option>
+    </select>
+    <select id="ucProtocol">
+      <option value="openai-compatible">OpenAI-compatible</option>
+      <option value="mcp">MCP</option>
+      <option value="http-json">HTTP JSON</option>
+      <option value="custom">Custom</option>
+    </select>
+    <input id="ucEndpoint" placeholder="Endpoint URL (e.g. https://integrate.api.nvidia.com/v1/chat/completions)">
+    <select id="ucAuth">
+      <option value="none">No authentication</option>
+      <option value="apiKey">API key header</option>
+      <option value="bearer">Bearer token</option>
+      <option value="session">Authorized session token</option>
+      <option value="cookie">Authorized Cookie header</option>
+      <option value="customHeaders">Custom headers JSON</option>
+    </select>
+    <input id="ucSecret" type="password" autocomplete="off" placeholder="API key / token / cookie (never shown again)">
+    <input id="ucHeaderName" placeholder="API key header name (default X-API-Key)">
+    <input id="ucModel" placeholder="Model ID (optional)">
+    <button onclick="ucSave()">Save connector</button>
+    <button onclick="ucRefresh()">Refresh connectors</button>
+    <button onclick="ucCatalog()">Browse AI / Agent catalog</button>
+  </div>
+  <small>Credentials are encrypted on disk. Use a stable AI_MASTER_KEY or WA_MASTER_KEY before saving credentials. Do not use cookies to bypass third-party access controls or terms.</small>
+  <pre id="ucCatalog" style="max-height:280px;overflow:auto;margin-top:10px">Catalog not loaded.</pre>
+  <div id="ucRows" style="margin-top:12px"></div>
+  <hr>
+  <h3>MCP tools (manual execution only)</h3>
+  <div class="grid">
+    <input id="ucMcpId" placeholder="MCP connector ID">
+    <button onclick="ucMcpTools()">List MCP tools</button>
+    <input id="ucMcpTool" placeholder="Exact tool name">
+    <textarea id="ucMcpArgs" placeholder='Tool arguments JSON, e.g. {"query":"status"}'></textarea>
+    <button onclick="ucMcpCall()">Call selected MCP tool</button>
+  </div>
+  <pre id="ucOutput" style="max-height:380px;overflow:auto;margin-top:10px">Connector hub ready.</pre>
+</section>
+<script>
+async function ucJson(path,opts={}){return api(path,opts)}
+async function ucPost(path,data){return post(path,data)}
+async function ucCatalog(){try{$('ucCatalog').textContent=JSON.stringify(await ucJson('/api/connectors/catalog'),null,2)}catch(e){toast(e.message)}}
+async function ucRefresh(){
+ try{
+  const data=await ucJson('/api/connectors');
+  $('ucRows').innerHTML=(data.connectors||[]).map(x=>'<div class="card" style="margin:8px 0;padding:10px"><strong>'+escapeHtml(x.name)+'</strong> <small>('+escapeHtml(x.id)+')</small><br>'+escapeHtml(x.type)+' · '+escapeHtml(x.protocol)+' · '+(x.enabled?'enabled':'disabled')+' · credentials: '+(x.hasCredentials?'stored':'none')+'<br><code>'+escapeHtml(x.endpoint)+'</code><div class="grid"><button onclick="ucHealth(\''+escapeHtml(x.id)+'\')">Test connection</button><button onclick="ucDelete(\''+escapeHtml(x.id)+'\')">Delete</button><button onclick="ucUseMcp(\''+escapeHtml(x.id)+'\')">Use for MCP</button></div></div>').join('')||'<p>No connectors configured.</p>';
+  $('ucOutput').textContent=JSON.stringify({ok:true,count:(data.connectors||[]).length},null,2);
+ }catch(e){toast(e.message);$('ucOutput').textContent=e.message}
+}
+async function ucSave(){
+ try{
+  const id=$('ucId').value.trim(),name=$('ucName').value.trim()||id,type=$('ucType').value,protocol=$('ucProtocol').value,endpoint=$('ucEndpoint').value.trim(),credentialMode=$('ucAuth').value,secret=$('ucSecret').value;
+  const credentials={};
+  if(credentialMode==='apiKey'&&secret){credentials.apiKey=secret;credentials.headerName=$('ucHeaderName').value.trim()||'X-API-Key'}
+  if(credentialMode==='bearer'&&secret)credentials.token=secret;
+  if(credentialMode==='session'&&secret)credentials.sessionToken=secret;
+  if(credentialMode==='cookie'&&secret)credentials.cookie=secret;
+  if(credentialMode==='customHeaders'&&secret)credentials.headers=JSON.parse(secret);
+  const payload={id,name,type,protocol,endpoint,credentialMode,enabled:true};
+  if(Object.keys(credentials).length)payload.credentials=credentials;
+  const r=await ucPost('/api/connectors',payload);
+  $('ucSecret').value='';
+  $('ucOutput').textContent=JSON.stringify(r,null,2);
+  toast('Connector saved');await ucRefresh();
+ }catch(e){toast(e.message);$('ucOutput').textContent=e.message}
+}
+async function ucHealth(id){try{$('ucOutput').textContent=JSON.stringify(await ucPost('/api/connectors/health',{id}),null,2)}catch(e){$('ucOutput').textContent=e.message;toast(e.message)}}
+async function ucDelete(id){if(!confirm('Delete connector '+id+'?'))return;try{const j=await api('/api/connectors?id='+encodeURIComponent(id),{method:'DELETE'});$('ucOutput').textContent=JSON.stringify(j,null,2);await ucRefresh()}catch(e){toast(e.message)}}
+function ucUseMcp(id){$('ucMcpId').value=id;$('ucType').value='mcp';$('ucProtocol').value='mcp'}
+async function ucMcpTools(){try{const id=$('ucMcpId').value.trim();const r=await ucJson('/api/connectors/mcp/tools?id='+encodeURIComponent(id));$('ucOutput').textContent=JSON.stringify(r,null,2)}catch(e){$('ucOutput').textContent=e.message;toast(e.message)}}
+async function ucMcpCall(){try{const id=$('ucMcpId').value.trim(),name=$('ucMcpTool').value.trim(),args=JSON.parse($('ucMcpArgs').value||'{}');$('ucOutput').textContent=JSON.stringify(await ucPost('/api/connectors/mcp/call',{id,name,arguments:args}),null,2)}catch(e){$('ucOutput').textContent=e.message;toast(e.message)}}
+window.addEventListener('load',()=>setTimeout(()=>{ucCatalog();ucRefresh()},900));
+</script>
+
 </body>
 </html>

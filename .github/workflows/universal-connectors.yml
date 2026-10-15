@@ -1,0 +1,46 @@
+name: Universal Connector Validation
+
+on:
+  pull_request:
+    paths:
+      - 'src/35-universal-connector-hub.js'
+      - 'src/36-control-center.js'
+      - 'src/29-ai-provider-hub.js'
+      - 'src/server.js'
+      - 'src/web/index.html'
+      - 'test/24-universal-connector-tests.js'
+      - 'test/25-control-center-tests.js'
+      - 'package.json'
+      - '.github/workflows/universal-connectors.yml'
+  push:
+    branches:
+      - 'feature/universal-ai-connectors-2026-10-16'
+
+permissions:
+  contents: read
+
+jobs:
+  connector-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Syntax validation
+        run: |
+          node --check src/29-ai-provider-hub.js
+          node --check src/30-capability-foundation.js
+          node --check src/35-universal-connector-hub.js
+          node --check src/36-control-center.js
+          node --check src/server.js
+      - name: Connector regression tests
+        run: node test/24-universal-connector-tests.js
+      - name: Control center tests
+        run: node test/25-control-center-tests.js
+      - name: AI provider and capability regression tests
+        run: |
+          node test/15-ai-provider-hub-tests.js
+          node test/16-capability-foundation-tests.js
