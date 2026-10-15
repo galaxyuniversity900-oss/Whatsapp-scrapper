@@ -413,6 +413,12 @@ async function logoutSession(id, removeAuth = false) {
   return { ok: true };
 }
 
+function consentDecision(phone, channel = 'whatsapp') {
+  const ledger = consentLedger.status(phone, channel);
+  if (ledger.status === 'opted_out' || ledger.status === 'revoked') return { allowed: false, reason: ledger.status };
+  return { allowed: true, status: ledger.status };
+}
+
 async function sendCampaign(payload = {}) {
   const accountId = String(payload.accountId || '');
   const s = sessions.get(accountId);
@@ -423,7 +429,15 @@ async function sendCampaign(payload = {}) {
 
   const all = await state.readContacts();
   const limit = Math.min(10000, Math.max(1, Number(payload.limit || 100)));
-  const eligible = policy.filterEligible(all).slice(0, limit);
+  const policyEligible = policy.filterEligible(all);
+  const blockedByConsent = policyEligible.filter(c => {
+    const phone = policy.normalizePhone(c.phone || c.number);
+    return phone && !consentDecision(phone).allowed;
+  });
+  const eligible = policyEligible.filter(c => {
+    const phone = policy.normalizePhone(c.phone || c.number);
+    return phone && consentDecision(phone).allowed;
+  }).slice(0, limit);
   const text = String(payload.template || '').trim();
   const mediaPaths = (Array.isArray(payload.mediaPaths) ? payload.mediaPaths : [])
     .filter(p => typeof p === 'string' && fs.existsSync(p));
@@ -435,7 +449,7 @@ async function sendCampaign(payload = {}) {
   const concurrency = Math.min(5, Math.max(1, Number(payload.concurrency || 2)));
 
   emitCampaign(accountId, {
-    status: 'running', sent: 0, total: eligible.length, failed: 0,
+    status: 'running', sent: 0, total: eligible.length, failed: 0, skippedConsent: blockedByConsent.length,
     startedAt: new Date().toISOString(), finishedAt: null, paused: false, stopped: false
   });
   s.paused = false;
@@ -443,7 +457,7 @@ async function sendCampaign(payload = {}) {
   s.sent = 0;
   s.consecutiveFailures = 0;
   audit.append('campaign_started', {
-    accountId, total: eligible.length, minDelay, maxDelay, parallel, concurrency
+    accountId, total: eligible.length, skippedConsent: blockedByConsent.length, minDelay, maxDelay, parallel, concurrency
   });
 
   const results = new Array(eligible.length);
@@ -463,10 +477,21 @@ async function sendCampaign(payload = {}) {
       }
 
       const contact = item.contact;
-      const phone = policy.normalizePhone(contact.phone);
+      const phone = policy.normalizePhone(contact.phone || contact.number);
       const result = { index: item.index, phone, status: 'failed' };
       try {
         if (!/^\d{7,15}$/.test(phone)) throw new Error('Invalid phone number');
+        const consent = consentDecision(phone);
+        if (!consent.allowed) {
+          result.status = 'skipped';
+          result.reason = 'consent_' + consent.reason;
+          await state.updateContactStatus(item.index, 'skipped', { error: result.reason });
+          audit.append('message_skipped_consent', { accountId, phone, reason: consent.reason });
+          results[n] = result;
+          done++;
+          emitCampaign(accountId, { sent: s.sent, total: eligible.length, failed: s.consecutiveFailures, completed: done });
+          continue;
+        }
         const bodyText = text
           .replace(/\{name\}/gi, contact.name || '')
           .replace(/\{phone\}/gi, contact.phone || '');
