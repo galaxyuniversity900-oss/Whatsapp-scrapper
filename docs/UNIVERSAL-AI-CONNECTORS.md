@@ -55,3 +55,8 @@ The deterministic control center provides:
 - `POST /api/control-center/simulate`: deterministic consent, opt-out, duplicate and phone checks; sending count is always zero.
 
 All Control Center endpoints are behind the existing admin and API-token protections. Reports do not mutate source records.
+
+- `POST /api/control-center/feature-proposal`: create an implementation specification and acceptance checklist only; it does not write code.
+- `POST /api/control-center/what-if`: calculate arithmetic scenarios from user-supplied baselines and percentage adjustments; it is not a forecast.
+- `GET /api/control-center/failure-lab`: list failure scenarios and expected evidence; it does not inject faults into production.
+- `POST /api/ai/council`: compare the same prompt across explicitly selected configured AI providers. It requires AI providers; it is not available in no-AI mode.
