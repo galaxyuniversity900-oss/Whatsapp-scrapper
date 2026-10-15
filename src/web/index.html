@@ -642,6 +642,40 @@ window.addEventListener('load',()=>setTimeout(loadInbox,700));
 </script>
 
 
+
+<section class="card" id="aiProviderWorkspace" style="margin:18px">
+  <h2>AI Provider Hub — Cloud / Local / NVIDIA NIM</h2>
+  <p>Configure model APIs separately from MCP and workflow connectors. AI is optional; no provider is required for local deterministic features.</p>
+  <div class="grid">
+    <input id="aipId" placeholder="Provider ID (nvidia-nim)">
+    <input id="aipName" placeholder="Provider name">
+    <select id="aipProvider">
+      <option value="nvidia">NVIDIA NIM</option><option value="openai-compatible">OpenAI-compatible</option><option value="openrouter">OpenRouter</option><option value="ollama">Ollama</option><option value="lmstudio">LM Studio</option><option value="vllm">vLLM</option><option value="huggingface">Hugging Face</option><option value="groq">Groq</option><option value="deepseek">DeepSeek</option><option value="custom">Custom endpoint</option>
+    </select>
+    <input id="aipBase" placeholder="Base URL, e.g. https://integrate.api.nvidia.com/v1">
+    <input id="aipModel" placeholder="Model ID (discover it from provider)">
+    <input id="aipKey" type="password" autocomplete="off" placeholder="API key (optional for local endpoints)">
+    <button onclick="aipSave()">Save AI provider</button>
+    <button onclick="aipLoad()">List providers</button>
+    <button onclick="aipDiscover()">Discover models</button>
+    <button onclick="aipTest()">Test chat</button>
+  </div>
+  <pre id="aipOutput" style="max-height:360px;overflow:auto;margin-top:10px">No AI provider selected.</pre>
+</section>
+<script>
+async function aipLoad(){try{$('aipOutput').textContent=JSON.stringify(await api('/api/ai/providers'),null,2)}catch(e){toast(e.message)}}
+async function aipSave(){
+ try{
+  const id=$('aipId').value.trim(),payload={id,name:$('aipName').value.trim()||id,provider:$('aipProvider').value,baseUrl:$('aipBase').value.trim(),model:$('aipModel').value.trim(),enabled:true};
+  if($('aipKey').value)payload.apiKey=$('aipKey').value;
+  const r=await post('/api/ai/providers',payload);$('aipKey').value='';$('aipOutput').textContent=JSON.stringify(r,null,2);toast('AI provider saved');
+ }catch(e){$('aipOutput').textContent=e.message;toast(e.message)}
+}
+async function aipDiscover(){try{$('aipOutput').textContent=JSON.stringify(await post('/api/ai/providers/discover',{id:$('aipId').value.trim()}),null,2)}catch(e){$('aipOutput').textContent=e.message;toast(e.message)}}
+async function aipTest(){try{$('aipOutput').textContent=JSON.stringify(await post('/api/ai/chat',{id:$('aipId').value.trim(),prompt:'Reply with exactly: connector test passed',maxTokens:80}),null,2)}catch(e){$('aipOutput').textContent=e.message;toast(e.message)}}
+window.addEventListener('load',()=>setTimeout(aipLoad,1000));
+</script>
+
 <section class="card" id="universalConnectors" style="margin:18px">
   <h2>5.7 — Universal AI / MCP / Session Connector Hub</h2>
   <p>Connect cloud or local AI, MCP tool servers, authorized API endpoints, session tokens, cookies, and agent workflow endpoints. AI is optional; existing local features remain available without providers.</p>
@@ -722,7 +756,7 @@ async function ucSave(){
  }catch(e){toast(e.message);$('ucOutput').textContent=e.message}
 }
 async function ucHealth(id){try{$('ucOutput').textContent=JSON.stringify(await ucPost('/api/connectors/health',{id}),null,2)}catch(e){$('ucOutput').textContent=e.message;toast(e.message)}}
-async function ucDelete(id){if(!confirm('Delete connector '+id+'?'))return;try{const r=await fetch('/api/connectors?id='+encodeURIComponent(id),{method:'DELETE'});const j=await r.json();$('ucOutput').textContent=JSON.stringify(j,null,2);await ucRefresh()}catch(e){toast(e.message)}}
+async function ucDelete(id){if(!confirm('Delete connector '+id+'?'))return;try{const j=await api('/api/connectors?id='+encodeURIComponent(id),{method:'DELETE'});$('ucOutput').textContent=JSON.stringify(j,null,2);await ucRefresh()}catch(e){toast(e.message)}}
 function ucUseMcp(id){$('ucMcpId').value=id;$('ucType').value='mcp';$('ucProtocol').value='mcp'}
 async function ucMcpTools(){try{const id=$('ucMcpId').value.trim();const r=await ucJson('/api/connectors/mcp/tools?id='+encodeURIComponent(id));$('ucOutput').textContent=JSON.stringify(r,null,2)}catch(e){$('ucOutput').textContent=e.message;toast(e.message)}}
 async function ucMcpCall(){try{const id=$('ucMcpId').value.trim(),name=$('ucMcpTool').value.trim(),args=JSON.parse($('ucMcpArgs').value||'{}');$('ucOutput').textContent=JSON.stringify(await ucPost('/api/connectors/mcp/call',{id,name,arguments:args}),null,2)}catch(e){$('ucOutput').textContent=e.message;toast(e.message)}}
