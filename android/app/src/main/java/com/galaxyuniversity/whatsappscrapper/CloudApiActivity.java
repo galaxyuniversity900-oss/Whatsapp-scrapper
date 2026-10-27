@@ -33,6 +33,7 @@ public final class CloudApiActivity extends Activity {
     private EditText message;
     private TextView status;
     private Button sendButton;
+    private LinearLayout rootLayout;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -46,6 +47,7 @@ public final class CloudApiActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         LinearLayout root = new LinearLayout(this);
+        rootLayout = root;
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(18), dp(18), dp(18), dp(24));
         root.setBackgroundColor(bg);
@@ -102,8 +104,7 @@ public final class CloudApiActivity extends Activity {
         edit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(110, 130, 110)));
         if (secret) edit.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         else edit.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
-        LinearLayout root = (LinearLayout) ((ScrollView) findViewById(android.R.id.content)).getChildAt(0);
-        root.addView(edit, params(-1, secret ? dp(54) : dp(52), 0, dp(5), 0, dp(5)));
+        rootLayout.addView(edit, params(-1, secret ? dp(54) : dp(52), 0, dp(5), 0, dp(5)));
         return edit;
     }
 
