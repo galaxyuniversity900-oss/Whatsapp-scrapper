@@ -291,6 +291,8 @@ async function createSession(input = {}) {
     audit.append('account_disconnected', { accountId: id, reason: String(reason) });
     broadcast('session:status', { id, status: s.status, reason: String(reason) });
     sessions.delete(id);
+    // Close only the remote browser connection; Browserless keeps the persisted profile until its TTL.
+    if (isBrowserless) Promise.resolve(client.destroy()).catch(() => {});
   });
   client.on('message_ack', (message, ack) => {
     const messageId = message?.id?._serialized;
