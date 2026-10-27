@@ -41,9 +41,14 @@ public final class MainActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         buildLayout();
-        String saved = getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_URL, DEFAULT_URL);
-        urlInput.setText(saved);
-        loadServer(saved);
+        String saved = getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_URL, "");
+        if (saved.isEmpty()) {
+            urlInput.setText(DEFAULT_URL);
+            setStatus("اختر الإرسال الرسمي بدون Termux، أو افتح خادمًا اختياريًا.");
+        } else {
+            urlInput.setText(saved);
+            loadServer(saved);
+        }
     }
 
     private void buildLayout() {
