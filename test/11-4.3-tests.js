@@ -2,7 +2,6 @@
 const assert=require('assert');
 const {parseImport,normalizeRows}=require('../src/16-contact-directory');
 const {MultiAccountOrchestrator}=require('../src/15-multi-account-orchestrator');
-const {sendCloud}=require('../src/17-cloud-api');
 let passed=0;
 function ok(name,fn){fn();console.log('PASS '+name);passed++;}
 ok('CSV import',()=>assert.equal(parseImport('name,phone,gender\nA,201012345678,male','csv').length,1));
