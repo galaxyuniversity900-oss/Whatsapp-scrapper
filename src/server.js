@@ -21,8 +21,6 @@ const { GroupLinkWorkspace } = require('./14-group-link-workspace');
 const { PublicChannelSearch } = require('./27-public-channel-search');
 const { MultiAccountOrchestrator } = require('./15-multi-account-orchestrator');
 const { ContactDirectory, normPhone } = require('./16-contact-directory');
-const { sendCloud } = require('./17-cloud-api');
-const { SecretStore } = require('./18-secret-store');
 const { TelegramAdapter } = require('./28-telegram-adapter');
 const { AIProviderHub } = require('./29-ai-provider-hub');
 const { CapabilityFoundation } = require('./30-capability-foundation');
@@ -50,7 +48,6 @@ const publicChannelSearch = new PublicChannelSearch();
 const groupJobs = new Map();
 const accountOrchestrator = new MultiAccountOrchestrator(path.join(dataDir, 'account-schedules.json'));
 const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'));
-const secretStore = new SecretStore(path.join(dataDir, 'secrets.json'));
 const telegram = new TelegramAdapter({ dataDir: path.join(dataDir, 'telegram'), audit });
 const aiHub = new AIProviderHub({ dataDir: path.join(dataDir, 'ai'), masterKey: process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY });
 const aiCapabilities = new CapabilityFoundation({ hub: aiHub, audit });
@@ -189,13 +186,11 @@ function sessionPublic(s) {
     transport: s.transport || 'web_qr',
     phone: s.phone || null,
     pairingCode: s.pairingCode || null,
-    cloud: s.transport === 'cloud_api' ? { phoneNumberId:s.phoneNumberId, version:s.cloudVersion } : null
   };
 }
 
 async function createSession(input = {}) {
   const transport=String(input.transport||'web_qr');
-  if(transport==='cloud_api') return createCloudSession(input);
   if(!['web_qr','web_pairing'].includes(transport)) throw new Error('Unsupported transport');
   const id = normalizeId(input.id);
   if (!id) throw new Error('Account ID required');
@@ -347,43 +342,9 @@ async function createSession(input = {}) {
   }
 }
 
-async function createCloudSession(input={}) {
-  const id=normalizeId(input.id); if(!id) throw new Error('Account ID required');
-  if(sessions.has(id)) return {ok:true,id,existing:true,session:sessionPublic(sessions.get(id))};
-  const cap=accountOrchestrator.capacity(sessions.size); if(!cap.canCreate) throw new Error('Account capacity reached: '+cap.max+' live accounts');
-  const phoneNumberId=String(input.phoneNumberId||''); if(!/^\d+$/.test(phoneNumberId)) throw new Error('Cloud API phone number ID required');
-  const token=String(input.token||secretStore.get(id)||''); if(!token) throw new Error('Cloud API token required (or set WA_MASTER_KEY and configure the account once)');
-  const s={id,client:null,browser:null,headless:true,manager:null,status:'ready',transport:'cloud_api',phoneNumberId,cloudVersion:String(input.version||'v23.0'),cloudToken:token,createdAt:new Date().toISOString(),sent:0,consecutiveFailures:0};
-  sessions.set(id,s);
-  secretStore.set(id,token);
-  registry.upsert({id,enabled:true,transport:'cloud_api',phoneNumberId,cloudVersion:s.cloudVersion,tokenConfigured:true});
-  audit.append('cloud_account_ready',{accountId:id,phoneNumberId});
-  broadcast('session:status',sessionPublic(s));
-  return {ok:true,id,session:sessionPublic(s)};
-}
-async function sendCloudCampaign(payload={}) {
-  const s=sessions.get(normalizeId(payload.accountId));
-  if(!s||s.transport!=='cloud_api'||s.status!=='ready') throw new Error('Cloud API account is not ready');
-  const text=String(payload.template||'').trim(); if(!text) throw new Error('Campaign message is empty');
-  const gender=String(payload.gender||'all').toLowerCase();
-  const eligible=contactDirectory.filter({gender}).filter(x=>x.consent===true&&x.optOut!==true&&x.status!=='sent'&&x.status!=='suppressed')
-    .slice(0,Math.min(10000,Math.max(1,Number(payload.limit||100))));
-  const results=[]; const delay=Math.min(3600,Math.max(0,Number(payload.intervalSeconds??10)));
-  for(const contact of eligible){
-    try{
-      const body=text.replace(/\{name\}/gi,contact.name||'').replace(/\{phone\}/gi,contact.phone||'');
-      const data=await sendCloud({token:s.cloudToken,phoneNumberId:s.phoneNumberId,to:contact.phone,text:body,version:s.cloudVersion});
-      s.sent++; results.push({phone:contact.phone,name:contact.name,status:'sent',response:data});
-      audit.append('cloud_message_sent',{accountId:s.id,phone:contact.phone});
-    }catch(e){results.push({phone:contact.phone,name:contact.name,status:'failed',error:String(e.message||e)});audit.append('cloud_message_failed',{accountId:s.id,phone:contact.phone,error:String(e.message||e)});}
-    if(delay>0) await sleep(delay*1000);
-  }
-  return {ok:true,total:eligible.length,sent:results.filter(x=>x.status==='sent').length,failed:results.filter(x=>x.status==='failed').length,results};
-}
 async function runAccountSchedule(row){
   try{
     if(row.action==='start') await createSession(row.payload||{id:row.accountId});
-    else if(row.action==='cloud_send') await sendCloudCampaign({...row.payload,accountId:row.accountId});
     else if(row.action==='logout') await logoutSession(row.accountId,false);
     accountOrchestrator.complete(row.id,'completed'); audit.append('account_schedule_completed',{scheduleId:row.id,accountId:row.accountId});
   }catch(e){accountOrchestrator.complete(row.id,'failed',e.message);audit.append('account_schedule_failed',{scheduleId:row.id,accountId:row.accountId,error:String(e.message||e)});}
@@ -400,7 +361,6 @@ async function logoutSession(id, removeAuth = false) {
   }
   registry.upsert({ id: key, enabled: false });
   if (removeAuth) {
-    secretStore.remove(key);
     try { fs.rmSync(path.join(authDir, 'session-' + key), { recursive: true, force: true }); } catch {}
     registry.remove(key);
   }
@@ -988,7 +948,7 @@ async function route(req, res) {
     }
     if (req.method === 'POST' && p === '/api/accounts/schedule') { const x=await parseBody(req); if(!x.accountId||!x.runAt) throw new Error('accountId and runAt required'); const row=accountOrchestrator.schedule(x); audit.append('account_schedule_created',{scheduleId:row.id,accountId:row.accountId,runAt:row.runAt}); return json(res,200,{ok:true,schedule:row}); }
     if (req.method === 'POST' && p === '/api/accounts/schedule/cancel') { const x=await parseBody(req); const row=accountOrchestrator.cancel(x.id); if(!row) throw new Error('Schedule not found'); return json(res,200,{ok:true,schedule:row}); }
-    if (req.method === 'POST' && p === '/api/accounts/cloud/send') return json(res,200,await sendCloudCampaign(await parseBody(req)));
+    if (req.method === 'POST' && p === '/api/accounts/cloud/send') return json(res,410,{ok:false,error:'Cloud API is disabled. Use the local WhatsApp Web session.'});
     if (req.method === 'POST' && p === '/api/session/logout') {
       const x = await parseBody(req);
       return json(res, 200, await logoutSession(x.id, false));
@@ -1243,7 +1203,7 @@ async function route(req, res) {
 }
 
 const port = Math.max(1, Number(process.env.PORT || 8787));
-const host = process.env.HOST || '127.0.0.1';
+const host = '127.0.0.1';
 const server = http.createServer(route);
 server.requestTimeout = Math.max(10000, Number(process.env.WA_REQUEST_TIMEOUT_MS || 120000));
 server.headersTimeout = Math.max(5000, Number(process.env.WA_HEADERS_TIMEOUT_MS || 10000));
