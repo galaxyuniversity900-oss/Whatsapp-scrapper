@@ -213,6 +213,14 @@ npm run server
 
 The local server defaults to `http://127.0.0.1:8787`. For local development, admin Basic Authentication is optional; production mode requires `WA_ADMIN_PASSWORD`.
 
+## One-time Termux setup, then remote APK operation
+
+The Android client can use the persistent Render service so the phone does not need to keep Termux running. The repository includes `android/termux-deploy-render.sh` to run pre-deployment checks, open the Render dashboard, and verify the resulting HTTPS `/healthz` endpoint. It does not bypass Render account authorization or deploy to an account without the owner's approval.
+
+Follow the one-time procedure in [the Android deployment guide](android/README.md#3-remote-backend--no-termux-after-setup). Render's current blueprint uses a Starter web service and a persistent disk; review the plan's cost before deploying. Supply the Browserless Private Fleet endpoint and token only through Render's secret environment settings. After deployment, run the **Android APK Build** workflow with its optional `server_url` input to produce an APK preconfigured with the public HTTPS URL. This URL is not a secret; no credentials are embedded in the APK.
+
+The deployment wizard and CI can verify syntax, test behavior with mocked Browserless responses, and check server health. They cannot prove a real Browserless QR login, WhatsApp session restoration, or message delivery. Those must be tested against the user's deployed Private Fleet and an opted-in test recipient.
+
 ## Browserless remote WhatsApp Web (opt-in)
 
 The Android APK can connect to a hosted Node.js service; Browserless replaces the service's local Chromium process only when an account explicitly selects **Browserless (remote)**. The Node.js service is still required. Existing Chromium/Chrome/Edge, Termux, and the official Cloud API paths remain available.
