@@ -52,6 +52,16 @@ class BrowserlessSessionManager {
         Number(saved.expiresAt) > this.now() + 60000) {
       return { ...saved, reused: true };
     }
+    if (saved && typeof saved.stop === 'string') {
+      try {
+        const separator = saved.stop.includes('?') ? '&' : '?';
+        await this.fetch(saved.stop + separator + 'force=true', {
+          method: 'DELETE',
+          signal: AbortSignal.timeout(10000)
+        });
+      } catch {}
+      this.secretStore?.remove(key);
+    }
 
     const endpoint = new URL('/session', config.baseUrl);
     endpoint.searchParams.set('token', config.token);
