@@ -16,14 +16,33 @@ This mode sends plain-text messages through the official business API only. It i
 
 The original web workspace and personal WhatsApp Web automation still use the existing Node.js backend. The APK's WebView can connect to that local service at `http://127.0.0.1:8787/`.
 
-### 3. Existing workspace with a remote backend
+### 3. Remote backend — no Termux after setup
 
-Deploy the existing Node.js service on a trusted HTTPS host and enter its HTTPS URL in the app's address field. The app remembers the URL.
+Use the one-time Termux deployment wizard in `android/termux-deploy-render.sh`. It validates the checked-out branch and project tests, opens Render's dashboard, and then checks the deployed service's `/healthz` endpoint. It does not store cloud credentials in the APK or commit secrets.
 
-1. **Same-phone Termux service:** install/run the existing project in Termux, then start its server with `npm run termux`. The default URL is `http://127.0.0.1:8787/`.
-2. **Remote server:** deploy the existing Node.js service on a trusted HTTPS host and enter its HTTPS URL in the app's address field. The app remembers the URL.
+On the first setup, Render account authorization and the Browserless Private Fleet endpoint/token must be entered by you in the provider dashboards; this cannot be done safely without your account authorization.
 
-For the existing workspace, the Node service must remain running in Termux or on a remote host. The standalone Cloud API sender is the no-Termux option, but its supported scope is limited to official WhatsApp Business text messaging.
+**One-time Termux setup:**
+
+```bash
+pkg update
+pkg install git nodejs-lts curl
+git clone -b browserless-remote-browser https://github.com/galaxyuniversity900-oss/Whatsapp-scrapper.git
+cd Whatsapp-scrapper
+bash android/termux-deploy-render.sh
+```
+
+In the Render Blueprint flow:
+1. Connect this repository and select the `browserless-remote-browser` branch.
+2. Review the Starter service and persistent disk pricing before confirming.
+3. Set `BROWSERLESS_BASE_URL` to the exact HTTPS endpoint shown in the Browserless Private Fleet dashboard, and `BROWSERLESS_TOKEN` as a Render secret. Never paste either into the APK or source files.
+4. Deploy and wait for the service to become Live. Return to Termux and paste the HTTPS service URL when the wizard asks. The script checks `/healthz` and saves the URL locally; a healthy endpoint proves only that the server responds, not that WhatsApp login or message sending works.
+
+**Prepare an APK that opens the remote service by default:** open GitHub Actions → **Android APK Build** → **Run workflow**, enter the deployed HTTPS URL in the optional `server_url` input, and download the `whatsapp-scrapper-android-debug-apk` artifact after the workflow succeeds. The URL is configuration, not a credential. If you install a generic APK instead, enter the URL once in its address field; it remembers the URL.
+
+The APK asks for the server's HTTP Basic Auth credentials when needed. Retrieve `WA_ADMIN_USER` and `WA_ADMIN_PASSWORD` from the Render service configuration; do not use your WhatsApp password. The Node.js backend remains hosted remotely, so Termux can be closed or uninstalled after setup. The hosted service must stay deployed and its persistent disk must remain attached.
+
+The official Cloud API sender remains a separate no-Termux option; it does not replace the WhatsApp Web, Telegram, CRM, or other backend features.
 
 ## Build
 
@@ -43,6 +62,10 @@ The Android client now handles HTTP Basic Authentication challenges from protect
 2. Enter the Phone Number ID and access token from your WhatsApp Business Platform setup, the recipient number with country code, and a short test message.
 3. Send only to a consenting test recipient. Confirm the response and then verify the message in WhatsApp / WhatsApp Manager. Do not interpret an accepted API request as delivery confirmation.
 4. If Meta rejects the request, check the returned error, token permissions, phone-number ID, recipient eligibility, and template/customer-service-window rules.
+
+### APK build-time remote URL
+
+The Android Gradle build accepts `WA_REMOTE_SERVER_URL` (or `-PwaServerUrl=https://your-service.onrender.com`). It validates that the value is an HTTPS base URL and embeds only that URL, never the admin password, API token, Browserless token, or encryption key. GitHub Actions exposes this as the optional `server_url` input on the Android APK Build workflow.
 
 ### Local Termux smoke test
 
