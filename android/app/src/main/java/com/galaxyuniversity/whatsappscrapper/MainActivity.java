@@ -27,7 +27,8 @@ import android.graphics.Color;
 public final class MainActivity extends Activity {
     private static final String PREFS = "wa_android_settings";
     private static final String KEY_URL = "server_url";
-    private static final String DEFAULT_URL = "http://127.0.0.1:8787/";
+    private static final String LOCAL_URL = "http://127.0.0.1:8787/";
+    private static final String DEFAULT_URL = BuildConfig.REMOTE_SERVER_URL.isEmpty() ? LOCAL_URL : BuildConfig.REMOTE_SERVER_URL;
     private static final int FILE_CHOOSER_REQUEST = 7214;
 
     private EditText urlInput;
@@ -195,7 +196,7 @@ public final class MainActivity extends Activity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, android.webkit.WebResourceError error) {
                 if (request.isForMainFrame()) {
-                    setStatus("تعذر الاتصال. شغّل خدمة Node.js في Termux أو تحقق من رابط الخادم.");
+                    setStatus("تعذر الاتصال بالخادم. تحقق من رابط HTTPS أو حالة الاستضافة؛ لا يلزم تشغيل Termux إذا كان الخادم مستضافًا.");
                 }
             }
         });
