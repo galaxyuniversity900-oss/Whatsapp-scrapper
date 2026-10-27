@@ -112,11 +112,18 @@ public final class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
-                if ("http".equals(scheme) || "https".equals(scheme)) return false;
-                try {
-                    startActivity(new Intent(Intent.ACTION_VIEW, uri));
-                } catch (ActivityNotFoundException ignored) {
-                    setStatus("لا يوجد تطبيق لفتح هذا الرابط");
+                String host = uri.getHost();
+                boolean local = "127.0.0.1".equals(host) || "localhost".equalsIgnoreCase(host) || "::1".equals(host);
+                boolean sameHost = host != null && host.equalsIgnoreCase(activeHost);
+                if (sameHost && ("https".equals(scheme) || ("http".equals(scheme) && local))) return false;
+                if ("https".equals(scheme)) {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                    } catch (ActivityNotFoundException ignored) {
+                        setStatus("لا يوجد تطبيق لفتح هذا الرابط");
+                    }
+                } else {
+                    setStatus("تم حظر رابط HTTP غير موثوق");
                 }
                 return true;
             }
