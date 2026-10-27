@@ -15,6 +15,26 @@ The repository's GitHub Actions workflow builds a debug APK on a hosted Android 
 
 The APK is unsigned for Play Store release (Android debug-signed build). A production release requires a separately managed signing key; never commit keystore files or passwords.
 
+## Functional verification status
+
+The CI build confirms that the Android project compiles and the APK is packaged. It does not by itself prove WhatsApp login, QR authentication, message delivery, or Chromium compatibility on a particular phone.
+
+The Android client now handles HTTP Basic Authentication challenges from protected servers with a native login dialog. Credentials are held by WebView's HTTP-auth handling; the app does not write the entered password to its own preferences. For a remote server, configure a strong `WA_ADMIN_USER` and `WA_ADMIN_PASSWORD`, deploy behind HTTPS, and never reuse the WhatsApp account password as the server password.
+
+### Local Termux smoke test
+
+1. In the existing repository directory, install dependencies with `npm install` if they are not installed.
+2. Start the backend using `npm run termux`.
+3. Confirm the console reports the local service at `http://127.0.0.1:8787`.
+4. Open the APK on the same phone. Keep Termux running while using local mode.
+5. Verify the dashboard loads, create/connect an account, scan the QR code, and only then send a single test message to a consenting test recipient.
+
+If QR authentication or session startup fails, check whether the installed Termux Chromium can launch headlessly and whether the version is compatible with the bundled `whatsapp-web.js` / Puppeteer runtime. The APK cannot repair a backend browser-runtime incompatibility.
+
+### CI checks
+
+The Android workflow runs `android/scripts/verify-integration.sh` before building. These are source-level integration-contract checks, not an emulator or live WhatsApp test. A successful workflow must be followed by the on-device smoke test above.
+
 ## Security
 
 - Remote HTTP URLs are rejected; use HTTPS for remote deployments.
