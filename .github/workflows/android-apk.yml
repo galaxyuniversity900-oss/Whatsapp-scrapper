@@ -2,6 +2,12 @@ name: Android APK Build
 
 on:
   workflow_dispatch:
+    inputs:
+      server_url:
+        description: "Optional HTTPS Render service URL to preconfigure in the APK (not a secret)"
+        required: false
+        type: string
+        default: ""
   push:
     branches:
       - android-apk-client
@@ -55,6 +61,8 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
+        env:
+          WA_REMOTE_SERVER_URL: ${{ inputs.server_url }}
         run: gradle --no-daemon clean assembleDebug
 
       - name: Verify APK artifact
