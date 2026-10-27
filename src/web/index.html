@@ -324,12 +324,9 @@ input[type=checkbox]{accent-color:#a7d46f}
  <div class="grid">
   <div class="panel"><div class="head"><b>Multi-Account Control</b><button onclick="refreshMulti()">Refresh</button></div><div class="body">
    <div class="form">
-    <div class="field"><label>Transport</label><select id="multiTransport"><option value="web_qr">WhatsApp Web · QR</option><option value="web_pairing">WhatsApp Web · Pairing Code</option><option value="cloud_api">WhatsApp Cloud API</option></select></div>
+    <div class="field"><label>Transport</label><select id="multiTransport"><option value="web_qr">WhatsApp Web · QR</option><option value="web_pairing">WhatsApp Web · Pairing Code</option></select></div>
     <div class="field"><label>Account ID</label><input id="multiAccountId" placeholder="Sales-01"></div>
     <div class="field"><label>Phone for pairing</label><input id="multiPhone" placeholder="2010xxxxxxxx"></div>
-    <div class="field"><label>Cloud Phone Number ID</label><input id="multiPhoneId"></div>
-    <div class="field"><label>Cloud API token</label><input id="multiToken" type="password" autocomplete="off"></div>
-    <div class="field"><label>Graph version</label><input id="multiVersion" value="v23.0"></div>
    </div>
    <div class="toolbar"><button class="green" onclick="createMultiAccount()">Connect / Add Account</button><button onclick="refreshMulti()">Capacity & Accounts</button></div>
    <div id="multiCapacity" class="result code">Loading…</div>
@@ -461,7 +458,7 @@ async function searchMessages(){const id=$('searchAccount').value,q=$('searchQue
 async function exportData(){try{const r=await post('/api/data/export',{source:$('exportSource').value,format:$('exportFormat').value,limit:5000});$('searchResult').textContent=JSON.stringify(r,null,2);toast('Export created on the Termux data directory')}catch(e){toast(e.message)}}
 
 async function refreshMulti(){try{const [cap,acc]=await Promise.all([api('/api/accounts/capacity'),api('/api/accounts')]);$('multiCapacity').textContent=JSON.stringify(cap,null,2);$('multiAccounts').textContent=JSON.stringify(acc,null,2);await loadSchedules();await filterMultiContacts()}catch(e){toast(e.message)}}
-async function createMultiAccount(){try{const transport=$('multiTransport').value;const payload={id:$('multiAccountId').value.trim(),transport};if(transport==='web_pairing')payload.phone=$('multiPhone').value.trim();if(transport==='cloud_api'){payload.phoneNumberId=$('multiPhoneId').value.trim();payload.token=$('multiToken').value;payload.version=$('multiVersion').value.trim()||'v23.0'}const r=await post('/api/session/create',payload);$('multiPairing').textContent=JSON.stringify(r.session,null,2);toast('Account '+payload.id+' configured');refreshAll();refreshMulti()}catch(e){toast(e.message)}}
+async function createMultiAccount(){try{const transport=$('multiTransport').value;const payload={id:$('multiAccountId').value.trim(),transport};if(transport==='web_pairing')payload.phone=$('multiPhone').value.trim();const r=await post('/api/session/create',payload);$('multiPairing').textContent=JSON.stringify(r.session,null,2);toast('Account '+payload.id+' configured');refreshAll();refreshMulti()}catch(e){toast(e.message)}}
 async function importMultiContacts(){const f=$('multiContactFile').files[0];if(!f)return toast('Choose a contact file');try{const raw=await f.text();const r=await post('/api/contacts/import-file',{format:$('multiContactFormat').value,raw});toast('Imported '+r.imported+' contacts');$('multiContacts').textContent=JSON.stringify(r.contacts,null,2);refreshContacts()}catch(e){toast(e.message)}}
 async function filterMultiContacts(){try{const r=await api('/api/contacts/filter?gender='+encodeURIComponent($('multiGender').value));$('multiContacts').textContent=JSON.stringify(r,null,2)}catch(e){toast(e.message)}}
 async function scheduleMulti(){try{const r=await post('/api/accounts/schedule',{accountId:$('scheduleAccount').value.trim(),runAt:new Date($('scheduleAt').value).toISOString(),action:$('scheduleAction').value,payload:{id:$('scheduleAccount').value.trim(),transport:'web_qr'}});toast('Scheduled '+r.schedule.id);loadSchedules()}catch(e){toast(e.message)}}
