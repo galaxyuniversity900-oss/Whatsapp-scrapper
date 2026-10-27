@@ -213,3 +213,18 @@ npm run server
 
 The local server defaults to `http://127.0.0.1:8787`. For local development, admin Basic Authentication is optional; production mode requires `WA_ADMIN_PASSWORD`.
 
+## Android / Termux local runtime
+
+For the local web application on Android, follow [TERMUX.md](TERMUX.md). This branch removes the WhatsApp Cloud API transport and runs the server only on `127.0.0.1:8787`. It uses Chromium and a local WhatsApp Web session; it does not require Browserless or a remote browser service.
+
+Quick start from the repository folder:
+
+```bash
+pkg install nodejs-lts chromium
+export PUPPETEER_SKIP_DOWNLOAD=1
+npm install --omit=dev
+bash scripts/termux-start.sh
+```
+
+Open `http://127.0.0.1:8787` in the phone browser and keep Termux running. Use `npm run termux:local` to run the local-only and core smoke checks. QR login and actual message delivery still need to be verified on the device.
+
