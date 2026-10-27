@@ -2,35 +2,28 @@ plugins {
     id 'com.android.application'
 }
 
+import java.net.URI
+
 def remoteServerUrl = (project.findProperty('waServerUrl') ?: System.getenv('WA_REMOTE_SERVER_URL') ?: '').toString().trim()
-remoteServerUrl = remoteServerUrl.replace('\\', '\\\\').replace('"', '\\"')
-if (remoteServerUrl && !remoteServerUrl.matches('^https://[^/?#@]+(?:/[^?#]*)?
-android {
-    namespace 'com.galaxyuniversity.whatsappscrapper'
-    compileSdk 35
-
-    buildFeatures {
-        buildConfig true
-    }
-
-    defaultConfig {
-        applicationId 'com.galaxyuniversity.whatsappscrapper'
-        minSdk 23
-        targetSdk 28
-        versionCode 1
-        versionName '1.0.0'
-        buildConfigField 'String', 'REMOTE_SERVER_URL', '"' + remoteServerUrl + '"'
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+def validRemoteServerUrl = true
+if (remoteServerUrl) {
+    try {
+        def remoteUri = new URI(remoteServerUrl)
+        validRemoteServerUrl = remoteUri.scheme == 'https' &&
+            remoteUri.host != null &&
+            !remoteUri.userInfo &&
+            !remoteUri.query &&
+            !remoteUri.fragment
+    } catch (Exception ignored) {
+        validRemoteServerUrl = false
     }
 }
-)) {
+if (!validRemoteServerUrl) {
     throw new GradleException('waServerUrl / WA_REMOTE_SERVER_URL must be a base HTTPS URL without credentials, query, or fragment')
 }
 
+def escapedRemoteServerUrl = remoteServerUrl.replace('\\\\', '\\\\\\\\').replace('"', '\\\"')
+
 android {
     namespace 'com.galaxyuniversity.whatsappscrapper'
     compileSdk 35
@@ -45,7 +38,7 @@ android {
         targetSdk 28
         versionCode 1
         versionName '1.0.0'
-        buildConfigField 'String', 'REMOTE_SERVER_URL', '"' + remoteServerUrl + '"'
+        buildConfigField 'String', 'REMOTE_SERVER_URL', '"' + escapedRemoteServerUrl + '"'
     }
 
     compileOptions {
