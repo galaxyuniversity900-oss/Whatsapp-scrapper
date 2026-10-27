@@ -15,4 +15,5 @@ node --check src/9-account-registry.js
 node test/5-tests.js
 node test/6-hardening-tests.js
 node test/7-professional-tests.js
+node test/24-termux-local-only-tests.js
 echo "== Termux core test completed =="
