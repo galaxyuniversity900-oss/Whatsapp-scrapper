@@ -23,8 +23,8 @@ The Android client now handles HTTP Basic Authentication challenges from protect
 
 ### Local Termux smoke test
 
-1. In the existing repository directory, install dependencies with `npm install` if they are not installed.
-2. Start the backend using `npm run termux`.
+1. If required, install Termux packages: `pkg install nodejs-lts npm chromium`.
+2. In the existing repository directory, run `bash android/termux-start.sh`. The launcher installs runtime dependencies with `npm install --omit=dev` only when missing, detects Chromium, sets `CHROME_BIN`, and enables headless mode by default.
 3. Confirm the console reports the local service at `http://127.0.0.1:8787`.
 4. Open the APK on the same phone. Keep Termux running while using local mode.
 5. Verify the dashboard loads, create/connect an account, scan the QR code, and only then send a single test message to a consenting test recipient.
