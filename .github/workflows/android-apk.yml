@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - android-apk-client
+      - browserless-remote-browser
     paths:
       - "android/**"
       - ".github/workflows/android-apk.yml"
