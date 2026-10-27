@@ -89,6 +89,12 @@ public final class MainActivity extends Activity {
         root.addView(bar);
         root.addView(status);
 
+        Button cloudApi = new Button(this);
+        cloudApi.setText("إرسال رسمي بدون Termux");
+        cloudApi.setTextSize(13);
+        cloudApi.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, CloudApiActivity.class)));
+        root.addView(cloudApi, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)));
+
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         progress.setVisibility(View.GONE);
