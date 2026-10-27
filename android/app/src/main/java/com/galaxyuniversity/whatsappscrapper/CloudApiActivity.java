@@ -99,7 +99,7 @@ public final class CloudApiActivity extends Activity {
         edit.setHintTextColor(Color.LTGRAY);
         edit.setTextColor(Color.WHITE);
         edit.setTextSize(14);
-        edit.setSingleLine(!secret);
+        edit.setSingleLine(true);
         edit.setPadding(dp(12), dp(8), dp(12), dp(8));
         edit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(110, 130, 110)));
         if (secret) edit.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
