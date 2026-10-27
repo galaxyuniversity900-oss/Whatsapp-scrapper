@@ -23,6 +23,7 @@ async function run() {
   let calls = 0;
   const fetchImpl = async (url, options) => {
     calls++;
+    if (options.method === 'DELETE') return { ok: true, status: 200 };
     assert.match(url, /^https:\/\/private\.browserless\.example\/session\?token=/);
     assert.strictEqual(options.method, 'POST');
     const body = JSON.parse(options.body);
@@ -61,7 +62,7 @@ async function run() {
   now += 86400000;
   const third = await manager.getOrCreate('account-1');
   assert.strictEqual(third.reused, false);
-  assert.strictEqual(calls, 2, 'expired session should be replaced');
+  assert.strictEqual(calls, 3, 'expired session should be deleted and replaced');
 
   let deleteCalled = false;
   const deleteManager = new BrowserlessSessionManager({
