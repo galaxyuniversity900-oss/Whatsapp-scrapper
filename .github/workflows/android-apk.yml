@@ -49,6 +49,9 @@ jobs:
           test -f android/app/src/main/java/com/galaxyuniversity/whatsappscrapper/MainActivity.java
           grep -q "applicationId 'com.galaxyuniversity.whatsappscrapper'" android/app/build.gradle
 
+      - name: Verify Android/backend integration contract
+        run: bash android/scripts/verify-integration.sh
+
       - name: Build debug APK
         working-directory: android
         run: gradle --no-daemon clean assembleDebug
