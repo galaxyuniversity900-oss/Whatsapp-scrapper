@@ -6,14 +6,22 @@ server="src/server.js"
 web="src/web/index.html"
 browser="src/3-browser-selection-fix.js"
 launcher="android/termux-start.sh"
+cloud="android/app/src/main/java/com/galaxyuniversity/whatsappscrapper/CloudApiActivity.java"
 
 test -s "$activity"
 test -s "$server"
 test -s "$web"
 test -s "$browser"
 test -s "$launcher"
+test -s "$cloud"
 
 grep -q 'onReceivedHttpAuthRequest' "$activity"
+grep -q 'إرسال رسمي بدون Termux' "$activity"
+grep -q 'android:name=".CloudApiActivity"' android/app/src/main/AndroidManifest.xml
+grep -q 'https://graph.facebook.com/v23.0/' "$cloud"
+grep -q 'Authorization", "Bearer " + token' "$cloud"
+grep -q 'executor.execute' "$cloud"
+grep -q 'accessToken.setText("")' "$cloud"
 grep -q 'handler.proceed(user, pass)' "$activity"
 grep -q 'http://127.0.0.1:8787/' "$activity"
 grep -q 'Remote HTTP URLs are rejected' android/README.md || true
@@ -31,4 +39,6 @@ echo 'PASS server admin-auth and API-token routes exist'
 echo 'PASS web UI sends API token'
 echo 'PASS browser discovery code exists'
 echo 'PASS Termux launcher selects Chromium and enables headless mode'
-echo 'RESULT 6/6 Android/backend integration contract checks passed'
+echo 'PASS native Cloud API screen and HTTPS Graph API endpoint'
+echo 'PASS API token is entered at runtime and cleared after accepted send'
+echo 'RESULT 8/8 Android/backend integration contract groups passed'
