@@ -223,6 +223,8 @@ Configure these environment variables on the trusted Node.js host, never in the 
 - `BROWSERLESS_TOKEN`: a rotated Browserless API token.
 - `BROWSERLESS_SESSION_TTL_MS`: optional persisted-session lifetime in milliseconds; defaults to 86400000 (24 hours) and must fit the account's plan.
 - `BROWSERLESS_PROCESS_KEEPALIVE_MS`: optional disconnect grace period in milliseconds; defaults to 60000.
+- `WA_MASTER_KEY`: set a stable strong secret on the server so encrypted Browserless session metadata remains readable after restarts.
+- `WA_DATA_DIR`: point this at persistent storage on the host; otherwise a redeploy may lose the saved connection URL and force a new QR pairing.
 
 The service creates a Browserless persisted session and stores its connection/stop URLs through the existing encrypted SecretStore. Those URLs contain credential material and must not be logged or returned to the Android client. Remote browser profile data lasts only until the Browserless session TTL expires. If a session expires, a new QR/pairing flow may be required.
 
