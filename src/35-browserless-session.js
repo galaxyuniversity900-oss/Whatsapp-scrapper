@@ -65,17 +65,22 @@ class BrowserlessSessionManager {
 
     const endpoint = new URL('/session', config.baseUrl);
     endpoint.searchParams.set('token', config.token);
-    const response = await this.fetch(endpoint.toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({
-        ttl: config.ttlMs,
-        processKeepAlive: config.keepAliveMs,
-        headless: true,
-        browser: 'chromium'
-      }),
-      signal: AbortSignal.timeout(20000)
-    });
+    let response;
+    try {
+      response = await this.fetch(endpoint.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          ttl: config.ttlMs,
+          processKeepAlive: config.keepAliveMs,
+          headless: true,
+          browser: 'chromium'
+        }),
+        signal: AbortSignal.timeout(20000)
+      });
+    } catch {
+      throw new Error('Browserless request failed; verify server connectivity and the configured endpoint');
+    }
     if (!response.ok) throw new Error('Browserless session creation failed (HTTP ' + response.status + ')');
 
     let remote;
