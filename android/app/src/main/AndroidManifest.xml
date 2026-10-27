@@ -10,6 +10,10 @@
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:supportsRtl="true">
         <activity
+            android:name=".CloudApiActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="true"
