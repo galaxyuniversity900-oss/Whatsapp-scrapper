@@ -9,7 +9,7 @@ assert.ok(!server.includes("require('./17-cloud-api')"), 'server must not import
 assert.ok(!server.includes('graph.facebook.com'), 'server must not call Meta Graph API');
 assert.ok(!server.includes('createCloudSession'), 'Cloud API session creation must be absent');
 assert.ok(!server.includes('sendCloudCampaign'), 'Cloud API campaign sender must be absent');
-assert.ok(server.includes("const host = '127.0.0.1';'), 'server must bind only to localhost');
+assert.ok(server.includes("const host = '127.0.0.1';"), 'server must bind only to localhost');
 assert.equal(pkg.scripts.termux, 'node src/server.js');
 assert.equal(pkg.scripts['termux:test'], 'bash test/termux-smoke.sh');
 assert.ok(fs.existsSync(path.join(root, 'src/renderer/index.html')), 'web UI must exist');
