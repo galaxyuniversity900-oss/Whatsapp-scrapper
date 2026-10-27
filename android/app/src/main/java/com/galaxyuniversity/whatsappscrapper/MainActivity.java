@@ -109,6 +109,48 @@ public final class MainActivity extends Activity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public void onReceivedHttpAuthRequest(WebView view, android.webkit.HttpAuthHandler handler, String host, String realm) {
+                LinearLayout form = new LinearLayout(MainActivity.this);
+                form.setOrientation(LinearLayout.VERTICAL);
+                form.setPadding(dp(20), dp(8), dp(20), 0);
+
+                EditText username = new EditText(MainActivity.this);
+                username.setSingleLine(true);
+                username.setHint("اسم المستخدم الإداري");
+                username.setText("admin");
+                form.addView(username, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+
+                EditText password = new EditText(MainActivity.this);
+                password.setSingleLine(true);
+                password.setHint("كلمة مرور الخادم");
+                password.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                form.addView(password, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+
+                AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("تسجيل دخول الخادم")
+                    .setMessage("الخادم " + host + " يطلب بيانات الإدارة. لا تستخدم بيانات حساب WhatsApp هنا.")
+                    .setView(form)
+                    .setPositiveButton("اتصال", (d, which) -> {
+                        String user = username.getText().toString().trim();
+                        String pass = password.getText().toString();
+                        if (user.isEmpty() || pass.isEmpty()) {
+                            handler.cancel();
+                            setStatus("بيانات دخول الخادم مطلوبة");
+                        } else {
+                            handler.proceed(user, pass);
+                            setStatus("جارٍ التحقق من بيانات الخادم…");
+                        }
+                    })
+                    .setNegativeButton("إلغاء", (d, which) -> {
+                        handler.cancel();
+                        setStatus("تم إلغاء تسجيل الدخول");
+                    })
+                    .create();
+                dialog.setOnCancelListener(d -> handler.cancel());
+                dialog.show();
+            }
+
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
