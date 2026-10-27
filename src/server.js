@@ -205,7 +205,7 @@ async function createSession(input = {}) {
   if(!cap.canCreate) throw new Error('Account capacity reached: '+cap.max+' live accounts');
 
   const browser = input.browser || 'chromium';
-  const headless = input.headless === true;
+  const headless = input.headless === true || process.env.WA_DEFAULT_HEADLESS === '1';
   const executablePath = input.executablePath || process.env.CHROME_BIN || null;
   if (!['chromium', 'chrome', 'edge'].includes(browser)) throw new Error('Unsupported browser');
 
