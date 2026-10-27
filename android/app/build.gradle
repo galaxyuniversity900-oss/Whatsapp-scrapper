@@ -2,9 +2,16 @@ plugins {
     id 'com.android.application'
 }
 
+def remoteServerUrl = (project.findProperty('waServerUrl') ?: System.getenv('WA_REMOTE_SERVER_URL') ?: '').toString().trim()
+remoteServerUrl = remoteServerUrl.replace('\\', '\\\\').replace('"', '\\"')
+
 android {
     namespace 'com.galaxyuniversity.whatsappscrapper'
     compileSdk 35
+
+    buildFeatures {
+        buildConfig true
+    }
 
     defaultConfig {
         applicationId 'com.galaxyuniversity.whatsappscrapper'
@@ -12,6 +19,7 @@ android {
         targetSdk 28
         versionCode 1
         versionName '1.0.0'
+        buildConfigField 'String', 'REMOTE_SERVER_URL', '"' + remoteServerUrl + '"'
     }
 
     compileOptions {
