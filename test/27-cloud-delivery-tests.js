@@ -46,6 +46,7 @@ const { DurableDeliveryQueue } = require('../src/37-durable-delivery-queue');
   assert.equal(queue.list()[0].payload, undefined);
   const doomed = queue.enqueue({ idempotencyKey: 'two', provider: 'test', recipientRef: 'masked-recipient', payload: { template: 'approved_template' } });
   await queue.processDue(async () => { throw new Error('permanent'); }, { now: Date.now() + 1000 });
+  await queue.processDue(async () => { throw new Error('permanent'); }, { now: Date.now() + 2000 });
   assert.equal(queue.status().failed, 1);
   queue.stop();
   assert.equal((await queue.processDue(async () => ({}))).reason, 'stopped');
