@@ -1,6 +1,6 @@
 # Experimental Professional Messaging Engineering Features (2026)
 
-**Status:** Experimental design specification — documentation only. This document does not claim that every listed capability is implemented or verified.
+**Status:** Experimental roadmap with an initial implemented slice. The consent ledger, suppression store, audience preflight, and draft persistence are implemented in `src/35-consent-campaign-engine.js` and exposed through authenticated local API routes. The broader provider and reliability features below remain a roadmap unless explicitly marked implemented. CI/device verification is tracked separately.
 
 ## 1. Purpose and architecture
 
@@ -11,6 +11,21 @@ The workspace may evolve toward a provider-neutral messaging gateway with distin
 - **Telegram MTProto:** An authenticated user session may access dialogs and participant information exposed to that account. Visibility depends on entity type, membership, permissions, privacy settings, and Telegram API behavior; do not promise complete rosters or historical/hidden members.
 - **WhatsApp Web adapter:** Uses an unofficial web-client library and is fragile to upstream changes. It may access only data exposed by the active, authorized session. It is experimental and is not equivalent to an official API.
 - **WhatsApp Cloud API:** Official business messaging API. It is not a general group-member scraper and does not provide arbitrary group-roster extraction. Business-initiated conversations require eligible approved templates and appropriate opt-in; free-form messaging is subject to the customer-service window and current Meta policies.
+
+## 2.1 Implemented initial slice (experimental)
+
+- Durable local consent ledger at `data/consent-ledger.json`, including purpose, source, evidence reference, and effective/recorded timestamps.
+- Durable suppression list at `data/suppression-list.json`; suppressed recipients are blocked by campaign preflight and excluded by the existing campaign sender's eligibility filter.
+- Audience preflight with duplicate detection, invalid-phone checks, missing-consent checks, opt-out/suppression checks, unresolved template variable reporting, masked phone display, and a clear statement that no messages were sent by preflight.
+- Durable campaign drafts at `data/campaign-drafts.json`. Drafts are not automatically sent.
+- Authenticated local API routes:
+  - `GET /api/experimental/campaigns` — list drafts without message bodies.
+  - `POST /api/experimental/campaigns` — create a draft (`title`, `message`, optional `purpose`, `channel`).
+  - `POST /api/experimental/campaigns/preflight` — check supplied `contacts` or saved contacts using `message` and optional `campaignId`.
+  - `POST /api/experimental/consent` — record `phone`, boolean `consent`, and for consent=true, `purpose`, `source`, `evidenceRef`.
+  - `POST /api/experimental/suppressions` — suppress `phone` with optional `reason`.
+  - `POST /api/experimental/suppressions/remove` — requires `phone` and exact confirmation `CONFIRM RECONSENT`; do not use unless fresh consent has actually been obtained.
+- These routes require the existing API token and follow the server's existing authentication/security middleware. Data is local JSON storage, not encrypted at rest; protect the device and data directory.
 
 ## 2. Experimental feature sections
 
