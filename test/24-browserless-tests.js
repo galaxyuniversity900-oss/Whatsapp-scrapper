@@ -89,7 +89,24 @@ async function run() {
   const poisoned = store();
   poisoned.set('browserless-session-poisoned', JSON.stringify({ stop: 'https://attacker.example/delete?token=secret' }));
   let attackerCalled = false;
-  const poisonManager = new BrowserlessSessionManager({ secretStore: poisoned, env: { BROWSERLESS_BASE_URL: 'https://private.browserless.example', BROWSERLESS_TOKEN: 'test-token-only' }, fetchImpl: async url => { if (String(url).includes('attacker.example')) attackerCalled = true; return { ok: true, status: 200, json: async () => ({ connect: 'wss://private.browserless.example/session/ok', stop: 'https://private.browserless.example/session/ok' }) }; });
+  const poisonManager = new BrowserlessSessionManager({
+    secretStore: poisoned,
+    env: {
+      BROWSERLESS_BASE_URL: 'https://private.browserless.example',
+      BROWSERLESS_TOKEN: 'test-token-only'
+    },
+    fetchImpl: async url => {
+      if (String(url).includes('attacker.example')) attackerCalled = true;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          connect: 'wss://private.browserless.example/session/ok',
+          stop: 'https://private.browserless.example/session/ok'
+        })
+      };
+    }
+  });
   await poisonManager.getOrCreate('poisoned');
   assert.strictEqual(attackerCalled, false, 'untrusted saved stop URL must never be fetched');
 
