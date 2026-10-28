@@ -790,6 +790,54 @@ async function route(req, res) {
     if (req.method === 'GET' && p === '/api/sessions') {
       return json(res, 200, [...sessions.values()].map(sessionPublic));
     }
+    if (req.method === 'GET' && p === '/api/accounts/chats') {
+      const accountId = String(url.searchParams.get('accountId') || '');
+      const session = requireReady(accountId);
+      const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') || 100)));
+      const chats = await session.client.getChats();
+      const rows = chats.map(chat => {
+        const last = chat.lastMessage || null;
+        return {
+          id: String(chat.id?._serialized || ''),
+          name: String(chat.name || chat.pushname || chat.id?.user || 'Unknown chat'),
+          isGroup: Boolean(chat.isGroup),
+          unreadCount: Number(chat.unreadCount || 0),
+          timestamp: Number(last?.timestamp || chat.timestamp || 0),
+          lastMessage: String(last?.body || (last?.type === 'image' ? '[Image]' : last?.type === 'ptt' ? '[Voice message]' : last?.type === 'video' ? '[Video]' : '')),
+          lastFromMe: Boolean(last?.fromMe)
+        };
+      }).filter(chat => chat.id).sort((a,b) => b.timestamp-a.timestamp).slice(0,limit);
+      return json(res, 200, { ok:true, accountId, chats: rows });
+    }
+    if (req.method === 'GET' && p === '/api/accounts/messages') {
+      const accountId = String(url.searchParams.get('accountId') || '');
+      const chatId = String(url.searchParams.get('chatId') || '');
+      if (!/^[0-9A-Za-z._-]+@(c|g)\.us$/.test(chatId)) throw new Error('Invalid chat ID');
+      const session = requireReady(accountId);
+      const chat = await session.client.getChatById(chatId);
+      if (!chat) throw new Error('Chat not found');
+      const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 40)));
+      const messages = await chat.fetchMessages({ limit });
+      return json(res, 200, { ok:true, accountId, chat:{id:chatId,name:String(chat.name || chat.pushname || chatId),isGroup:Boolean(chat.isGroup)}, messages: messages.map(m => ({
+        id:String(m.id?._serialized || ''), fromMe:Boolean(m.fromMe), body:String(m.body || ''),
+        type:String(m.type || 'chat'), timestamp:Number(m.timestamp || 0),
+        author:String(m.author || ''), hasMedia:Boolean(m.hasMedia), ack:Number(m.ack ?? -1)
+      })) });
+    }
+    if (req.method === 'POST' && p === '/api/accounts/reply') {
+      const x = await parseBody(req);
+      const accountId = String(x.accountId || '');
+      const chatId = String(x.chatId || '');
+      const message = String(x.message || '').trim();
+      if (!/^[0-9A-Za-z._-]+@c\.us$/.test(chatId)) throw new Error('Reply is restricted to an individual chat; group sending is disabled here');
+      if (!message || message.length > 10000) throw new Error('Message must contain 1–10000 characters');
+      const session = requireReady(accountId);
+      const chat = await session.client.getChatById(chatId);
+      if (!chat || chat.isGroup) throw new Error('Individual chat not found');
+      const result = await session.client.sendMessage(chatId, message);
+      audit.append('manual_chat_reply_sent', { accountId, chatId, messageId: result?.id?._serialized || null, length: message.length });
+      return json(res, 200, { ok:true, messageId: result?.id?._serialized || null });
+    }
     if (req.method === 'GET' && p === '/api/accounts') {
       return json(res, 200, registry.list().map(a=>({...a,live:!!sessions.get(a.id),session:sessions.get(a.id)?sessionPublic(sessions.get(a.id)):null})));
     }
