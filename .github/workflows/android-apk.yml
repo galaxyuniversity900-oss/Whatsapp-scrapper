@@ -53,10 +53,12 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: gradle --no-daemon assembleDebug
-      - name: Upload latest installable debug APK
+      - name: Rename APK to neww.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk neww.apk
+      - name: Upload neww APK
         uses: actions/upload-artifact@v4
         with:
-          name: wa-workspace-latest-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: neww
+          path: neww.apk
           if-no-files-found: error
           retention-days: 14
