@@ -41,7 +41,7 @@ const { DurableDeliveryQueue } = require('../src/37-durable-delivery-queue');
   const failedOnce = await queue.processDue(async () => { attempts++; if (attempts === 1) throw new Error('temporary'); return { messageId: 'provider-message-1' }; }, { now: Date.now() + 1000 });
   assert.equal(failedOnce.processed, 1);
   assert.equal(queue.status().retrying, 1);
-  await queue.processDue(async () => ({ providerId: 'ok' }), { now: Date.now() + 1000 });
+  await queue.processDue(async () => ({ messageId: 'provider-message-1' }), { now: Date.now() + 1000 });
   assert.equal(queue.status().accepted, 1);
   assert.equal(queue.applyProviderStatus('provider-message-1', 'delivered').status, 'delivered');
   assert.equal(queue.status().delivered, 1);
