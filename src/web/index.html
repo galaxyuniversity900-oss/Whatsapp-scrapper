@@ -215,6 +215,7 @@ input[type=checkbox]{accent-color:#a7d46f}
   <button data-view="delivery"><span class="dot"></span>Delivery Monitor</button>
   <button data-view="data"><span class="dot"></span>Data & Export</button>
   <button data-view="activity"><span class="dot"></span>Activity & Audit</button>
+  <button data-view="experimental"><span class="dot"></span>Consent & Drafts</button>
  </nav>
  <div class="sideInfo"><div>ENGINE <b id="engine">ONLINE</b></div><div>Platform <span id="platform">—</span></div><div>Node <span id="node">—</span></div><div>WhatsApp <span id="waState">—</span></div></div>
 </aside>
@@ -435,6 +436,39 @@ input[type=checkbox]{accent-color:#a7d46f}
  <div class="panel"><div class="head"><b>Activity & Audit</b><button onclick="refreshAudit()">Refresh</button></div><div class="body"><div id="audit" class="code" style="height:560px"></div></div></div>
 </section>
 
+
+<section id="experimental" class="view">
+ <div class="panel"><div class="head"><b>Experimental Campaign Integrity</b><span class="status">Preflight only</span></div><div class="body">
+  <p class="muted">This workspace records consent evidence, maintains a suppression list, and checks audience eligibility. Preflight never sends messages. Consent evidence must be genuine and collected outside this tool.</p>
+  <div class="form">
+   <div class="field"><label>Campaign title</label><input id="expTitle" maxlength="160" placeholder="Campaign title"></div>
+   <div class="field"><label>Channel</label><select id="expChannel"><option value="whatsapp-web">WhatsApp Web · experimental</option><option value="telegram">Telegram MTProto</option><option value="whatsapp-cloud">WhatsApp Cloud API</option></select></div>
+   <div class="field"><label>Purpose</label><input id="expPurpose" maxlength="160" placeholder="e.g. product offers"></div>
+   <div class="field span4"><label>Message template</label><textarea id="expMessage" maxlength="20000" placeholder="Hello {name}, …"></textarea></div>
+  </div>
+  <div class="toolbar" style="margin-top:8px"><button class="green" onclick="expCreateDraft()">Save draft</button><button class="blue" onclick="expPreflight()">Check saved audience</button><button onclick="expLoadDrafts()">Refresh drafts</button></div>
+  <div id="expPreflightResult" class="result code">No preflight executed. Saving a draft does not send messages.</div>
+  <div id="expDrafts" class="result code">No drafts loaded.</div>
+ </div></div>
+ <div style="height:10px"></div>
+ <div class="grid">
+  <div class="panel"><div class="head"><b>Record consent evidence</b></div><div class="body">
+   <div class="form">
+    <div class="field span2"><label>Phone (international)</label><input id="expConsentPhone" inputmode="tel" placeholder="+2010…"></div>
+    <div class="field span2"><label>Purpose</label><input id="expConsentPurpose" placeholder="e.g. product offers"></div>
+    <div class="field span2"><label>Source</label><input id="expConsentSource" placeholder="e.g. website form"></div>
+    <div class="field span2"><label>Evidence reference</label><input id="expConsentEvidence" placeholder="Internal form/record ID"></div>
+   </div>
+   <div class="toolbar" style="margin-top:8px"><button class="green" onclick="expRecordConsent()">Record confirmed consent</button></div>
+   <p class="muted small">The tool stores the reference you provide; it does not verify the underlying evidence.</p>
+  </div></div>
+  <div class="panel"><div class="head"><b>Suppression / opt-out</b></div><div class="body">
+   <div class="form"><div class="field span2"><label>Phone (international)</label><input id="expSuppressPhone" inputmode="tel" placeholder="+2010…"></div><div class="field span2"><label>Reason</label><input id="expSuppressReason" value="recipient opt-out"></div></div>
+   <div class="toolbar" style="margin-top:8px"><button class="red" onclick="expSuppress()">Suppress recipient</button></div>
+   <p class="muted small">Suppression is applied to preflight and campaign eligibility. Do not remove an opt-out unless the recipient has genuinely re-consented.</p>
+  </div></div>
+ </div>
+</section>
 </div></main></div>
 <div id="toast" class="toast"></div>
 <script>
@@ -826,6 +860,38 @@ async function sendWorkspaceReply(){
  try{await post('/api/accounts/reply',{accountId,chatId,message});$('workspaceReply').value='';toast('Reply sent');await openWorkspaceChat(chatId);await loadWorkspaceChats();}
  catch(e){toast(e.message)}finally{$('workspaceSend').disabled=false}
 }
+
+
+async function expCreateDraft(){
+ try{
+  const result=await post('/api/experimental/campaigns',{title:$('expTitle').value,message:$('expMessage').value,purpose:$('expPurpose').value,channel:$('expChannel').value});
+  toast('Draft saved: '+result.campaign.id);await expLoadDrafts();
+ }catch(e){toast(e.message)}
+}
+async function expPreflight(){
+ try{
+  const result=await post('/api/experimental/campaigns/preflight',{campaignId:$('expTitle').value,message:$('expMessage').value});
+  $('expPreflightResult').textContent=JSON.stringify(result,null,2);
+  toast('Preflight completed; no messages were sent');
+ }catch(e){toast(e.message)}
+}
+async function expLoadDrafts(){
+ try{$('expDrafts').textContent=JSON.stringify(await api('/api/experimental/campaigns'),null,2)}
+ catch(e){$('expDrafts').textContent=e.message;toast(e.message)}
+}
+async function expRecordConsent(){
+ try{
+  const result=await post('/api/experimental/consent',{phone:$('expConsentPhone').value,consent:true,purpose:$('expConsentPurpose').value,source:$('expConsentSource').value,evidenceRef:$('expConsentEvidence').value});
+  toast('Consent evidence recorded for '+result.consent.phoneMasked);
+ }catch(e){toast(e.message)}
+}
+async function expSuppress(){
+ try{
+  const result=await post('/api/experimental/suppressions',{phone:$('expSuppressPhone').value,reason:$('expSuppressReason').value});
+  toast('Recipient suppressed: '+result.suppression.phoneMasked);
+ }catch(e){toast(e.message)}
+}
+window.addEventListener('load',()=>setTimeout(expLoadDrafts,800));
 
 </script>
 
