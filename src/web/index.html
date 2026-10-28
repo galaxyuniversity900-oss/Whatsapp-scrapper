@@ -442,7 +442,7 @@ input[type=checkbox]{accent-color:#a7d46f}
   <p class="muted">This workspace records consent evidence, maintains a suppression list, and checks audience eligibility. Preflight never sends messages. Consent evidence must be genuine and collected outside this tool.</p>
   <div class="form">
    <div class="field"><label>Campaign title</label><input id="expTitle" maxlength="160" placeholder="Campaign title"></div>
-   <div class="field"><label>Channel</label><select id="expChannel"><option value="whatsapp-web">WhatsApp Web · experimental</option><option value="telegram">Telegram MTProto</option><option value="whatsapp-cloud">WhatsApp Cloud API</option></select></div>
+   <div class="field"><label>Channel</label><select id="expChannel"><option value="whatsapp-web">WhatsApp Web · experimental</option><option value="telegram">Telegram MTProto</option><option value="whatsapp-cloud">WhatsApp Cloud API · backup only</option></select></div>
    <div class="field"><label>Purpose</label><input id="expPurpose" maxlength="160" placeholder="e.g. product offers"></div>
    <div class="field span4"><label>Message template</label><textarea id="expMessage" maxlength="20000" placeholder="Hello {name}, …"></textarea></div>
   </div>
@@ -470,8 +470,8 @@ input[type=checkbox]{accent-color:#a7d46f}
  </div>
 
  <div style="height:10px"></div>
- <div class="panel"><div class="head"><b>Official WhatsApp Cloud API</b><span id="expCloudStatus" class="status">Checking configuration…</span></div><div class="body">
-  <p class="muted">Uses server environment variables WHATSAPP_CLOUD_TOKEN, WHATSAPP_CLOUD_PHONE_NUMBER_ID and WHATSAPP_CLOUD_APP_SECRET. Only approved templates are sent by this experimental adapter. Configure a verified Meta app and valid opt-in first.</p>
+ <div class="panel"><div class="head"><b>Backup only — Official WhatsApp Cloud API</b><span id="expCloudStatus" class="status">Checking configuration…</span></div><div class="body">
+  <p class="muted">Optional fallback only. The primary workflow is the local Termux runtime with your authorized WhatsApp Web session. Do not configure Cloud API credentials for normal use; this panel stays disabled unless you explicitly enable the fallback. If used, only approved templates are sent and a valid opt-in is required.</p>
   <div class="form">
    <div class="field"><label>Recipient phone</label><input id="expCloudPhone" inputmode="tel" placeholder="+2010…"></div>
    <div class="field"><label>Consent purpose</label><input id="expCloudPurpose" placeholder="must match consent ledger"></div>
