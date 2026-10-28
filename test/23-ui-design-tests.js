@@ -20,4 +20,6 @@ assert.equal(manifest.theme_color, '#141914', 'install theme must match workspac
 assert.ok(manifest.icons.some(item => item.src === '/icon.svg' && item.type === 'image/svg+xml'), 'install icon missing from web manifest');
 assert.match(icon, /<svg[\s>]/, 'workspace icon must be a valid SVG document');
 assert.match(html, /name="theme-color" content="#141914"/, 'browser theme-color must match install manifest');
+assert.match(html, /async function p5Get\(path\)\{try\{const j=await api\(path\)/, 'CRM requests must use the authenticated API helper');
+assert.match(html, /async function p5Backup\(\)\{try\{const j=await post\('\/api\/platform\/backup',\{\}\)/, 'backup requests must include API authorization');
 console.log('PASS UI design tokens, mobile layout, accessibility, no-CDN and runtime-contract checks');
