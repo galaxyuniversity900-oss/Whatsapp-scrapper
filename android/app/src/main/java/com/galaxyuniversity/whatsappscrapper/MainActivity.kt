@@ -84,7 +84,7 @@ class MainActivity : Activity() {
             setClassName(termuxPackage, "com.termux.app.RunCommandService")
             putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash")
             putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-lc", "cd \"$HOME/Whatsapp-scrapper\" && bash scripts/termux-service.sh start"))
-            putExtra("com.termux.RUN_COMMAND_WORKDIR", "$HOME")
+            putExtra("com.termux.RUN_COMMAND_WORKDIR", "/data/data/com.termux/files/home")
             putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
         }
         try {
