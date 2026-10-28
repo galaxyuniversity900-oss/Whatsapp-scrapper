@@ -1,6 +1,10 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { SecretStore } = require('../src/18-secret-store');
 const { BrowserlessSessionManager, normalizeBaseUrl, validateSessionUrl } = require('../src/35-browserless-session');
 
 function store() {
@@ -137,6 +141,23 @@ async function run() {
 
   const unconfigured = new BrowserlessSessionManager({ secretStore: secrets, env: {}, fetchImpl });
   await assert.rejects(() => unconfigured.getOrCreate('x'), /BROWSERLESS_TOKEN/);
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-secret-store-test-'));
+  try {
+    const secretsFile = path.join(tempDir, 'secrets.json');
+    const keyFile = path.join(tempDir, 'secret-store.key');
+    const firstStore = new SecretStore(secretsFile, { keyFile });
+    assert.strictEqual(firstStore.set('restart-check', 'encrypted-session-metadata'), true);
+    const secondStore = new SecretStore(secretsFile, { keyFile });
+    assert.strictEqual(
+      secondStore.get('restart-check'),
+      'encrypted-session-metadata',
+      'encrypted secrets must remain readable after constructing a new store instance'
+    );
+    assert.ok(!fs.readFileSync(keyFile, 'utf8').includes('\\\\n'), 'key file must not contain a literal escaped newline');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+
   console.log('Browserless session tests passed');
 }
 
