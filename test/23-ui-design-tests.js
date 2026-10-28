@@ -24,3 +24,8 @@ assert.match(html, /async function p5Get\(path\)\{try\{const j=await api\(path\)
 assert.match(html, /async function p5Backup\(\)\{try\{const j=await post\('\/api\/platform\/backup',\{\}\)/, 'backup requests must include API authorization');
 assert.match(html, /navigator\.serviceWorker\.register\('\/sw\.js'/, 'PWA service worker must be registered when supported');
 console.log('PASS UI design tokens, mobile layout, accessibility, no-CDN and runtime-contract checks');
+
+assert.match(html, /es\.onopen=\(\)=>\{\$\('engine'\)\.textContent='ONLINE'\}/, 'engine must show online only after SSE connection opens');
+assert.match(html, /es\.onerror=\(\)=>\{\$\('engine'\)\.textContent='RECONNECTING'\}/, 'engine must remain reconnecting while SSE is unavailable');
+assert.match(html, /<b id="engine">CONNECTING<\/b>/, 'engine must not claim online before connection is established');
+console.log('PASS runtime connection status reflects real EventSource connection state');
