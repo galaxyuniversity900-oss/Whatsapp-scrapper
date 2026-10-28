@@ -1,9 +1,19 @@
 {
-  "name": "WhatsApp Scrapper Workspace",
+  "name": "WA Workspace — Messaging Operations",
   "short_name": "WA Workspace",
+  "description": "Local-first messaging operations workspace",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#101316",
-  "theme_color": "#101316",
-  "icons": []
+  "orientation": "any",
+  "background_color": "#141914",
+  "theme_color": "#141914",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
