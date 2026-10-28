@@ -210,3 +210,39 @@ async function aiDetectLocal(){const probes=[['Ollama','http://127.0.0.1:11434/v
 async function aiChat(){try{const j=await aiApi('/api/ai/chat',{method:'POST',body:JSON.stringify({id:$('#aiChatProvider').value,model:$('#aiChatModel').value,prompt:$('#aiPrompt').value,temperature:Number($('#aiTemperature').value),maxTokens:Number($('#aiMaxTokens').value)})});$('#aiChatResult').textContent=j.result.text||JSON.stringify(j.result.raw,null,2)}catch(e){$('#aiChatResult').textContent='ERROR: '+e.message}}
 async function aiCompare(){try{const j=await aiApi('/api/ai/compare',{method:'POST',body:JSON.stringify({prompt:$('#aiPrompt').value,model:$('#aiChatModel').value,maxTokens:Number($('#aiMaxTokens').value)})});$('#aiChatResult').textContent=JSON.stringify(j.results,null,2)}catch(e){$('#aiChatResult').textContent='ERROR: '+e.message}}
 setTimeout(()=>{aiLoadProviders();aiLoadModels();aiDetectLocal()},900);
+
+
+/* Responsive sidebar + persistent palette controls. */
+(function initWorkspacePresentation(){
+  const root=document.documentElement;
+  const body=document.body;
+  const sidebar=document.getElementById('appSidebar');
+  const toggle=document.getElementById('menuToggle');
+  const close=document.getElementById('closeSidebar');
+  const backdrop=document.getElementById('sidebarBackdrop');
+  const themeButtons=[...document.querySelectorAll('[data-theme-choice]')];
+  const allowedThemes=new Set(['obsidian-jade','graphite-copper','ivory-oxide']);
+  function setTheme(theme,save=true){
+    const selected=allowedThemes.has(theme)?theme:'obsidian-jade';
+    root.dataset.theme=selected;
+    themeButtons.forEach(button=>{
+      const active=button.dataset.themeChoice===selected;
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',String(active));
+    });
+    if(save){try{localStorage.setItem('wa-workspace-theme',selected)}catch{}}
+  }
+  function setSidebar(open){
+    body.classList.toggle('sidebar-open',open);
+    if(toggle)toggle.setAttribute('aria-expanded',String(open));
+    if(toggle)toggle.setAttribute('aria-label',open?'Close navigation':'Open navigation');
+  }
+  toggle?.addEventListener('click',()=>setSidebar(!body.classList.contains('sidebar-open')));
+  close?.addEventListener('click',()=>setSidebar(false));
+  backdrop?.addEventListener('click',()=>setSidebar(false));
+  themeButtons.forEach(button=>button.addEventListener('click',()=>setTheme(button.dataset.themeChoice)));
+  try{setTheme(localStorage.getItem('wa-workspace-theme')||'obsidian-jade',false)}catch{setTheme('obsidian-jade',false)}
+  document.querySelectorAll('.nav').forEach(button=>button.addEventListener('click',()=>setSidebar(false)));
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')setSidebar(false)});
+  window.addEventListener('resize',()=>{if(window.innerWidth>760)setSidebar(false)});
+})();
