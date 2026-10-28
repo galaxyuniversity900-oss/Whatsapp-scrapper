@@ -158,6 +158,21 @@ async function run() {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 
+  const legacyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-secret-store-legacy-'));
+  try {
+    const legacyFile = path.join(legacyDir, 'secrets.json');
+    const legacyKeyFile = path.join(legacyDir, 'secret-store.key');
+    const legacyKey = 'legacy-browserless-test-key';
+    fs.writeFileSync(legacyKeyFile, legacyKey + '\\\\n', { mode: 0o600 });
+    const legacyStore = new SecretStore(legacyFile, { keyFile: legacyKeyFile });
+    assert.strictEqual(legacyStore.set('legacy-session', 'legacy-session-value'), true);
+    const restartedLegacyStore = new SecretStore(legacyFile, { keyFile: legacyKeyFile });
+    assert.strictEqual(restartedLegacyStore.get('legacy-session'), 'legacy-session-value',
+      'legacy key files must be recoverable after restart');
+  } finally {
+    fs.rmSync(legacyDir, { recursive: true, force: true });
+  }
+
   console.log('Browserless session tests passed');
 }
 
