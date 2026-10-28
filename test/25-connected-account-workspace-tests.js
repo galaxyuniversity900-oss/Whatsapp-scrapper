@@ -10,7 +10,7 @@ const android = fs.readFileSync(path.join(root, 'android/app/src/main/java/com/g
 assert.ok(server.includes("p === '/api/accounts/chats'"), 'live chats API must exist');
 assert.ok(server.includes("p === '/api/accounts/messages'"), 'chat history API must exist');
 assert.ok(server.includes("p === '/api/accounts/reply'"), 'manual reply API must exist');
-assert.ok(server.includes("const session = requireReady(accountId)"), 'chat APIs must require a ready account');
+assert.ok(server.includes("const session = await requireReady(accountId)"), 'chat APIs must await a ready account');
 assert.strictEqual((server.match(/const session = await requireReady\(accountId\);/g) || []).length, 3, 'all three workspace APIs must await the ready session');
 assert.ok(server.includes("@c\\.us$"), 'reply API must be limited to individual chats');
 assert.ok(server.includes('chat.isGroup) throw new Error'), 'reply API must reject group chats');
