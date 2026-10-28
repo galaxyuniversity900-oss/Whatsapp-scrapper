@@ -1,3 +1,18 @@
+## First-time setup on Android
+
+This setup uses the phone and Termux locally. It does **not** use Browserless or a remote browser.
+
+If the repository is already at `~/Whatsapp-scrapper`, run:
+
+```bash
+cd ~/Whatsapp-scrapper
+bash scripts/termux-setup.sh
+```
+
+The script requests Android shared-storage permission, installs Node.js/Git/cURL, and installs runtime npm dependencies without Electron. App database, WhatsApp LocalAuth profile, API token, and encryption key remain under Termux's private home directory (`~/.whatsapp-scrapper`) because Android shared storage can break browser profile permissions and file-lock behavior. Shared-storage permission is for importing/exporting files, not for placing the live browser profile there.
+
+The server detects Termux and defaults WhatsApp Web to local headless Chromium. This only works if a compatible Chromium binary is actually installed and can run on the device. Check `command -v chromium` and `bash scripts/termux-service.sh logs`; package installation and service health do not prove WhatsApp login works.
+
 # Termux persistent local service
 
 This helper runs the existing Node.js HTTP service in the background, records logs, and restarts the service after an unexpected exit. It installs no packages and makes no network requests by itself.
