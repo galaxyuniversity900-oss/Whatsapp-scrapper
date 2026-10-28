@@ -5,8 +5,12 @@ on:
     paths:
       - "android/**"
       - "src/server.js"
+      - "src/35-consent-campaign-engine.js"
+      - "test/26-consent-campaign-engine-tests.js"
       - "src/web/index.html"
       - "test/25-connected-account-workspace-tests.js"
+      - "src/35-consent-campaign-engine.js"
+      - "test/26-consent-campaign-engine-tests.js"
       - ".github/workflows/android-apk.yml"
   pull_request:
     paths:
@@ -30,6 +34,8 @@ jobs:
         run: |
           node --check src/server.js
           node test/25-connected-account-workspace-tests.js
+          node --check src/35-consent-campaign-engine.js
+          node test/26-consent-campaign-engine-tests.js
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
