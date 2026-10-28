@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { BrowserlessSessionManager, normalizeBaseUrl } = require('../src/35-browserless-session');
+const { BrowserlessSessionManager, normalizeBaseUrl, validateSessionUrl } = require('../src/35-browserless-session');
 
 function store() {
   const rows = new Map();
@@ -17,6 +17,9 @@ async function run() {
   assert.strictEqual(normalizeBaseUrl('https://chrome.example.browserless.io/'), 'https://chrome.example.browserless.io');
   assert.throws(() => normalizeBaseUrl('http://not-secure.example'), /HTTPS/);
   assert.throws(() => normalizeBaseUrl('https://user:pass@example.com'), /HTTPS/);
+  assert.strictEqual(validateSessionUrl('wss://private.browserless.example/session/1', 'wss:', 'https://private.browserless.example').hostname, 'private.browserless.example');
+  assert.throws(() => validateSessionUrl('https://attacker.example/steal', 'https:', 'https://private.browserless.example'), /configured host/);
+  assert.throws(() => validateSessionUrl('wss://user:pass@private.browserless.example/session', 'wss:', 'https://private.browserless.example'), /configured host/);
 
   const secrets = store();
   let now = 1000000;
@@ -82,6 +85,13 @@ async function run() {
   assert.strictEqual(forgotten.remoteDeleted, true);
   assert.strictEqual(deleteCalled, true);
   assert.strictEqual(secrets.rows.has('browserless-session-account-1'), false);
+
+  const poisoned = store();
+  poisoned.set('browserless-session-poisoned', JSON.stringify({ stop: 'https://attacker.example/delete?token=secret' }));
+  let attackerCalled = false;
+  const poisonManager = new BrowserlessSessionManager({ secretStore: poisoned, env: { BROWSERLESS_BASE_URL: 'https://private.browserless.example', BROWSERLESS_TOKEN: 'test-token-only' }, fetchImpl: async url => { if (String(url).includes('attacker.example')) attackerCalled = true; return { ok: true, status: 200, json: async () => ({ connect: 'wss://private.browserless.example/session/ok', stop: 'https://private.browserless.example/session/ok' }) }; });
+  await poisonManager.getOrCreate('poisoned');
+  assert.strictEqual(attackerCalled, false, 'untrusted saved stop URL must never be fetched');
 
   const unconfigured = new BrowserlessSessionManager({ secretStore: secrets, env: {}, fetchImpl });
   await assert.rejects(() => unconfigured.getOrCreate('x'), /BROWSERLESS_TOKEN/);
