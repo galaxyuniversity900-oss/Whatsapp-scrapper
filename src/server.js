@@ -213,7 +213,9 @@ async function createSession(input = {}) {
   if(!cap.canCreate) throw new Error('Account capacity reached: '+cap.max+' live accounts');
 
   const browser = input.browser || 'chromium';
-  const headless = input.headless === true;
+  const isTermux = BrowserManager.isTermuxRuntime();
+  // Android/Termux normally has no desktop display: use local headless Chromium by default.
+  const headless = input.headless === true || (isTermux && process.env.WA_DEFAULT_HEADLESS !== '0');
   const executablePath = input.executablePath || process.env.CHROME_BIN || null;
   if (!['chromium', 'chrome', 'edge'].includes(browser)) throw new Error('Unsupported browser');
 
