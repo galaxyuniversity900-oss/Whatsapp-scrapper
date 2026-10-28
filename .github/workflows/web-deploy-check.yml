@@ -2,9 +2,9 @@ name: Web Deployment Readiness
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, android-apk-client]
   push:
-    branches: [main, "deploy/**"]
+    branches: [main, "deploy/**", "browserless-remote-browser"]
 
 permissions:
   contents: read
@@ -20,10 +20,18 @@ jobs:
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: node --check src/server.js
       - run: node --check src/34-veritas-campaign-audit.js
+      - run: node --check src/35-browserless-session.js
       - run: node test/22-veritas-campaign-audit-tests.js
+      - name: Test Browserless session security and lifecycle
+        run: npm run test:browserless
       - name: Validate deployment files
         run: |
           test -s Dockerfile
           test -s render.yaml
+          test -s android/termux-deploy-render.sh
+          bash -n android/termux-deploy-render.sh
+          bash android/scripts/verify-integration.sh
           grep -q 'HOST=0.0.0.0' Dockerfile
           grep -q 'mountPath: /var/data' render.yaml
+          grep -q 'BROWSERLESS_BASE_URL' render.yaml
+          grep -q 'BROWSERLESS_TOKEN' render.yaml

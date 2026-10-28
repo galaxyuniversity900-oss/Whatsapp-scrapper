@@ -9,6 +9,7 @@ const qrcode = require('qrcode');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
 const { BrowserManager } = require('./3-browser-selection-fix');
+const { BrowserlessSessionManager } = require('./35-browserless-session');
 const { ContactStateManager } = require('./1-state-persistence-fix');
 const { ContactPolicy } = require('./5-contact-policy');
 const { AuditLog } = require('./6-audit-log');
@@ -51,6 +52,7 @@ const groupJobs = new Map();
 const accountOrchestrator = new MultiAccountOrchestrator(path.join(dataDir, 'account-schedules.json'));
 const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'));
 const secretStore = new SecretStore(path.join(dataDir, 'secrets.json'));
+const browserlessSessions = new BrowserlessSessionManager({ secretStore });
 const telegram = new TelegramAdapter({ dataDir: path.join(dataDir, 'telegram'), audit });
 const aiHub = new AIProviderHub({ dataDir: path.join(dataDir, 'ai'), masterKey: process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY });
 const aiCapabilities = new CapabilityFoundation({ hub: aiHub, audit });
@@ -204,33 +206,45 @@ async function createSession(input = {}) {
   const cap=accountOrchestrator.capacity(sessions.size);
   if(!cap.canCreate) throw new Error('Account capacity reached: '+cap.max+' live accounts');
 
-  const browser = input.browser || 'chromium';
-  const headless = input.headless === true || process.env.WA_DEFAULT_HEADLESS === '1';
+  const browser = String(input.browser || process.env.WA_DEFAULT_BROWSER || 'chromium');
+  const isBrowserless = browser === 'browserless';
+  const headless = isBrowserless || input.headless === true || process.env.WA_DEFAULT_HEADLESS === '1';
   const executablePath = input.executablePath || process.env.CHROME_BIN || null;
-  if (!['chromium', 'chrome', 'edge'].includes(browser)) throw new Error('Unsupported browser');
+  if (!['chromium', 'chrome', 'edge', 'browserless'].includes(browser)) throw new Error('Unsupported browser');
 
   const manager = new BrowserManager({
-    browser,
+    browser: isBrowserless ? 'chromium' : browser,
     headless,
     executablePath,
     proxyUrl: input.proxyUrl || null
   });
-  const detected = BrowserManager.detectInstalledBrowsers();
-  const browserInfo = detected[browser];
-  if (!executablePath && !browserInfo?.available) {
-    throw new Error(
-      'Browser executable not found for ' + browser +
-      '. Install Chromium/Chrome or set CHROME_BIN to its executable path.'
-    );
+  let browserlessSession = null;
+  let puppeteerOptions;
+  if (isBrowserless) {
+    browserlessSession = await browserlessSessions.getOrCreate(id);
+    puppeteerOptions = {
+      browserWSEndpoint: browserlessSession.connect,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    };
+  } else {
+    const detected = BrowserManager.detectInstalledBrowsers();
+    const browserInfo = detected[browser];
+    if (!executablePath && !browserInfo?.available) {
+      throw new Error(
+        'Browser executable not found for ' + browser +
+        '. Install Chromium/Chrome or set CHROME_BIN to its executable path.'
+      );
+    }
+    puppeteerOptions = manager.puppeteerOptions();
   }
 
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: id, dataPath: authDir }),
-    puppeteer: manager.puppeteerOptions()
+    puppeteer: puppeteerOptions
   });
 
   const s = {
-    id, client, browser, headless, manager, status: 'initializing', transport, phone: transport==='web_pairing'?normPhone(input.phone):null, pairingCode:null,
+    id, client, browser, headless, manager, browserlessSessionId: browserlessSession?.id || null, status: 'initializing', transport, phone: transport==='web_pairing'?normPhone(input.phone):null, pairingCode:null,
     sent: 0, consecutiveFailures: 0, paused: false, stopped: false,
     lastQr: null, createdAt: new Date().toISOString()
   };
@@ -277,6 +291,8 @@ async function createSession(input = {}) {
     audit.append('account_disconnected', { accountId: id, reason: String(reason) });
     broadcast('session:status', { id, status: s.status, reason: String(reason) });
     sessions.delete(id);
+    // Close only the remote browser connection; Browserless keeps the persisted profile until its TTL.
+    if (isBrowserless) Promise.resolve(client.destroy()).catch(() => {});
   });
   client.on('message_ack', (message, ack) => {
     const messageId = message?.id?._serialized;
@@ -400,6 +416,7 @@ async function logoutSession(id, removeAuth = false) {
   }
   registry.upsert({ id: key, enabled: false });
   if (removeAuth) {
+    await browserlessSessions.forget(key);
     secretStore.remove(key);
     try { fs.rmSync(path.join(authDir, 'session-' + key), { recursive: true, force: true }); } catch {}
     registry.remove(key);

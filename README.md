@@ -213,3 +213,29 @@ npm run server
 
 The local server defaults to `http://127.0.0.1:8787`. For local development, admin Basic Authentication is optional; production mode requires `WA_ADMIN_PASSWORD`.
 
+## One-time Termux setup, then remote APK operation
+
+The Android client can use the persistent Render service so the phone does not need to keep Termux running. The repository includes `android/termux-deploy-render.sh` to run pre-deployment checks, open the Render dashboard, and verify the resulting HTTPS `/healthz` endpoint. It does not bypass Render account authorization or deploy to an account without the owner's approval.
+
+Follow the one-time procedure in [the Android deployment guide](android/README.md#3-remote-backend--no-termux-after-setup). Render's current blueprint uses a Starter web service and a persistent disk; review the plan's cost before deploying. Supply the Browserless Private Fleet endpoint and token only through Render's secret environment settings. After deployment, run the **Android APK Build** workflow with its optional `server_url` input to produce an APK preconfigured with the public HTTPS URL. This URL is not a secret; no credentials are embedded in the APK.
+
+The deployment wizard and CI can verify syntax, test behavior with mocked Browserless responses, and check server health. They cannot prove a real Browserless QR login, WhatsApp session restoration, or message delivery. Those must be tested against the user's deployed Private Fleet and an opted-in test recipient.
+
+## Browserless remote WhatsApp Web (opt-in)
+
+The Android APK can connect to a hosted Node.js service; Browserless replaces the service's local Chromium process only when an account explicitly selects **Browserless (remote)**. The Node.js service is still required. Existing Chromium/Chrome/Edge, Termux, and the official Cloud API paths remain available.
+
+Configure these environment variables on the trusted Node.js host, never in the APK or client-side JavaScript:
+
+- `BROWSERLESS_BASE_URL`: the HTTPS base endpoint assigned to the Browserless account. For a private fleet, copy the exact endpoint from its dashboard; do not assume a shared-fleet hostname.
+- `BROWSERLESS_TOKEN`: a rotated Browserless API token.
+- `BROWSERLESS_SESSION_TTL_MS`: optional persisted-session lifetime in milliseconds; defaults to 86400000 (24 hours) and must fit the account's plan.
+- `BROWSERLESS_PROCESS_KEEPALIVE_MS`: optional disconnect grace period in milliseconds; defaults to 60000.
+- `WA_MASTER_KEY`: set a stable strong secret on the server so encrypted Browserless session metadata remains readable after restarts.
+- `WA_DATA_DIR`: point this at persistent storage on the host; otherwise a redeploy may lose the saved connection URL and force a new QR pairing.
+
+The service creates a Browserless persisted session and stores its connection/stop URLs through the existing encrypted SecretStore. Those URLs contain credential material and must not be logged or returned to the Android client. Remote browser profile data lasts only until the Browserless session TTL expires. If a session expires, a new QR/pairing flow may be required.
+
+Compatibility status: `whatsapp-web.js` 1.34.7's Client initialization supports `puppeteer.browserWSEndpoint`; its `LocalAuth` strategy writes a local profile directory, which is not the remote browser's profile. This integration relies on Browserless's persisted-session storage for the remote profile and does not treat the local LocalAuth folder as proof that remote authentication persisted. Live QR login, reconnect after a process restart, and real message sending must be tested against the actual Browserless private-fleet endpoint before calling the integration production-verified.
+
+Run focused checks with `npm run test:browserless` and syntax checks with `npm run lint`. Keep `BROWSERLESS_TOKEN` on the server only and rotate any token that has been exposed in chat or source control.

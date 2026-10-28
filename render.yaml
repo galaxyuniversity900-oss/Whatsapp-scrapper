@@ -20,6 +20,14 @@ services:
         value: admin
       - key: WA_ADMIN_PASSWORD
         generateValue: true
+      - key: BROWSERLESS_BASE_URL
+        sync: false
+      - key: BROWSERLESS_TOKEN
+        sync: false
+      - key: BROWSERLESS_SESSION_TTL_MS
+        value: "86400000"
+      - key: BROWSERLESS_PROCESS_KEEPALIVE_MS
+        value: "60000"
     disk:
       name: whatsapp-scrapper-data
       mountPath: /var/data
