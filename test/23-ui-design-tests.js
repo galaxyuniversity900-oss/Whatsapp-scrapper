@@ -12,6 +12,9 @@ assert.match(html, /prefers-reduced-motion:reduce/, 'reduced-motion accessibilit
 assert.match(html, /@media\(max-width:650px\)/, 'mobile layout rules missing');
 assert.match(html, /data-view="dashboard"/, 'existing navigation contract missing');
 assert.match(html, /function connectSSE\(/, 'existing live event connection must remain');
+assert.match(html, /async function checkRuntimeHealth\(/, 'runtime health must be checked against the API');
+assert.match(html, /setEngineState\('OFFLINE'/, 'offline state must not be overwritten with a false online state');
+assert.match(html, /es\.onopen=\(\)=>\{checkRuntimeHealth\(\)\}/, 'SSE reconnect must trigger a real health check');
 assert.match(html, /function refreshAll\(/, 'existing runtime refresh must remain');
 assert.match(html, /initSecurity\(/, 'existing security initialization must remain');
 assert.doesNotMatch(html, /fonts\.googleapis\.com|cdn\.jsdelivr\.net|unpkg\.com/, 'UI must not require third-party CDN');
