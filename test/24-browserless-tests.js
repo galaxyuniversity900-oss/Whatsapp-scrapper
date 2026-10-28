@@ -163,7 +163,7 @@ async function run() {
     const legacyFile = path.join(legacyDir, 'secrets.json');
     const legacyKeyFile = path.join(legacyDir, 'secret-store.key');
     const legacyKey = 'legacy-browserless-test-key';
-    fs.writeFileSync(legacyKeyFile, legacyKey + '\\\\n', { mode: 0o600 });
+    fs.writeFileSync(legacyKeyFile, legacyKey + '\\n', { mode: 0o600 });
     const legacyStore = new SecretStore(legacyFile, { keyFile: legacyKeyFile });
     assert.strictEqual(legacyStore.set('legacy-session', 'legacy-session-value'), true);
     const restartedLegacyStore = new SecretStore(legacyFile, { keyFile: legacyKeyFile });
