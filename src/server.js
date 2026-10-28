@@ -27,6 +27,7 @@ const { CapabilityFoundation } = require('./30-capability-foundation');
 const { InboxEngine } = require('./32-inbox-engine');
 const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
 const { ConsentCampaignEngine } = require('./35-consent-campaign-engine');
+const { WhatsAppCloudApi } = require('./36-whatsapp-cloud-api');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -59,6 +60,7 @@ const platform = createPlatform(dataDir);
 const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
 const veritasAudit = new VeritasCampaignAudit({ audit });
 const consentCampaign = new ConsentCampaignEngine(dataDir, { audit });
+const cloudApi = new WhatsAppCloudApi({ audit });
 
 const sessions = new Map();
 const listeners = new Set();
@@ -1020,6 +1022,24 @@ async function route(req, res) {
         authenticated: ['authenticated', 'ready'].includes(s.status),
         canCampaign: s.status === 'ready' && waState === 'CONNECTED'
       });
+    }
+
+    if (req.method === 'GET' && p === '/api/experimental/cloud/status') {
+      return json(res, 200, { ok: true, ...cloudApi.status() });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/enable') {
+      const x = await parseBody(req);
+      return json(res, 200, { ok: true, ...cloudApi.enableSending(x.confirmation) });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/disable') {
+      return json(res, 200, { ok: true, ...cloudApi.disableSending() });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/send-template') {
+      const x = await parseBody(req);
+      const eligibility = consentCampaign.isEligibleForPurpose(x.to, x.purpose);
+      if (!eligibility.eligible) return json(res, 403, { ok: false, error: 'Recipient is not eligible for this purpose.', reason: eligibility.reason });
+      const result = await cloudApi.sendTemplate({ to: x.to, templateName: x.templateName, language: x.language, components: x.components });
+      return json(res, 200, { ok: true, result });
     }
 
     if (req.method === 'GET' && p === '/api/experimental/campaigns') {
