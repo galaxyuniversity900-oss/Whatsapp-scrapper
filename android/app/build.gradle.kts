@@ -24,3 +24,5 @@ android {
         jvmTarget = "17"
     }
 }
+
+// Build trigger for the merged responsive sidebar, palette, and transition refresh on main.
