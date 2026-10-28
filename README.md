@@ -229,7 +229,7 @@ The local server defaults to `http://127.0.0.1:8787`. For local development, adm
 
 ## Android / Termux local runtime
 
-For the local web application on Android, follow [TERMUX.md](TERMUX.md). This branch removes the WhatsApp Cloud API transport and runs the server only on `127.0.0.1:8787`. It uses Chromium and a local WhatsApp Web session; it does not require Browserless or a remote browser service.
+For the local web application on Android, follow [TERMUX.md](TERMUX.md). The local Termux runtime is primary and binds the server only to `127.0.0.1:8787`; WhatsApp Cloud API remains an optional fallback that is disabled by default and is not required for normal startup. It uses Chromium and a local WhatsApp Web session; it does not require Browserless or a remote browser service.
 
 Quick start from the repository folder:
 
