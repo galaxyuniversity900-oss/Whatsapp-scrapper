@@ -26,6 +26,7 @@ const { AIProviderHub } = require('./29-ai-provider-hub');
 const { CapabilityFoundation } = require('./30-capability-foundation');
 const { InboxEngine } = require('./32-inbox-engine');
 const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
+const { ConsentCampaignEngine } = require('./35-consent-campaign-engine');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -57,6 +58,7 @@ const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
 const veritasAudit = new VeritasCampaignAudit({ audit });
+const consentCampaign = new ConsentCampaignEngine(dataDir, { audit });
 
 const sessions = new Map();
 const listeners = new Set();
@@ -379,7 +381,8 @@ async function sendCampaign(payload = {}) {
 
   const all = await state.readContacts();
   const limit = Math.min(10000, Math.max(1, Number(payload.limit || 100)));
-  const eligible = policy.filterEligible(all).slice(0, limit);
+  const preflight = consentCampaign.preflight({ campaignId: payload.campaignId || null, message: payload.template || '', contacts: all });
+  const eligible = preflight.recipients.filter(row => row.eligible).map(row => ({ contact: all[row.index], index: row.index })).filter(row => row.contact.status !== 'sent').slice(0, limit);
   const text = String(payload.template || '').trim();
   const mediaPaths = (Array.isArray(payload.mediaPaths) ? payload.mediaPaths : [])
     .filter(p => typeof p === 'string' && fs.existsSync(p));
@@ -1017,6 +1020,37 @@ async function route(req, res) {
         authenticated: ['authenticated', 'ready'].includes(s.status),
         canCampaign: s.status === 'ready' && waState === 'CONNECTED'
       });
+    }
+
+    if (req.method === 'GET' && p === '/api/experimental/campaigns') {
+      return json(res, 200, { ok: true, campaigns: consentCampaign.listDrafts() });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/campaigns') {
+      const x = await parseBody(req);
+      const campaign = consentCampaign.createDraft(x);
+      return json(res, 201, { ok: true, campaign });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/campaigns/preflight') {
+      const x = await parseBody(req);
+      const contacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();
+      const result = consentCampaign.preflight({ campaignId: x.campaignId, message: x.message, contacts });
+      return json(res, 200, { ok: true, ...result });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/consent') {
+      const x = await parseBody(req);
+      const result = consentCampaign.recordConsent(x);
+      return json(res, 200, { ok: true, consent: result });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/suppressions') {
+      const x = await parseBody(req);
+      const result = consentCampaign.suppress(x.phone, x.reason);
+      policy.suppressPhone(x.phone, x.reason || 'manual opt-out');
+      return json(res, 200, { ok: true, suppression: result });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/suppressions/remove') {
+      const x = await parseBody(req);
+      const result = consentCampaign.unsuppress(x.phone, x.confirmation);
+      return json(res, 200, result);
     }
 
     if (req.method === 'POST' && p === '/api/campaign/start') {
