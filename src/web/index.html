@@ -360,6 +360,7 @@ input[type=checkbox]{accent-color:#a7d46f}
 </section>
 
 </div></main></div>
+<div id="networkStatus" role="status" aria-live="polite" style="display:none;position:fixed;left:12px;right:12px;top:66px;z-index:90;padding:10px 12px;background:#4a2d16;color:#fff0d5;border:1px solid #9c6738;box-shadow:0 8px 24px rgba(0,0,0,.3)">Connection is offline. The cached interface may open, but server actions require the local service.</div>
 <div id="toast" class="toast"></div>
 <script>
 const $=id=>document.getElementById(id);
@@ -642,6 +643,10 @@ window.addEventListener('load',()=>setTimeout(loadInbox,700));
 </script>
 
 <script>
+function updateNetworkStatus(){const el=document.getElementById('networkStatus');if(el)el.style.display=navigator.onLine?'none':'block';}
+window.addEventListener('online',updateNetworkStatus);
+window.addEventListener('offline',updateNetworkStatus);
+updateNetworkStatus();
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(error => console.warn('Offline shell registration unavailable:', error)));
 }
