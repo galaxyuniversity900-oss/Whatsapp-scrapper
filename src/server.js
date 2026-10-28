@@ -1181,7 +1181,10 @@ async function route(req, res) {
         const serialized = String(participant?.id?._serialized || '');
         let contact = null;
         try { if (serialized) contact = await session.client.getContactById(serialized); } catch {}
-        const phone = String(contact?.number || participant?.id?.user || '').replace(/[^0-9]/g, '');
+        const isSavedContact = Boolean(contact?.isMyContact);
+        const phone = isSavedContact
+          ? String(contact?.number || participant?.id?.user || '').replace(/[^0-9]/g, '')
+          : '';
         const displayName = String(contact?.pushname || contact?.name || contact?.shortName || participant?.id?.user || '').trim();
         return { name: displayName || 'Unknown', username: String(contact?.pushname || contact?.shortName || '').trim(),
           phone, whatsappId: serialized, isAdmin: Boolean(participant?.isAdmin),
