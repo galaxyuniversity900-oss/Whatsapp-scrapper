@@ -13,6 +13,7 @@ on:
       - "package.json"
       - "scripts/termux-setup.sh"
       - "scripts/termux-start.sh"
+      - "test/23-ui-design-tests.js"
       - "test/24-termux-local-only-tests.js"
       - "test/25-connected-account-workspace-tests.js"
       - "test/26-consent-campaign-engine-tests.js"
@@ -52,6 +53,7 @@ jobs:
         run: |
           node --check src/server.js
           node --check src/28-telegram-adapter.js
+          node test/23-ui-design-tests.js
           node test/24-termux-local-only-tests.js
           node test/25-connected-account-workspace-tests.js
           node --check src/35-consent-campaign-engine.js
