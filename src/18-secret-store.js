@@ -11,7 +11,7 @@ class SecretStore{
     this.masterKey=options.masterKey||process.env.WA_MASTER_KEY||this._loadLocalKey();
   }
   _loadLocalKey(){
-    try{const value=fs.readFileSync(this.keyFile,'utf8').trim();if(value)return value}catch{}
+    try{const value=fs.readFileSync(this.keyFile,'utf8').trim().replace(/\\n$/, '');if(value)return value}catch{}
     const value=crypto.randomBytes(32).toString('hex');
     try{fs.writeFileSync(this.keyFile,value+'\n',{mode:0o600})}catch{}
     return value;
