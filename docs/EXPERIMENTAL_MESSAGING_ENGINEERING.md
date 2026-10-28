@@ -1,10 +1,10 @@
 # Experimental Professional Messaging Engineering Features (2026)
 
-**Status:** Experimental roadmap with an initial implemented slice. The consent ledger, suppression store, audience preflight, and draft persistence are implemented in `src/35-consent-campaign-engine.js` and exposed through authenticated local API routes. The broader provider and reliability features below remain a roadmap unless explicitly marked implemented. CI/device verification is tracked separately.
+**Runtime decision (user-directed): Termux/local-first.** The default and primary delivery path is the locally running Termux service with its authorized WhatsApp Web session (and Telegram's local adapter where implemented). WhatsApp Cloud API is a backup-only adapter, disabled by default. Normal startup, core UI, consent ledger, queue and local campaigns must not require Meta credentials, public webhooks, or a Cloud API account. Experimental features and CI/device verification are tracked separately.
 
 ## 1. Purpose and architecture
 
-The workspace may evolve toward a provider-neutral messaging gateway with distinct adapters for Telegram MTProto, WhatsApp Web (unofficial), and the official WhatsApp Business Platform / Cloud API. Keep adapters isolated: provider-specific authentication, permissions, capabilities, rate limits, delivery semantics, and error handling must not leak into the shared campaign engine.
+The workspace uses a local-first provider architecture. Termux/local WhatsApp Web is the primary WhatsApp path. Telegram MTProto remains a separate adapter. The official WhatsApp Business Platform / Cloud API is strictly an optional fallback, never the default or an automatic route. Keep adapters isolated: provider-specific authentication, permissions, capabilities, rate limits, delivery semantics, and error handling must not leak into the shared campaign engine.
 
 ### Provider boundaries
 
@@ -27,13 +27,13 @@ The workspace may evolve toward a provider-neutral messaging gateway with distin
   - `POST /api/experimental/suppressions/remove` — requires `phone` and exact confirmation `CONFIRM RECONSENT`; do not use unless fresh consent has actually been obtained.
 - These routes require the existing API token and follow the server's existing authentication/security middleware. Data is local JSON storage, not encrypted at rest; protect the device and data directory.
 
-## 2.2 Implemented Cloud API and delivery queue slice
+## 2.2 Optional backup only: Cloud API and delivery queue
 
-- `src/36-whatsapp-cloud-api.js` provides an opt-in adapter for approved WhatsApp Cloud API templates, webhook signature validation, webhook challenge validation, and parsing inbound-message/delivery-status events.
+- `src/36-whatsapp-cloud-api.js` provides an opt-in backup adapter for approved WhatsApp Cloud API templates, webhook signature validation, webhook challenge validation, and parsing inbound-message/delivery-status events. It must remain disabled unless the operator explicitly chooses the fallback.
 - `src/37-durable-delivery-queue.js` provides local durable queue storage, idempotency keys, bounded retries, exponential backoff, concurrency capped at five, pause/resume/stop controls, and status summaries.
 - Authenticated local routes expose Cloud API status, explicit enable/disable, purpose-consent-checked template queueing, processing, and queue controls. Queue processing rechecks consent and suppression immediately before calling the provider.
-- The mobile workspace includes a Cloud API panel to inspect configuration/queue state, queue a template for a consented recipient, and control processing.
-- Required server environment variables: `WHATSAPP_CLOUD_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, and `WHATSAPP_CLOUD_APP_SECRET`. Configure only through the local server environment; never paste tokens into campaign data.
+- The mobile workspace includes a clearly labeled **backup-only** Cloud API panel. Its presence does not make Cloud API the default provider and must not interrupt local Termux campaigns.
+- The Cloud API fallback alone requires `WHATSAPP_CLOUD_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, and `WHATSAPP_CLOUD_APP_SECRET`. These variables are not required for Termux startup or normal local sending; never paste tokens into campaign data.
 - The Cloud API adapter sends approved templates only. It does not scrape WhatsApp groups or bypass provider policies. Meta app webhook delivery requires an externally reachable HTTPS endpoint and the platform's webhook configuration; the current adapter's verification/parser functions are available, but a public inbound webhook endpoint/reverse-proxy deployment is not yet configured by this project.
 - Delivery queue payloads are stored in local JSON and are not encrypted at rest. Protect the device and data directory. Provider acceptance is recorded separately from actual delivery; signed Cloud API status webhooks can update accepted queue items to delivered/failed. The server binds to loopback, so Meta webhook traffic requires a deliberately configured HTTPS reverse proxy/tunnel to `/webhooks/whatsapp-cloud` plus `WHATSAPP_CLOUD_WEBHOOK_VERIFY_TOKEN`; do not expose the local server directly to the public internet.
 - Tests are included in `test/27-cloud-delivery-tests.js` and run in CI. Do not consider real provider delivery verified until valid Meta credentials, an approved template, and an opted-in test recipient have been used in a controlled test.
