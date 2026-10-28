@@ -6,6 +6,9 @@ on:
       - "android/**"
       - "src/server.js"
       - "src/35-consent-campaign-engine.js"
+      - "src/36-whatsapp-cloud-api.js"
+      - "src/37-durable-delivery-queue.js"
+      - "test/27-cloud-delivery-tests.js"
       - "src/web/index.html"
       - "test/25-connected-account-workspace-tests.js"
       - "test/26-consent-campaign-engine-tests.js"
@@ -36,6 +39,9 @@ jobs:
           node test/25-connected-account-workspace-tests.js
           node --check src/35-consent-campaign-engine.js
           node test/26-consent-campaign-engine-tests.js
+          node --check src/36-whatsapp-cloud-api.js
+          node --check src/37-durable-delivery-queue.js
+          node test/27-cloud-delivery-tests.js
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
