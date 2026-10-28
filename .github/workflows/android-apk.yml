@@ -5,10 +5,22 @@ on:
     branches: [main, android-apk-version-1-2-0]
     paths:
       - "android/**"
+      - "src/web/**"
+      - "src/server.js"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/**"
+      - "tests/**"
       - ".github/workflows/android-apk.yml"
   pull_request:
     paths:
       - "android/**"
+      - "src/web/**"
+      - "src/server.js"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/**"
+      - "tests/**"
       - ".github/workflows/android-apk.yml"
   workflow_dispatch:
 
@@ -41,10 +53,10 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: gradle --no-daemon assembleDebug
-      - name: Upload installable debug APK
+      - name: Upload latest installable debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: wa-workspace-debug-apk
+          name: wa-workspace-latest-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
