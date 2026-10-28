@@ -196,6 +196,83 @@ input[type=checkbox]{accent-color:#a7d46f}
 .workspaceComposer textarea{width:100%;resize:vertical;background:#101510;color:var(--txt);border:1px solid #3a4439;border-radius:5px;padding:10px}
 @media(max-width:760px){.workspaceShell{grid-template-columns:minmax(0,1fr)}.workspaceChats{max-height:38dvh}.workspaceMessages{height:42dvh;min-height:220px}.workspaceAccountCard .toolbar button{flex:1}}
 
+
+/* WA Workspace finish pass: loden / patinated copper / warm ivory palette.
+   Deliberately local CSS: no CDN, font or icon dependency, so Termux works offline. */
+:root{
+ --bg:#101410;--p:#191f19;--p2:#151b15;--p3:#222b22;
+ --line:#303b30;--txt:#edf0e7;--muted:#9ca795;
+ --green:#b5cc83;--blue:#b5cc83;--focus:rgba(181,204,131,.24);
+ --surface:#171e17;--surface-2:#232c22;--copper:#c18d68;--shadow:0 14px 38px rgba(0,0,0,.22);
+ --radius:7px;
+}
+html{scrollbar-color:#465342 #111611;scrollbar-width:thin}
+*{scrollbar-width:thin;scrollbar-color:#465342 #111611}
+::selection{background:#b5cc83;color:#172015}
+body{background-image:radial-gradient(ellipse at 86% 0%,rgba(181,204,131,.055),transparent 38%)}
+.app{grid-template-columns:252px minmax(0,1fr)}
+.side{background:#131913;border-right-color:#344034}
+.logo{background:#263024;border-color:#52664b;color:#d5e6b5;box-shadow:inset 0 0 0 1px rgba(255,255,255,.025)}
+.brand{font-weight:750}
+.nav button{position:relative;isolation:isolate;transition:color .18s ease,background .18s ease,border-color .18s ease,transform .18s ease}
+.nav button::before{content:"";position:absolute;left:0;top:22%;bottom:22%;width:2px;border-radius:2px;background:var(--green);transform:scaleY(0);transition:transform .2s ease}
+.nav button.active{background:#263125;border-color:#3b4a36;box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.nav button.active::before{transform:scaleY(1)}
+.nav button:hover{transform:translateX(2px)}
+.sideInfo{border-color:#354333;background:linear-gradient(145deg,#1b241a,#171d17)}
+.top{background:rgba(19,25,19,.92);border-bottom-color:#354034}
+.pill{background:#20291f;border-color:#384635}
+.pill.live{color:#d4e8b4;border-color:#4b6340}
+.content{max-width:1760px}
+.view.active{animation:wa-view-in .24s cubic-bezier(.2,.7,.25,1) both}
+@keyframes wa-view-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.panel{background:linear-gradient(145deg,#1b231b 0%,#171d17 72%);border-color:#344033;box-shadow:0 8px 26px rgba(0,0,0,.14);transition:border-color .2s ease,box-shadow .2s ease}
+.panel:focus-within{border-color:#4b6042}
+.head{background:rgba(255,255,255,.012)}
+.stat{position:relative;overflow:hidden;background:#171e17;border-color:#344033;transition:transform .18s ease,border-color .18s ease,background .18s ease}
+.stat::after{content:"";position:absolute;inset:auto 0 0;height:2px;background:linear-gradient(90deg,var(--green),var(--copper));opacity:.65}
+.stat:hover{transform:translateY(-2px);border-color:#53664a;background:#1b241a}
+.stat b{color:#f0f2e9}
+.field input,.field select,.field textarea,.workspaceComposer textarea{transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}
+button{transition:color .16s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .16s ease}
+button:active{transform:translateY(1px) scale(.99)}
+.blue,.green,.tabs button.active{background:var(--green);border-color:var(--green);color:#182015}
+.blue:hover,.green:hover,.tabs button.active:hover{background:#c5d99d;border-color:#c5d99d;box-shadow:0 3px 12px rgba(181,204,131,.12)}
+.red{background:#352320;border-color:#71463d;color:#f1b5a8}
+.orange{background:#342b20;border-color:#6d5537;color:#f0d1a0}
+.ghost{background:rgba(255,255,255,.015)}
+.list,.clientPane{border-color:#344033;background:#141a14}
+.row{transition:background .15s ease}
+.row:hover{background:rgba(181,204,131,.045)}
+.workspaceAccountCard,.workspaceChatButton{transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease}
+.workspaceAccountCard:hover{border-color:#4a5d40;transform:translateY(-1px)}
+.workspaceChatButton:hover{background:#1b241a;border-color:#354533}
+.workspaceChatButton.selected{background:#263325;border-color:#6c8a56;box-shadow:inset 2px 0 var(--green)}
+.workspaceBubble{box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.workspaceBubble.mine{background:#293825;border-color:#465d3a}
+.progress i{transition:width .35s cubic-bezier(.2,.7,.25,1)}
+.toast{border-color:#53664a;box-shadow:0 14px 44px rgba(0,0,0,.32);animation:wa-toast-in .2s ease-out}
+@keyframes wa-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.table tbody tr{transition:background .15s ease}
+.drop{transition:border-color .18s ease,background .18s ease}
+.drop:hover{border-color:var(--green);background:#1c251b}
+:focus-visible{outline-color:var(--green)!important}
+@media(max-width:1000px){
+ .side{background:rgba(19,25,19,.985)!important;border-right-color:#354034!important}
+ .side.open{box-shadow:18px 0 54px rgba(0,0,0,.48)}
+ .drawerBackdrop.show{background:rgba(5,9,5,.66);backdrop-filter:blur(3px)}
+}
+@media(max-width:650px){
+ .content{padding:9px!important}
+ .panel{box-shadow:0 5px 18px rgba(0,0,0,.12)}
+ .stat:hover,.workspaceAccountCard:hover{transform:none}
+ .nav button:hover{transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+ .view.active,.toast{animation:none!important}
+ .nav button,.panel,.stat,.field input,.field select,.field textarea,button,.progress i{transition:none!important}
+}
+
 </style>
 </head>
 <body>
