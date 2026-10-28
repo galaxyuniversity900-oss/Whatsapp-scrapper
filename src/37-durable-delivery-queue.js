@@ -53,11 +53,24 @@ class DurableDeliveryQueue {
   stop() { this.stopped = true; this.paused = true; return this.status(); }
   status() {
     const rows = this._rows();
-    return { paused: this.paused, stopped: this.stopped, total: rows.length, queued: rows.filter(x => x.status === 'queued').length, retrying: rows.filter(x => x.status === 'retrying').length, delivered: rows.filter(x => x.status === 'delivered').length, failed: rows.filter(x => x.status === 'failed').length };
+    return { paused: this.paused, stopped: this.stopped, total: rows.length, queued: rows.filter(x => x.status === 'queued').length, retrying: rows.filter(x => x.status === 'retrying').length, accepted: rows.filter(x => x.status === 'accepted').length, delivered: rows.filter(x => x.status === 'delivered').length, failed: rows.filter(x => x.status === 'failed').length };
   }
   list({ limit = 100, status = null } = {}) {
     const rows = this._rows().filter(x => !status || x.status === status).slice(-Math.max(1, Math.min(1000, Number(limit) || 100)));
     return rows.map(({ payload, ...row }) => ({ ...row, payload: undefined }));
+  }
+  applyProviderStatus(messageId, providerStatus, details = {}) {
+    const id = String(messageId || '').trim();
+    if (!id) return { ok: false, reason: 'missing_message_id' };
+    const rows = this._rows();
+    const index = rows.findIndex(x => String(x.providerResult?.messageId || x.providerResult?.id || '') === id);
+    if (index < 0) return { ok: false, reason: 'not_found' };
+    const status = String(providerStatus || '').toLowerCase();
+    const mapped = status === 'delivered' ? 'delivered' : ['failed', 'undelivered', 'deleted'].includes(status) ? 'failed' : rows[index].status;
+    rows[index] = { ...rows[index], status: mapped, providerStatus: status || 'unknown', providerStatusAt: new Date().toISOString(), providerStatusDetails: { errors: Array.isArray(details.errors) ? details.errors.slice(0, 5) : [] }, updatedAt: new Date().toISOString() };
+    this._save(rows);
+    this.audit?.append?.('delivery_provider_status', { id: rows[index].id, providerStatus: status, mappedStatus: mapped });
+    return { ok: true, id: rows[index].id, status: mapped };
   }
   async processDue(sender, { now = Date.now(), concurrency = 1, maxPerRun = 50 } = {}) {
     if (typeof sender !== 'function') throw new TypeError('sender must be a function.');
@@ -80,7 +93,7 @@ class DurableDeliveryQueue {
           const result = await sender({ ...claimed });
           const latest = this._rows();
           const at = latest.findIndex(x => x.id === claimed.id);
-          if (at >= 0) latest[at] = { ...latest[at], status: 'delivered', providerResult: result == null ? null : result, deliveredAt: new Date().toISOString(), updatedAt: new Date().toISOString(), lastError: null };
+          if (at >= 0) latest[at] = { ...latest[at], status: 'accepted', providerResult: result == null ? null : result, deliveredAt: new Date().toISOString(), updatedAt: new Date().toISOString(), lastError: null };
           this._save(latest);
           this.audit?.append?.('delivery_queue_delivered', { id: claimed.id, attempts: claimed.attempts });
         } catch (error) {
