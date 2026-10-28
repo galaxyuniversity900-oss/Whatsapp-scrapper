@@ -1,0 +1,54 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { WhatsAppCloudApi } = require('../src/36-whatsapp-cloud-api');
+const { DurableDeliveryQueue } = require('../src/37-durable-delivery-queue');
+
+(async () => {
+  const cloud = new WhatsAppCloudApi({ token: 'token', phoneNumberId: '123', appSecret: 'secret', fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ messages: [{ id: 'wamid.test' }] }) }) });
+  assert.equal(cloud.status().configured, true);
+  assert.equal(cloud.status().sendsEnabled, false);
+  const raw = Buffer.from('{"hello":"world"}');
+  const signature = 'sha256=' + crypto.createHmac('sha256', 'secret').update(raw).digest('hex');
+  assert.equal(cloud.verifyWebhookSignature(raw, signature), true);
+  assert.equal(cloud.verifyWebhookSignature(raw, 'sha256=bad'), false);
+  assert.equal(cloud.verifyWebhookChallenge({ mode: 'subscribe', token: 'verify', challenge: '12345' }, 'verify'), '12345');
+  assert.equal(cloud.verifyWebhookChallenge({ mode: 'subscribe', token: 'wrong', challenge: '12345' }, 'verify'), null);
+  const events = cloud.parseWebhook({ entry: [{ changes: [{ value: { metadata: { phone_number_id: '123' }, statuses: [{ id: 'm1', status: 'delivered' }], messages: [{ id: 'm2', from: '201001234567', type: 'text', text: { body: 'hello' } }] } }] }] });
+  assert.equal(events.length, 2);
+  assert.equal(events[0].status, 'delivered');
+  assert.equal(events[1].text, 'hello');
+  await assert.rejects(() => cloud.sendTemplate({ to: '201001234567', templateName: 'approved_template' }), /sending is disabled/);
+  cloud.enableSending('ENABLE CLOUD API SENDING');
+  const sent = await cloud.sendTemplate({ to: '+201001234567', templateName: 'approved_template' });
+  assert.equal(sent.messageId, 'wamid.test');
+  cloud.disableSending();
+  await assert.rejects(() => cloud.sendTemplate({ to: '123', templateName: 'approved_template' }), /disabled/);
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'durable-delivery-'));
+  const queue = new DurableDeliveryQueue(path.join(dir, 'queue.json'), { maxAttempts: 2, baseDelayMs: 100, maxDelayMs: 200 });
+  const first = queue.enqueue({ idempotencyKey: 'once', provider: 'test', recipientRef: 'masked-recipient', payload: { template: 'approved_template' } });
+  assert.equal(first.duplicate, false);
+  assert.equal(queue.enqueue({ idempotencyKey: 'once', provider: 'test', recipientRef: 'masked-recipient', payload: { template: 'approved_template' } }).duplicate, true);
+  queue.pause();
+  assert.equal((await queue.processDue(async () => ({ ok: true }))).skipped, true);
+  queue.resume();
+  let attempts = 0;
+  const failedOnce = await queue.processDue(async () => { attempts++; if (attempts === 1) throw new Error('temporary'); return { providerId: 'ok' }; }, { now: Date.now() + 1000 });
+  assert.equal(failedOnce.processed, 1);
+  assert.equal(queue.status().retrying, 1);
+  await queue.processDue(async () => ({ providerId: 'ok' }), { now: Date.now() + 1000 });
+  assert.equal(queue.status().delivered, 1);
+  assert.equal(queue.list()[0].payload, undefined);
+  const doomed = queue.enqueue({ idempotencyKey: 'two', provider: 'test', recipientRef: 'masked-recipient', payload: { template: 'approved_template' } });
+  await queue.processDue(async () => { throw new Error('permanent'); }, { now: Date.now() + 1000 });
+  assert.equal(queue.status().failed, 1);
+  queue.stop();
+  assert.equal((await queue.processDue(async () => ({}))).reason, 'stopped');
+  fs.rmSync(dir, { recursive: true, force: true });
+  console.log('Cloud API and durable delivery queue tests passed.');
+})().catch(error => { console.error(error); process.exitCode = 1; });
