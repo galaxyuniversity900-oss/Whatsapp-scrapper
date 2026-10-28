@@ -1169,6 +1169,28 @@ async function route(req, res) {
       broadcast('group:extracted', { accountId: s.id, ...result });
       return json(res, 200, { ok: true, ...result });
     }
+    if (req.method === 'GET' && p === '/api/accounts/group-participants') {
+      const accountId = String(url.searchParams.get('accountId') || '');
+      const chatId = String(url.searchParams.get('chatId') || '');
+      if (!/^[0-9A-Za-z._-]+@g\\.us$/.test(chatId)) throw new Error('Select a WhatsApp group chat');
+      const session = await requireReady(accountId);
+      const chat = await session.client.getChatById(chatId);
+      if (!chat || !chat.isGroup) throw new Error('Group chat not found');
+      const participants = Array.isArray(chat.participants) ? chat.participants : [];
+      const rows = await Promise.all(participants.slice(0, 5000).map(async participant => {
+        const serialized = String(participant?.id?._serialized || '');
+        let contact = null;
+        try { if (serialized) contact = await session.client.getContactById(serialized); } catch {}
+        const phone = String(contact?.number || participant?.id?.user || '').replace(/[^0-9]/g, '');
+        const displayName = String(contact?.pushname || contact?.name || contact?.shortName || participant?.id?.user || '').trim();
+        return { name: displayName || 'Unknown', username: String(contact?.pushname || contact?.shortName || '').trim(),
+          phone, whatsappId: serialized, isAdmin: Boolean(participant?.isAdmin),
+          isSuperAdmin: Boolean(participant?.isSuperAdmin), groupId: chatId };
+      }));
+      const unique = [...new Map(rows.filter(row => row.whatsappId).map(row => [row.whatsappId, row])).values()];
+      audit.append('group_participants_viewed', { accountId, groupId: chatId, count: unique.length });
+      return json(res, 200, { ok: true, accountId, groupId: chatId, groupName: String(chat.name || ''), count: unique.length, rows: unique });
+    }
     if (req.method === 'GET' && p === '/api/group-workspace/latest') {
       return json(res, 200, groupWorkspace.last());
     }
