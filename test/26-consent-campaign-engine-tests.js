@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const ui = fs.readFileSync(path.join(__dirname, '..', 'src', 'web', 'index.html'), 'utf8');
 const { ConsentCampaignEngine } = require('../src/35-consent-campaign-engine');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'consent-campaign-'));
