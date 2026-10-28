@@ -3,6 +3,22 @@
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_KEEPALIVE_MS = 60 * 1000;
 
+function validateSessionUrl(value, protocol, baseUrl) {
+  let url;
+  let base;
+  try {
+    url = new URL(String(value || ''));
+    base = new URL(baseUrl);
+  } catch {
+    throw new Error('Browserless returned a malformed session URL');
+  }
+  if (url.protocol !== protocol || url.username || url.password || url.hash ||
+      url.hostname !== base.hostname || url.port !== base.port) {
+    throw new Error('Browserless session URL must use the configured host and expected secure protocol');
+  }
+  return url;
+}
+
 function normalizeBaseUrl(value) {
   let url;
   try { url = new URL(String(value || '')); } catch {
@@ -54,8 +70,9 @@ class BrowserlessSessionManager {
     }
     if (saved && typeof saved.stop === 'string') {
       try {
-        const separator = saved.stop.includes('?') ? '&' : '?';
-        await this.fetch(saved.stop + separator + 'force=true', {
+        const safeStop = validateSessionUrl(saved.stop, 'https:', config.baseUrl);
+        const separator = safeStop.toString().includes('?') ? '&' : '?';
+        await this.fetch(safeStop.toString() + separator + 'force=true', {
           method: 'DELETE',
           signal: AbortSignal.timeout(10000)
         });
@@ -90,14 +107,8 @@ class BrowserlessSessionManager {
     if (!remote || typeof remote.connect !== 'string' || typeof remote.stop !== 'string') {
       throw new Error('Browserless session response did not include connect and stop URLs');
     }
-    let connectUrl, stopUrl;
-    try {
-      connectUrl = new URL(remote.connect);
-      stopUrl = new URL(remote.stop);
-    } catch { throw new Error('Browserless returned malformed session URLs'); }
-    if (connectUrl.protocol !== 'wss:' || stopUrl.protocol !== 'https:') {
-      throw new Error('Browserless returned session URLs with unexpected protocols');
-    }
+    const connectUrl = validateSessionUrl(remote.connect, 'wss:', config.baseUrl);
+    const stopUrl = validateSessionUrl(remote.stop, 'https:', config.baseUrl);
 
     const actualTtl = Number(remote.ttl) > 0 ? Number(remote.ttl) : config.ttlMs;
     const savedSession = {
@@ -108,7 +119,11 @@ class BrowserlessSessionManager {
       expiresAt: this.now() + actualTtl
     };
     if (this.secretStore && this.secretStore.set(key, JSON.stringify(savedSession)) !== true) {
-      try { await this.fetch(savedSession.stop + '&force=true', { method: 'DELETE', signal: AbortSignal.timeout(10000) }); } catch {}
+      try {
+        const safeStop = validateSessionUrl(savedSession.stop, 'https:', config.baseUrl);
+        const separator = safeStop.toString().includes('?') ? '&' : '?';
+        await this.fetch(safeStop.toString() + separator + 'force=true', { method: 'DELETE', signal: AbortSignal.timeout(10000) });
+      } catch {}
       throw new Error('Could not securely persist Browserless session metadata');
     }
     return { ...savedSession, reused: false };
@@ -121,8 +136,10 @@ class BrowserlessSessionManager {
     if (!saved) return { ok: true, existed: false };
     let deleted = false;
     try {
-      const separator = String(saved.stop).includes('?') ? '&' : '?';
-      const response = await this.fetch(String(saved.stop) + separator + 'force=true', {
+      const baseUrl = normalizeBaseUrl(this.env.BROWSERLESS_BASE_URL);
+      const safeStop = validateSessionUrl(saved.stop, 'https:', baseUrl);
+      const separator = safeStop.toString().includes('?') ? '&' : '?';
+      const response = await this.fetch(safeStop.toString() + separator + 'force=true', {
         method: 'DELETE',
         signal: AbortSignal.timeout(15000)
       });
@@ -133,4 +150,4 @@ class BrowserlessSessionManager {
   }
 }
 
-module.exports = { BrowserlessSessionManager, normalizeBaseUrl };
+module.exports = { BrowserlessSessionManager, normalizeBaseUrl, validateSessionUrl };
