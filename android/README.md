@@ -12,6 +12,6 @@ The GitHub Actions workflow **Android APK** builds a debug APK and uploads it as
 2. Open WA Workspace. Keep Termux running in the background.
 3. If the server is stopped, start it in Termux and tap Retry in the app.
 
-The APK package ID is `com.galaxyuniversity.waworkspace`, version name `1.2.0`, version code `3`.
+The conflict-safe APK uses package ID `com.galaxyuniversity.waworkspace.v121`, version name `1.2.1`, version code `4`. It installs alongside the older package instead of attempting an in-place update, so you do not need to uninstall the old app or know its signing key.
 
 Note: a higher version code permits a normal upgrade only when the APK is signed with the same signing certificate as the installed app. A GitHub-hosted debug build may use a different debug key on a different runner, which can still cause Android to reject an in-place update. Do not clear Termux data or delete `~/.whatsapp-scrapper`.
