@@ -27,6 +27,17 @@ The workspace may evolve toward a provider-neutral messaging gateway with distin
   - `POST /api/experimental/suppressions/remove` — requires `phone` and exact confirmation `CONFIRM RECONSENT`; do not use unless fresh consent has actually been obtained.
 - These routes require the existing API token and follow the server's existing authentication/security middleware. Data is local JSON storage, not encrypted at rest; protect the device and data directory.
 
+## 2.2 Implemented Cloud API and delivery queue slice
+
+- `src/36-whatsapp-cloud-api.js` provides an opt-in adapter for approved WhatsApp Cloud API templates, webhook signature validation, webhook challenge validation, and parsing inbound-message/delivery-status events.
+- `src/37-durable-delivery-queue.js` provides local durable queue storage, idempotency keys, bounded retries, exponential backoff, concurrency capped at five, pause/resume/stop controls, and status summaries.
+- Authenticated local routes expose Cloud API status, explicit enable/disable, purpose-consent-checked template queueing, processing, and queue controls. Queue processing rechecks consent and suppression immediately before calling the provider.
+- The mobile workspace includes a Cloud API panel to inspect configuration/queue state, queue a template for a consented recipient, and control processing.
+- Required server environment variables: `WHATSAPP_CLOUD_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, and `WHATSAPP_CLOUD_APP_SECRET`. Configure only through the local server environment; never paste tokens into campaign data.
+- The Cloud API adapter sends approved templates only. It does not scrape WhatsApp groups or bypass provider policies. Meta app webhook delivery requires an externally reachable HTTPS endpoint and the platform's webhook configuration; the current adapter's verification/parser functions are available, but a public inbound webhook endpoint/reverse-proxy deployment is not yet configured by this project.
+- Delivery queue payloads are stored in local JSON and are not encrypted at rest. Protect the device and data directory. Provider acceptance is not equivalent to recipient delivery; delivery-status reconciliation is still a separate integration task.
+- Tests are included in `test/27-cloud-delivery-tests.js` and run in CI. Do not consider real provider delivery verified until valid Meta credentials, an approved template, and an opted-in test recipient have been used in a controlled test.
+
 ## 2. Experimental feature sections
 
 ### 2.1 Audience and participant data
