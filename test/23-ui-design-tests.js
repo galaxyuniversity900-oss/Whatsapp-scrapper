@@ -19,5 +19,5 @@ assert.equal(manifest.short_name, 'WA Workspace', 'install label must match Andr
 assert.equal(manifest.theme_color, '#141914', 'install theme must match workspace palette');
 assert.ok(manifest.icons.some(item => item.src === '/icon.svg' && item.type === 'image/svg+xml'), 'install icon missing from web manifest');
 assert.match(icon, /<svg[\s>]/, 'workspace icon must be a valid SVG document');
-assert.match(html, /name="theme-color" content="#07090b"/, 'existing HTML theme-color metadata contract must be retained');
+assert.match(html, /name="theme-color" content="#141914"/, 'browser theme-color must match install manifest');
 console.log('PASS UI design tokens, mobile layout, accessibility, no-CDN and runtime-contract checks');
