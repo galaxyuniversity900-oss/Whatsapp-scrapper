@@ -6,18 +6,18 @@ on:
       - "android/**"
       - "src/server.js"
       - "src/35-consent-campaign-engine.js"
-      - "test/26-consent-campaign-engine-tests.js"
       - "src/web/index.html"
       - "test/25-connected-account-workspace-tests.js"
-      - "src/35-consent-campaign-engine.js"
       - "test/26-consent-campaign-engine-tests.js"
       - ".github/workflows/android-apk.yml"
   pull_request:
     paths:
       - "android/**"
       - "src/server.js"
+      - "src/35-consent-campaign-engine.js"
       - "src/web/index.html"
       - "test/25-connected-account-workspace-tests.js"
+      - "test/26-consent-campaign-engine-tests.js"
       - ".github/workflows/android-apk.yml"
   workflow_dispatch:
 
