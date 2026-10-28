@@ -32,7 +32,7 @@
     "test:analytics": "node test/21-analytics-tests.js",
     "test:veritas": "node test/22-veritas-campaign-audit-tests.js",
     "test:ui-design": "node test/23-ui-design-tests.js",
-    "termux:local": "node test/24-termux-local-only-tests.js && bash test/termux-smoke.sh",
+    "termux:local": "node test/24-termux-local-only-tests.js && node test/25-connected-account-workspace-tests.js && node test/26-consent-campaign-engine-tests.js && node test/27-cloud-delivery-tests.js && bash test/termux-smoke.sh",
     "termux:setup": "bash scripts/termux-setup.sh",
     "test:workspace": "node test/25-connected-account-workspace-tests.js",
     "test:consent": "node test/26-consent-campaign-engine-tests.js",
