@@ -641,5 +641,10 @@ function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 window.addEventListener('load',()=>setTimeout(loadInbox,700));
 </script>
 
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(error => console.warn('Offline shell registration unavailable:', error)));
+}
+</script>
 </body>
 </html>
