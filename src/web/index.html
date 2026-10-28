@@ -468,6 +468,22 @@ input[type=checkbox]{accent-color:#a7d46f}
    <p class="muted small">Suppression is applied to preflight and campaign eligibility. Do not remove an opt-out unless the recipient has genuinely re-consented.</p>
   </div></div>
  </div>
+
+ <div style="height:10px"></div>
+ <div class="panel"><div class="head"><b>Official WhatsApp Cloud API</b><span id="expCloudStatus" class="status">Checking configuration…</span></div><div class="body">
+  <p class="muted">Uses server environment variables WHATSAPP_CLOUD_TOKEN, WHATSAPP_CLOUD_PHONE_NUMBER_ID and WHATSAPP_CLOUD_APP_SECRET. Only approved templates are sent by this experimental adapter. Configure a verified Meta app and valid opt-in first.</p>
+  <div class="toolbar">
+   <button onclick="expCloudRefresh()">Refresh status</button>
+   <button class="green" onclick="expCloudEnable()">Enable sending</button>
+   <button class="red" onclick="expCloudDisable()">Disable sending</button>
+   <button class="blue" onclick="expCloudProcess()">Process due queue</button>
+   <button onclick="expCloudQueuePause()">Pause queue</button>
+   <button onclick="expCloudQueueResume()">Resume queue</button>
+   <button class="red" onclick="expCloudQueueStop()">Stop queue</button>
+  </div>
+  <div id="expCloudQueue" class="result code">Queue has not been loaded.</div>
+  <p class="muted small">Sending is disabled by default. Queue processing rechecks purpose-specific consent immediately before each provider call. A queue stop is irreversible for this running server process; restart the server to create a new queue controller.</p>
+ </div></div>
 </section>
 </div></main></div>
 <div id="toast" class="toast"></div>
@@ -892,6 +908,25 @@ async function expSuppress(){
  }catch(e){toast(e.message)}
 }
 window.addEventListener('load',()=>setTimeout(expLoadDrafts,800));
+
+
+async function expCloudRefresh(){
+ try{
+  const [status,queue]=await Promise.all([api('/api/experimental/cloud/status'),api('/api/experimental/cloud/queue')]);
+  $('expCloudStatus').textContent=(status.configured?'Configured':'Missing credentials')+' · '+(status.enabled?'Sending enabled':'Sending disabled');
+  $('expCloudQueue').textContent=JSON.stringify({status:queue.status,items:queue.items},null,2);
+ }catch(e){$('expCloudStatus').textContent='Unavailable';$('expCloudQueue').textContent=e.message}
+}
+async function expCloudEnable(){
+ const confirmation=prompt('Enable WhatsApp Cloud API template sending? Ensure credentials, approved templates, and recipient consent are verified. Type exactly: ENABLE CLOUD API SENDING');
+ if(confirmation!=='ENABLE CLOUD API SENDING')return;
+ try{await post('/api/experimental/cloud/enable',{confirmation});toast('Cloud API sending enabled');await expCloudRefresh()}catch(e){toast(e.message)}
+}
+async function expCloudDisable(){try{await post('/api/experimental/cloud/disable',{});toast('Cloud API sending disabled');await expCloudRefresh()}catch(e){toast(e.message)}}
+async function expCloudProcess(){try{const r=await post('/api/experimental/cloud/queue/process',{concurrency:1,maxPerRun:20});toast('Queue pass processed: '+r.processed);await expCloudRefresh()}catch(e){toast(e.message)}}
+async function expCloudQueuePause(){try{await post('/api/experimental/cloud/queue/pause',{});toast('Queue paused');await expCloudRefresh()}catch(e){toast(e.message)}}
+async function expCloudQueueResume(){try{await post('/api/experimental/cloud/queue/resume',{});toast('Queue resumed');await expCloudRefresh()}catch(e){toast(e.message)}}
+async function expCloudQueueStop(){if(!confirm('Stop queue processing until server restart?'))return;try{await post('/api/experimental/cloud/queue/stop',{});toast('Queue stopped');await expCloudRefresh()}catch(e){toast(e.message)}}
 
 </script>
 
