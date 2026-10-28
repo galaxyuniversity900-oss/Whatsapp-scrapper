@@ -75,6 +75,7 @@ class ConsentCampaignEngine {
     const phone = normalizePhone(value);
     if (!/^\d{7,15}$/.test(phone)) throw new Error('A valid international phone number is required.');
     if (clean(confirmation) !== 'CONFIRM RECONSENT') throw new Error('Explicit confirmation text is required to remove a suppression.');
+    if (!this._consents().some(x => x.phone === phone && x.consent === true && x.source && x.evidenceRef)) throw new Error('Fresh consent evidence must be recorded before removing a suppression.');
     const current = this._suppressions();
     const rows = current.filter(x => x.phone !== phone);
     const removed = rows.length !== current.length;
