@@ -13,7 +13,7 @@ class SecretStore{
   _loadLocalKey(){
     try{const value=fs.readFileSync(this.keyFile,'utf8').trim();if(value)return value}catch{}
     const value=crypto.randomBytes(32).toString('hex');
-    try{fs.writeFileSync(this.keyFile,value+'\\n',{mode:0o600})}catch{}
+    try{fs.writeFileSync(this.keyFile,value+'\n',{mode:0o600})}catch{}
     return value;
   }
   _key(){
