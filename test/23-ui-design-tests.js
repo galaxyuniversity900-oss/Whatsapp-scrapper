@@ -6,7 +6,11 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'web', 'index.htm
 const webDir = path.join(__dirname, '..', 'src', 'web');
 const manifest = JSON.parse(fs.readFileSync(path.join(webDir, 'manifest.json'), 'utf8'));
 const icon = fs.readFileSync(path.join(webDir, 'icon.svg'), 'utf8');
-assert.match(html, /--bg:#111411/, 'graphite base token missing');
+assert.match(html, /--bg:#111411/, 'legacy base token missing');
+assert.match(html, /data-theme-choice="graphite-copper"/, 'alternate palette control missing');
+assert.match(html, /id="menuToggle"/, 'mobile sidebar toggle missing');
+assert.match(html, /side-backdrop/, 'mobile sidebar backdrop missing');
+assert.match(html, /localStorage\.setItem\('wa-workspace-theme'/, 'palette preference persistence missing');
 assert.match(html, /--green:#a7d46f/, 'intentional mineral-lime accent missing');
 assert.match(html, /prefers-reduced-motion:reduce/, 'reduced-motion accessibility support missing');
 assert.match(html, /@media\(max-width:650px\)/, 'mobile layout rules missing');
@@ -19,7 +23,7 @@ assert.match(html, /function refreshAll\(/, 'existing runtime refresh must remai
 assert.match(html, /initSecurity\(/, 'existing security initialization must remain');
 assert.doesNotMatch(html, /fonts\.googleapis\.com|cdn\.jsdelivr\.net|unpkg\.com/, 'UI must not require third-party CDN');
 assert.equal(manifest.short_name, 'WA Workspace', 'install label must match Android branding');
-assert.equal(manifest.theme_color, '#141914', 'install theme must match workspace palette');
+assert.equal(manifest.theme_color, '#0d1210', 'install theme must match workspace palette');
 assert.ok(manifest.icons.some(item => item.src === '/icon.svg' && item.type === 'image/svg+xml'), 'install icon missing from web manifest');
 assert.match(icon, /<svg[\s>]/, 'workspace icon must be a valid SVG document');
 assert.match(html, /name="theme-color" content="#141914"/, 'browser theme-color must match install manifest');
@@ -29,7 +33,7 @@ assert.match(html, /navigator\.serviceWorker\.register\('\/sw\.js'/, 'PWA servic
 const serviceWorker = fs.readFileSync(path.join(webDir, 'sw.js'), 'utf8');
 assert.match(html, /id="networkStatus"/, 'offline status banner must exist');
 assert.match(html, /addEventListener\('offline',updateNetworkStatus\)/, 'offline status must respond to connectivity changes');
-assert.match(serviceWorker, /wa-workspace-v2/, 'service worker cache must be versioned');
+assert.match(serviceWorker, /wa-workspace-v3/, 'service worker cache must be versioned');
 assert.match(serviceWorker, /APP_SHELL = \['\/', '\/manifest\.json'\]/, 'only public shell assets should be cached');
 assert.doesNotMatch(serviceWorker, /caches\.put\(request, copy\)[\s\S]{0,150}\/api\//, 'API responses must not be cached');
 console.log('PASS UI design tokens, mobile layout, accessibility, no-CDN and runtime-contract checks');
