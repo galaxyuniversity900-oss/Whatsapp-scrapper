@@ -1036,7 +1036,7 @@ async function route(req, res) {
       if (!x.templateName || !x.purpose) return json(res, 400, { ok: false, error: 'templateName and purpose are required.' });
       const item = deliveryQueue.enqueue({
         idempotencyKey: x.idempotencyKey, provider: 'whatsapp-cloud-api',
-        recipientRef: String(x.to).replace(/\\D/g, '').replace(/.(?=.{4})/g, '*'),
+        recipientRef: String(x.to).replace(/\D/g, '').replace(/.(?=.{4})/g, '*'),
         payload: { to: x.to, purpose: x.purpose, templateName: x.templateName, language: x.language || 'en_US', components: Array.isArray(x.components) ? x.components : [] }
       });
       return json(res, 202, { ok: true, item: { id: item.id, status: item.status, duplicate: item.duplicate, idempotencyKey: item.idempotencyKey } });
