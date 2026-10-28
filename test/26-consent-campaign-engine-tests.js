@@ -11,6 +11,8 @@ const events = [];
 const engine = new ConsentCampaignEngine(dir, { audit: { append: (event, data) => events.push({ event, data }) } });
 assert.throws(() => engine.recordConsent({ phone: '+201001234567', consent: true }), /purpose, source, and evidenceRef/);
 engine.recordConsent({ phone: '+201001234567', consent: true, purpose: 'offers', source: 'website-form', evidenceRef: 'form-record-42' });
+assert.equal(engine.isEligibleForPurpose('+201001234567', 'offers').eligible, true);
+assert.equal(engine.isEligibleForPurpose('+201001234567', 'other').eligible, false);
 let check = engine.preflight({
   campaignId: 'spring', message: 'Hello {name}', contacts: [
     { id: 'one', phone: '201001234567', purpose: 'offers' },
