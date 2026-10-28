@@ -2,7 +2,7 @@
 
 A local Electron desktop workspace for consent-based WhatsApp campaigns.
 
-> **Experimental roadmap:** [Professional Messaging Engineering Features (2026)](docs/EXPERIMENTAL_MESSAGING_ENGINEERING.md). This is a design specification, not a claim that every capability is implemented or verified.
+> **Experimental messaging features:** [Professional Messaging Engineering Features (2026)](docs/EXPERIMENTAL_MESSAGING_ENGINEERING.md). Consent ledger, suppression list, campaign preflight, draft storage, an opt-in WhatsApp Cloud API template adapter, signed webhook verification, and a durable bounded-retry delivery queue are implemented on this branch. Telegram campaign orchestration and end-to-end production verification remain incomplete.
 
 ## Features
 - Multiple WhatsApp Web sessions using `whatsapp-web.js` + `LocalAuth`.
@@ -35,6 +35,18 @@ A local Electron desktop workspace for consent-based WhatsApp campaigns.
 - Optional network proxy configuration for legitimate connectivity requirements; authenticated proxy credentials are held for the session and are not written to the settings file.
 - Channel subscriber discovery is supported only for subscribers visible to the connected account/library.
 - Realtime edit and revoke notifications in the UI.\n- Selectable Person / Group Intelligence: for a chosen number, analyze who added the number to groups, how many distinct groups the number appears in, how many messages the number sent, and how many reactions those messages received. Each metric can be enabled independently to reduce work.
+
+## Experimental Cloud API and delivery queue
+
+The local server exposes authenticated routes for Cloud API status, explicit enable/disable, queueing an approved template for a recipient with purpose-specific consent, processing due queue items, and pausing/resuming/stopping the queue. Signed provider webhooks are handled at `/webhooks/whatsapp-cloud`.
+
+Configure these environment variables in the server runtime before enabling Cloud API sending:
+- `WHATSAPP_CLOUD_TOKEN`
+- `WHATSAPP_CLOUD_PHONE_NUMBER_ID`
+- `WHATSAPP_CLOUD_APP_SECRET`
+- `WHATSAPP_CLOUD_WEBHOOK_VERIFY_TOKEN` (for webhook verification)
+
+The server binds to loopback (`127.0.0.1`). Receiving Meta webhooks therefore requires a correctly configured HTTPS reverse proxy/tunnel to the webhook route; do not expose the local server directly. Queue, consent and draft files are local JSON and are not encrypted at rest. Real provider delivery is not verified until tested with valid credentials, an approved template and a recipient who opted in.
 
 ## Run
 ```bash
