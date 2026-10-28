@@ -153,7 +153,7 @@ async function run() {
       'encrypted-session-metadata',
       'encrypted secrets must remain readable after constructing a new store instance'
     );
-    assert.ok(!fs.readFileSync(keyFile, 'utf8').includes('\\\\n'), 'key file must not contain a literal escaped newline');
+    assert.ok(fs.readFileSync(keyFile, 'utf8').endsWith('\n'), 'key file must end with a real newline');
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
