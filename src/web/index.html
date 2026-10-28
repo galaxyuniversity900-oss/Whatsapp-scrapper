@@ -155,11 +155,31 @@ input[type=checkbox]{accent-color:#a7d46f}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 
+
+/* Mobile navigation drawer: keeps the full desktop sidebar available on small screens. */
+.mobileMenu{display:none!important}
+.drawerBackdrop{display:none}
+@media(max-width:1000px){
+ .mobileMenu{display:inline-flex!important;align-items:center;justify-content:center;min-width:40px;min-height:38px;margin-right:9px;font-size:20px}
+ .topStart{display:flex;align-items:center;min-width:0}
+ .side{display:block!important;position:fixed!important;left:0!important;right:auto!important;top:0!important;bottom:0!important;width:min(84vw,310px)!important;height:100dvh!important;max-height:100dvh!important;z-index:1002!important;overflow-y:auto!important;transform:translateX(-105%);transition:transform .22s ease;box-shadow:0 0 0 transparent;padding:14px 10px!important;background:#111611!important;border-right:1px solid var(--line)!important;border-bottom:0!important}
+ .side.open{transform:translateX(0);box-shadow:16px 0 44px rgba(0,0,0,.42)}
+ .side .nav{display:grid!important;overflow:visible!important;max-width:none!important;padding:0!important;gap:4px}
+ .side .nav button{width:100%;text-align:left;white-space:normal!important;padding:12px!important}
+ .side .brand{font-size:15px;margin:4px 7px 18px}
+ .drawerBackdrop.show{display:block;position:fixed;inset:0;background:rgba(0,0,0,.58);backdrop-filter:blur(2px);z-index:1001}
+ .sideInfo{display:block!important;position:static!important;margin-top:20px}
+ .app{display:block!important;grid-template-columns:minmax(0,1fr)!important}
+ .main{width:100%!important}
+ .top{position:sticky!important;top:0!important;z-index:100!important}
+}
+@media(prefers-reduced-motion:reduce){.side{transition:none!important}}
+
 </style>
 </head>
 <body>
 <div class="app">
-<aside class="side">
+<aside class="side" id="appSidebar" aria-label="Main navigation">
  <div class="brand"><span class="logo">WA</span><span>Message Sender</span></div>
  <nav class="nav">
   <button class="active" data-view="dashboard"><span class="dot"></span>Dashboard</button>
@@ -176,8 +196,9 @@ input[type=checkbox]{accent-color:#a7d46f}
  </nav>
  <div class="sideInfo"><div>ENGINE <b id="engine">ONLINE</b></div><div>Platform <span id="platform">—</span></div><div>Node <span id="node">—</span></div><div>WhatsApp <span id="waState">—</span></div></div>
 </aside>
+<div class="drawerBackdrop" id="drawerBackdrop" aria-hidden="true"></div>
 <main class="main">
-<header class="top"><div class="title">WhatsApp Message Sender</div><div class="topRight"><span class="pill live">● LIVE ENGINE</span><span class="pill" id="clock">—</span></div></header>
+<header class="top"><div class="topStart"><button type="button" class="mobileMenu" id="mobileMenu" aria-label="Open navigation" aria-controls="appSidebar" aria-expanded="false">☰</button><div class="title">WhatsApp Message Sender</div></div><div class="topRight"><span class="pill live">● LIVE ENGINE</span><span class="pill" id="clock">—</span></div></header>
 <div class="content">
 
 <section id="dashboard" class="view active">
@@ -636,6 +657,25 @@ async function openInboxConversation(id){
 async function syncInbox(){try{await opPost('/api/inbox/sync',{});await loadInbox();toast('Inbox synchronized')}catch(e){toast(e.message)}}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 window.addEventListener('load',()=>setTimeout(loadInbox,700));
+</script>
+
+
+<script>
+(function(){
+ const side=document.getElementById('appSidebar'), backdrop=document.getElementById('drawerBackdrop'), toggle=document.getElementById('mobileMenu');
+ if(!side||!backdrop||!toggle)return;
+ function setOpen(open){
+  side.classList.toggle('open',open);backdrop.classList.toggle('show',open);
+  toggle.setAttribute('aria-expanded',String(open));
+  toggle.setAttribute('aria-label',open?'Close navigation':'Open navigation');
+  document.body.style.overflow=open?'hidden':'';
+ }
+ toggle.addEventListener('click',()=>setOpen(!side.classList.contains('open')));
+ backdrop.addEventListener('click',()=>setOpen(false));
+ side.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>setOpen(false)));
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')setOpen(false)});
+ window.addEventListener('resize',()=>{if(window.innerWidth>1000)setOpen(false)});
+})();
 </script>
 
 </body>
