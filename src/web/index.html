@@ -488,10 +488,10 @@ window.addEventListener('load',async()=>{try{await initSecurity();renderTemplate
 <pre id="p5Output" style="max-height:420px;overflow:auto;margin-top:12px">Platform API ready.</pre>
 </section>
 <script>
-async function p5Get(path){const r=await fetch(path);const j=await r.json();$('p5Output').textContent=JSON.stringify(j,null,2);return j}
+async function p5Get(path){try{const j=await api(path);$('p5Output').textContent=JSON.stringify(j,null,2);return j}catch(e){$('p5Output').textContent='ERROR: '+e.message;toast(e.message);throw e}}
 async function p5Load(x){return p5Get('/api/platform/'+x)}
 async function p5Search(){const q=$('p5Search').value.trim();return p5Get('/api/platform/search?'+new URLSearchParams({q}).toString())}
-async function p5Backup(){try{const r=await fetch('/api/platform/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});$('p5Output').textContent=JSON.stringify(await r.json(),null,2)}catch(e){toast(e.message)}}
+async function p5Backup(){try{const j=await post('/api/platform/backup',{});$('p5Output').textContent=JSON.stringify(j,null,2);toast('Backup created')}catch(e){$('p5Output').textContent='ERROR: '+e.message;toast(e.message)}}
 </script>
 <section class="card" id="publicChannelSearch" style="margin:18px">
 <h2>Public WhatsApp Channel Search</h2>
