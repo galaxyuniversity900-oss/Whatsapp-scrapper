@@ -8,11 +8,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.galaxyuniversity.waworkspace"
+        applicationId = "com.galaxyuniversity.waworkspace.v121"
         minSdk = 23
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.2.1"
     }
 
     compileOptions {
