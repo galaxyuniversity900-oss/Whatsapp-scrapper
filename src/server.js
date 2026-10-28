@@ -792,7 +792,7 @@ async function route(req, res) {
     }
     if (req.method === 'GET' && p === '/api/accounts/chats') {
       const accountId = String(url.searchParams.get('accountId') || '');
-      const session = requireReady(accountId);
+      const session = await requireReady(accountId);
       const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') || 100)));
       const chats = await session.client.getChats();
       const rows = chats.map(chat => {
@@ -813,7 +813,7 @@ async function route(req, res) {
       const accountId = String(url.searchParams.get('accountId') || '');
       const chatId = String(url.searchParams.get('chatId') || '');
       if (!/^[0-9A-Za-z._-]+@(c|g)\.us$/.test(chatId)) throw new Error('Invalid chat ID');
-      const session = requireReady(accountId);
+      const session = await requireReady(accountId);
       const chat = await session.client.getChatById(chatId);
       if (!chat) throw new Error('Chat not found');
       const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 40)));
@@ -831,7 +831,7 @@ async function route(req, res) {
       const message = String(x.message || '').trim();
       if (!/^[0-9A-Za-z._-]+@c\.us$/.test(chatId)) throw new Error('Reply is restricted to an individual chat; group sending is disabled here');
       if (!message || message.length > 10000) throw new Error('Message must contain 1–10000 characters');
-      const session = requireReady(accountId);
+      const session = await requireReady(accountId);
       const chat = await session.client.getChatById(chatId);
       if (!chat || chat.isGroup) throw new Error('Individual chat not found');
       const result = await session.client.sendMessage(chatId, message);
