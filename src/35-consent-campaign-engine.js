@@ -75,10 +75,12 @@ class ConsentCampaignEngine {
     const phone = normalizePhone(value);
     if (!/^\\d{7,15}$/.test(phone)) throw new Error('A valid international phone number is required.');
     if (clean(confirmation) !== 'CONFIRM RECONSENT') throw new Error('Explicit confirmation text is required to remove a suppression.');
-    const rows = this._suppressions().filter(x => x.phone !== phone);
+    const current = this._suppressions();
+    const rows = current.filter(x => x.phone !== phone);
+    const removed = rows.length !== current.length;
     atomicWrite(this.suppressionFile, rows);
-    this._audit('recipient_unsuppressed', { phoneMasked: phone.replace(/.(?=.{4})/g, '*') });
-    return { ok: true, removed: rows.length !== this._suppressions().length };
+    this._audit('recipient_unsuppressed', { phoneMasked: phone.replace(/.(?=.{4})/g, '*'), removed });
+    return { ok: true, removed };
   }
 
   preflight({ campaignId = null, message = '', contacts = [] } = {}) {
