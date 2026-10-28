@@ -134,6 +134,23 @@ function broadcast(event, data) {
     try { res.write(line); } catch { listeners.delete(res); }
   }
 }
+function readRawBody(req, limit = 2 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > limit) {
+        reject(new Error('Webhook body too large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
 function parseBody(req) {
   return new Promise((resolve, reject) => {
     let raw = '';
@@ -680,6 +697,34 @@ async function route(req, res) {
   const p = url.pathname;
   applySecurityHeaders(req, res);
   if (p === '/healthz' && req.method === 'GET') return json(res, 200, { ok: true, status: 'healthy' });
+  if (p === '/webhooks/whatsapp-cloud' && req.method === 'GET') {
+    const challenge = cloudApi.verifyWebhookChallenge({
+      mode: url.searchParams.get('hub.mode'),
+      token: url.searchParams.get('hub.verify_token'),
+      challenge: url.searchParams.get('hub.challenge')
+    }, process.env.WHATSAPP_CLOUD_WEBHOOK_VERIFY_TOKEN || '');
+    if (challenge === null) return json(res, 403, { ok: false, error: 'Webhook verification failed' });
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(challenge);
+  }
+  if (p === '/webhooks/whatsapp-cloud' && req.method === 'POST') {
+    try {
+      const raw = await readRawBody(req);
+      if (!cloudApi.verifyWebhookSignature(raw, req.headers['x-hub-signature-256'])) return json(res, 401, { ok: false, error: 'Invalid webhook signature' });
+      let payload;
+      try { payload = JSON.parse(raw.toString('utf8')); } catch { return json(res, 400, { ok: false, error: 'Invalid webhook JSON' }); }
+      const events = cloudApi.parseWebhook(payload);
+      for (const event of events) {
+        if (event.type === 'message_status') deliveryQueue.applyProviderStatus(event.id, event.status, { errors: event.errors });
+        audit.append('whatsapp_cloud_webhook_event', { type: event.type, id: event.id, status: event.status || null, messageType: event.messageType || null });
+        broadcast('cloud:webhook', event);
+      }
+      return json(res, 200, { ok: true, received: events.length });
+    } catch (e) {
+      audit.append('whatsapp_cloud_webhook_error', { error: String(e.message || e).slice(0, 200) });
+      return json(res, 400, { ok: false, error: 'Webhook processing failed' });
+    }
+  }
   if (!requireAdminBasicAuth(req, res)) return;
   if (req.method === 'OPTIONS') {
     return res.end();
