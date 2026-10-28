@@ -23,4 +23,10 @@ assert.match(html, /name="theme-color" content="#141914"/, 'browser theme-color 
 assert.match(html, /async function p5Get\(path\)\{try\{const j=await api\(path\)/, 'CRM requests must use the authenticated API helper');
 assert.match(html, /async function p5Backup\(\)\{try\{const j=await post\('\/api\/platform\/backup',\{\}\)/, 'backup requests must include API authorization');
 assert.match(html, /navigator\.serviceWorker\.register\('\/sw\.js'/, 'PWA service worker must be registered when supported');
+const serviceWorker = fs.readFileSync(path.join(webDir, 'sw.js'), 'utf8');
+assert.match(html, /id="networkStatus"/, 'offline status banner must exist');
+assert.match(html, /addEventListener\('offline',updateNetworkStatus\)/, 'offline status must respond to connectivity changes');
+assert.match(serviceWorker, /wa-workspace-v2/, 'service worker cache must be versioned');
+assert.match(serviceWorker, /APP_SHELL = \['\/', '\/manifest\.json'\]/, 'only public shell assets should be cached');
+assert.doesNotMatch(serviceWorker, /caches\.put\(request, copy\)[\s\S]{0,150}\/api\//, 'API responses must not be cached');
 console.log('PASS UI design tokens, mobile layout, accessibility, no-CDN and runtime-contract checks');
