@@ -5,11 +5,11 @@ const path = require('path');
 const crypto = require('crypto');
 
 function clean(value, max = 500) { return String(value == null ? '' : value).trim().slice(0, max); }
-function normalizePhone(value) { return String(value == null ? '' : value).replace(/\\D/g, ''); }
+function normalizePhone(value) { return String(value == null ? '' : value).replace(/\D/g, ''); }
 function atomicWrite(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = file + '.tmp-' + process.pid + '-' + crypto.randomBytes(4).toString('hex');
-  fs.writeFileSync(tmp, JSON.stringify(value, null, 2) + '\\n', { encoding: 'utf8', mode: 0o600 });
+  fs.writeFileSync(tmp, JSON.stringify(value, null, 2) + '\n', { encoding: 'utf8', mode: 0o600 });
   fs.renameSync(tmp, file);
 }
 function readRows(file) {
@@ -38,7 +38,7 @@ class ConsentCampaignEngine {
 
   recordConsent(input = {}) {
     const phone = normalizePhone(input.phone);
-    if (!/^\\d{7,15}$/.test(phone)) throw new Error('A valid international phone number is required.');
+    if (!/^\d{7,15}$/.test(phone)) throw new Error('A valid international phone number is required.');
     if (input.consent !== true && input.consent !== false) throw new Error('consent must be true or false.');
     const purpose = clean(input.purpose, 160);
     const source = clean(input.source, 160);
@@ -62,7 +62,7 @@ class ConsentCampaignEngine {
 
   suppress(value, reason = 'manual opt-out') {
     const phone = normalizePhone(value);
-    if (!/^\\d{7,15}$/.test(phone)) throw new Error('A valid international phone number is required.');
+    if (!/^\d{7,15}$/.test(phone)) throw new Error('A valid international phone number is required.');
     const rows = this._suppressions().filter(x => x.phone !== phone);
     const row = { id: id('suppression', { phone }), phone, reason: clean(reason, 240) || 'manual opt-out', createdAt: new Date().toISOString(), active: true };
     rows.push(row);
@@ -73,7 +73,7 @@ class ConsentCampaignEngine {
 
   unsuppress(value, confirmation = '') {
     const phone = normalizePhone(value);
-    if (!/^\\d{7,15}$/.test(phone)) throw new Error('A valid international phone number is required.');
+    if (!/^\d{7,15}$/.test(phone)) throw new Error('A valid international phone number is required.');
     if (clean(confirmation) !== 'CONFIRM RECONSENT') throw new Error('Explicit confirmation text is required to remove a suppression.');
     const current = this._suppressions();
     const rows = current.filter(x => x.phone !== phone);
@@ -95,7 +95,7 @@ class ConsentCampaignEngine {
       const c = contacts[index] && typeof contacts[index] === 'object' ? contacts[index] : {};
       const phone = normalizePhone(c.phone || c.number);
       const reasons = [];
-      if (!/^\\d{7,15}$/.test(phone)) { reasons.push('invalid_phone'); counts.invalidPhone++; }
+      if (!/^\d{7,15}$/.test(phone)) { reasons.push('invalid_phone'); counts.invalidPhone++; }
       if (phone && seen.has(phone)) { reasons.push('duplicate_phone'); counts.duplicate++; }
       if (phone) seen.add(phone);
       const evidence = consents.filter(x => x.phone === phone && x.consent === true);
@@ -107,7 +107,7 @@ class ConsentCampaignEngine {
       if (eligible) counts.eligible++; else counts.blocked++;
       recipients.push({ index, contactId: clean(c.id, 100) || null, phoneMasked: phone ? phone.replace(/.(?=.{4})/g, '*') : null, eligible, reasons });
     }
-    const unresolvedVariables = [...new Set((body.match(/\\{[^{}]{1,80}\\}/g) || []))];
+    const unresolvedVariables = [...new Set((body.match(/\{[^{}]{1,80}\}/g) || []))];
     const blockers = [];
     if (!body) blockers.push('message_empty');
     if (!contacts.length) blockers.push('audience_empty');
