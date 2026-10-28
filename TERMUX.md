@@ -1,6 +1,6 @@
 # Termux-only setup
 
-This branch uses the local WhatsApp Web session through `whatsapp-web.js`. It does not use WhatsApp Cloud API, Browserless, or a remote browser service. The server binds only to `127.0.0.1:8787`.
+This branch uses the local WhatsApp Web session through `whatsapp-web.js` as the primary runtime. WhatsApp Cloud API is an optional fallback only, disabled by default and not required for normal Termux use. The local server binds only to `127.0.0.1:8787`; no Browserless or remote browser service is required.
 
 ## Install on Android / Termux
 
