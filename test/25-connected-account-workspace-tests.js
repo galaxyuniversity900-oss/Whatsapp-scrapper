@@ -22,3 +22,8 @@ assert.ok(ui.includes('async function sendWorkspaceReply'), 'manual reply action
 assert.ok(ui.includes('id="mobileMenu"'), 'responsive mobile sidebar toggle must exist');
 assert.ok(android.includes('http://127.0.0.1:8787/'), 'APK must connect to the Termux localhost server');
 console.log('Connected account workspace checks passed');
+
+assert.ok(server.includes("p === '/api/accounts/group-participants'"), 'group participant lookup API must exist');
+assert.ok(server.includes('contact?.isMyContact'), 'phone numbers must be limited to saved contacts');
+assert.ok(ui.includes('id="memberLookupChat"'), 'group participant lookup UI must exist');
+assert.ok(ui.includes('function exportGroupParticipantsCsv'), 'group participants CSV export must exist');
