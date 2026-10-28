@@ -336,6 +336,17 @@ input[type=checkbox]{accent-color:#a7d46f}
   <div class="scroll"><table class="table"><thead><tr><th>Name</th><th>Country</th><th>Phone</th><th>WhatsApp ID</th><th>Role</th><th>Consent</th></tr></thead><tbody id="groupMembersTable"></tbody></table></div>
  </div></div>
  <div style="height:10px"></div>
+ <div style="height:10px"></div>
+ <div class="panel"><div class="head"><b>Members from a connected group chat</b><span class="muted">Display names + saved-contact numbers</span></div><div class="body">
+  <div class="form">
+   <div class="field span2"><label>Connected account</label><select id="memberLookupAccount"></select></div>
+   <div class="field span2"><label>Group conversation</label><select id="memberLookupChat"><option value="">Load groups first</option></select></div>
+  </div>
+  <div class="toolbar" style="margin-top:8px"><button onclick="loadMemberLookupGroups()">Load my group chats</button><button class="blue" onclick="lookupGroupParticipants()">Get group members</button><button onclick="exportGroupParticipantsCsv()">Export CSV</button></div>
+  <div id="memberLookupSummary" class="result code">Phone numbers are shown only for contacts already saved in your address book. WhatsApp display names may be unavailable.</div>
+  <div class="scroll" style="margin-top:8px"><table class="table"><thead><tr><th>Name</th><th>Username / display name</th><th>Phone (saved contacts)</th><th>WhatsApp ID</th><th>Role</th></tr></thead><tbody id="memberLookupRows"></tbody></table></div>
+ </div></div>
+ <div style="height:10px"></div>
  <div class="panel"><div class="head"><b>Consent-gated message job</b><span id="groupJobStatus" class="status">Idle</span></div><div class="body">
   <div class="form">
    <div class="field span2"><label>Message — {name}, {phone}</label><textarea id="groupMessage" placeholder="Write the message..."></textarea></div>
@@ -465,6 +476,38 @@ async function syncContacts(){const id=$('dirAccount').value;if(!id)return toast
 async function syncGroups(){const id=$('dirAccount').value;if(!id)return toast('No ready account');try{const r=await post('/api/data/sync/groups',{accountId:id,includeMembers:true,includeProfiles:false});$('directoryResult').textContent=JSON.stringify({count:r.count,rows:r.rows.slice(0,5)},null,2);toast('Synced '+r.count+' groups');loadGroups()}catch(e){toast(e.message)}}
 async function syncChats(){const id=$('dirAccount').value;if(!id)return toast('No ready account');try{const r=await post('/api/data/sync/chats',{accountId:id,limitMessages:Number($('historyLimit').value),types:'all'});$('directoryResult').textContent=JSON.stringify(r,null,2);toast('Synced '+r.messages+' messages')}catch(e){toast(e.message)}}
 async function validateNumbers(){const id=$('dirAccount').value;if(!id)return toast('No ready account');const text=prompt('Enter phone numbers separated by commas/new lines');if(!text)return;try{const r=await post('/api/data/validate/numbers',{accountId:id,numbers:text.split(/[\s,;]+/).filter(Boolean)});$('directoryResult').textContent=JSON.stringify(r.rows,null,2)}catch(e){toast(e.message)}}
+let groupParticipantRows = [];
+async function loadMemberLookupGroups(){
+ const accountId=$('memberLookupAccount').value || $('groupAccount').value;
+ if(!accountId)return toast('Select a connected account');
+ $('memberLookupAccount').value=accountId;
+ try{
+  const r=await api('/api/accounts/chats?'+new URLSearchParams({accountId,limit:'200'}));
+  const groups=(r.chats||[]).filter(c=>c.isGroup);
+  $('memberLookupChat').innerHTML='<option value="">Select group chat</option>'+groups.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+' ('+esc(c.id)+')</option>').join('');
+  $('memberLookupSummary').textContent='Loaded '+groups.length+' group chats accessible to this account.';
+ }catch(e){toast(e.message);$('memberLookupSummary').textContent='ERROR: '+e.message}
+}
+async function lookupGroupParticipants(){
+ const accountId=$('memberLookupAccount').value || $('groupAccount').value;
+ const chatId=$('memberLookupChat').value;
+ if(!accountId||!chatId)return toast('Select an account and a group chat');
+ try{
+  const r=await api('/api/accounts/group-participants?'+new URLSearchParams({accountId,chatId}));
+  groupParticipantRows=r.rows||[];
+  $('memberLookupSummary').textContent=JSON.stringify({group:r.groupName,groupId:r.groupId,count:r.count,savedContactsWithNumbers:groupParticipantRows.filter(x=>x.phone).length,note:'Phone numbers are included only for contacts already saved in this account.'},null,2);
+  $('memberLookupRows').innerHTML=groupParticipantRows.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.username||'')+'</td><td>'+esc(x.phone||'Not available / not saved')+'</td><td>'+esc(x.whatsappId)+'</td><td>'+esc(x.isSuperAdmin?'Group owner':x.isAdmin?'Admin':'Member')+'</td></tr>').join('')||'<tr><td colspan="5" class="empty">No participant data returned.</td></tr>';
+  toast('Loaded '+groupParticipantRows.length+' group members');
+ }catch(e){toast(e.message);$('memberLookupSummary').textContent='ERROR: '+e.message}
+}
+function exportGroupParticipantsCsv(){
+ if(!groupParticipantRows.length)return toast('Load group members first');
+ const columns=['name','username','phone','savedContact','whatsappId','isAdmin','isSuperAdmin','groupId'];
+ const cell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ const csv=[columns.join(','),...groupParticipantRows.map(row=>columns.map(k=>cell(row[k])).join(','))].join('\\r\\n');
+ const blob=new Blob(['\\uFEFF',csv],{type:'text/csv;charset=utf-8;'});
+ const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='whatsapp-group-members.csv';a.click();URL.revokeObjectURL(url);
+}
 async function extractGroupWorkspace(){
  const accountId=$('groupAccount').value, url=$('groupLink').value.trim();
  if(!accountId)return toast('Select a ready account');
