@@ -28,6 +28,8 @@ const { AIProviderHub } = require('./29-ai-provider-hub');
 const { CapabilityFoundation } = require('./30-capability-foundation');
 const { InboxEngine } = require('./32-inbox-engine');
 const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
+const { SmartCampaignPlanner } = require('./35-smart-campaign-planner');
+const { ConsentLedger } = require('./36-consent-ledger');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -60,6 +62,8 @@ const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
 const veritasAudit = new VeritasCampaignAudit({ audit });
+const smartCampaignPlanner = new SmartCampaignPlanner();
+const consentLedger = new ConsentLedger(path.join(dataDir, 'consent-ledger.json'));
 
 const sessions = new Map();
 const listeners = new Set();
@@ -409,6 +413,12 @@ async function logoutSession(id, removeAuth = false) {
   return { ok: true };
 }
 
+function consentDecision(phone, channel = 'whatsapp') {
+  const ledger = consentLedger.status(phone, channel);
+  if (ledger.status === 'opted_out' || ledger.status === 'revoked') return { allowed: false, reason: ledger.status };
+  return { allowed: true, status: ledger.status };
+}
+
 async function sendCampaign(payload = {}) {
   const accountId = String(payload.accountId || '');
   const s = sessions.get(accountId);
@@ -419,7 +429,15 @@ async function sendCampaign(payload = {}) {
 
   const all = await state.readContacts();
   const limit = Math.min(10000, Math.max(1, Number(payload.limit || 100)));
-  const eligible = policy.filterEligible(all).slice(0, limit);
+  const policyEligible = policy.filterEligible(all);
+  const blockedByConsent = policyEligible.filter(c => {
+    const phone = policy.normalizePhone(c.phone || c.number);
+    return phone && !consentDecision(phone).allowed;
+  });
+  const eligible = policyEligible.filter(c => {
+    const phone = policy.normalizePhone(c.phone || c.number);
+    return phone && consentDecision(phone).allowed;
+  }).slice(0, limit);
   const text = String(payload.template || '').trim();
   const mediaPaths = (Array.isArray(payload.mediaPaths) ? payload.mediaPaths : [])
     .filter(p => typeof p === 'string' && fs.existsSync(p));
@@ -431,7 +449,7 @@ async function sendCampaign(payload = {}) {
   const concurrency = Math.min(5, Math.max(1, Number(payload.concurrency || 2)));
 
   emitCampaign(accountId, {
-    status: 'running', sent: 0, total: eligible.length, failed: 0,
+    status: 'running', sent: 0, total: eligible.length, failed: 0, skippedConsent: blockedByConsent.length,
     startedAt: new Date().toISOString(), finishedAt: null, paused: false, stopped: false
   });
   s.paused = false;
@@ -439,7 +457,7 @@ async function sendCampaign(payload = {}) {
   s.sent = 0;
   s.consecutiveFailures = 0;
   audit.append('campaign_started', {
-    accountId, total: eligible.length, minDelay, maxDelay, parallel, concurrency
+    accountId, total: eligible.length, skippedConsent: blockedByConsent.length, minDelay, maxDelay, parallel, concurrency
   });
 
   const results = new Array(eligible.length);
@@ -459,10 +477,21 @@ async function sendCampaign(payload = {}) {
       }
 
       const contact = item.contact;
-      const phone = policy.normalizePhone(contact.phone);
+      const phone = policy.normalizePhone(contact.phone || contact.number);
       const result = { index: item.index, phone, status: 'failed' };
       try {
         if (!/^\d{7,15}$/.test(phone)) throw new Error('Invalid phone number');
+        const consent = consentDecision(phone);
+        if (!consent.allowed) {
+          result.status = 'skipped';
+          result.reason = 'consent_' + consent.reason;
+          await state.updateContactStatus(item.index, 'skipped', { error: result.reason });
+          audit.append('message_skipped_consent', { accountId, phone, reason: consent.reason });
+          results[n] = result;
+          done++;
+          emitCampaign(accountId, { sent: s.sent, total: eligible.length, failed: s.consecutiveFailures, completed: done });
+          continue;
+        }
         const bodyText = text
           .replace(/\{name\}/gi, contact.name || '')
           .replace(/\{phone\}/gi, contact.phone || '');
@@ -876,11 +905,52 @@ async function route(req, res) {
       const message = x.message !== undefined ? x.message : (campaign?.message || campaign?.template || '');
       return json(res, 200, { ok: true, report: veritasAudit.preflight({ contacts, message, campaignId: x.campaignId || null }) });
     }
+    if (req.method === 'GET' && p === '/api/consent/summary') {
+      return json(res, 200, { ok: true, summary: consentLedger.summary() });
+    }
+    if (req.method === 'GET' && p === '/api/consent/status') {
+      const phone = url.searchParams.get('phone') || '';
+      const channel = url.searchParams.get('channel') || null;
+      return json(res, 200, { ok: true, status: consentLedger.status(phone, channel) });
+    }
+    if (req.method === 'POST' && p === '/api/consent/record') {
+      const input = await parseBody(req);
+      const event = consentLedger.record(input);
+      audit.append('consent_ledger_event_recorded', {
+        eventId: event.id, subjectKey: event.subjectKey, decision: event.decision,
+        channel: event.channel, purpose: event.purpose, recordedAt: event.recordedAt
+      });
+      return json(res, 201, { ok: true, event, status: consentLedger.status(input.phone || input.number, input.channel || null) });
+    }
     if (req.method === 'GET' && p === '/api/integrity/summary') {
       const contacts = await state.readContacts();
       return json(res, 200, { ok: true, report: veritasAudit.auditSummary({
         contacts, delivery: delivery.list(100000), auditEvents: audit.read(100000)
       }) });
+    }
+    if (req.method === 'POST' && p === '/api/integrity/campaign-plan') {
+      const x = await parseBody(req);
+      const rawContacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();
+      const contacts = rawContacts.map(contact => {
+        const phone = contact && (contact.phone || contact.number);
+        if (!phone) return contact;
+        const status = consentLedger.status(phone, 'whatsapp');
+        if (status.status === 'opted_out' || status.status === 'revoked') {
+          return { ...contact, consent: false, optOut: true };
+        }
+        return status.status === 'granted' ? { ...contact, consent: true } : contact;
+      });
+      const campaign = x.campaignId ? operations.getCampaign(x.campaignId) : null;
+      const message = x.message !== undefined ? x.message : (campaign?.message || campaign?.template || '');
+      const report = smartCampaignPlanner.plan({
+        campaignId: x.campaignId || null, contacts, message,
+        batchSize: x.batchSize, maxRecipients: x.maxRecipients, dryRun: true
+      });
+      audit.append('smart_campaign_plan_created', {
+        planId: report.planId, campaignId: report.campaignId,
+        verdict: report.verdict, summary: report.summary, sentMessages: 0
+      });
+      return json(res, 200, { ok: true, report });
     }
 
     if (req.method === 'GET' && p === '/api/contacts') {
