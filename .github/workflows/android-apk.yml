@@ -4,10 +4,16 @@ on:
     branches: [main, termux-local-only, termux-apk-sidebar]
     paths:
       - "android/**"
+      - "src/server.js"
+      - "src/web/index.html"
+      - "test/25-connected-account-workspace-tests.js"
       - ".github/workflows/android-apk.yml"
   pull_request:
     paths:
       - "android/**"
+      - "src/server.js"
+      - "src/web/index.html"
+      - "test/25-connected-account-workspace-tests.js"
       - ".github/workflows/android-apk.yml"
   workflow_dispatch:
 
