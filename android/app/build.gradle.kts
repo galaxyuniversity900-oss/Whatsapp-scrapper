@@ -8,11 +8,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.galaxyuniversity.whatsappscrapper"
+        applicationId = "com.galaxyuniversity.waworkspace"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     // Keep Java and Kotlin bytecode targets aligned for reproducible Android builds.
