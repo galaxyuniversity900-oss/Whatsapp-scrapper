@@ -84,6 +84,15 @@ class ConsentCampaignEngine {
     return { ok: true, removed };
   }
 
+  isEligibleForPurpose(value, purpose) {
+    const phone = normalizePhone(value);
+    if (!/^\\d{7,15}$/.test(phone)) return { eligible: false, reason: 'invalid_phone' };
+    if (this._suppressions().some(x => x.phone === phone && x.active !== false)) return { eligible: false, reason: 'suppressed_or_opted_out' };
+    const requestedPurpose = clean(purpose, 160);
+    const consent = this._consents().some(x => x.phone === phone && x.consent === true && x.source && x.evidenceRef && x.purpose === requestedPurpose);
+    return consent ? { eligible: true, reason: null } : { eligible: false, reason: 'purpose_specific_consent_missing' };
+  }
+
   preflight({ campaignId = null, message = '', contacts = [] } = {}) {
     if (!Array.isArray(contacts)) throw new TypeError('contacts must be an array');
     const body = clean(message, 20000);
