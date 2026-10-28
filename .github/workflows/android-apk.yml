@@ -1,0 +1,88 @@
+name: Android APK
+on:
+  push:
+    branches: [main, termux-local-only, termux-apk-sidebar]
+    paths:
+      - "android/**"
+      - "src/server.js"
+      - "src/28-telegram-adapter.js"
+      - "src/35-consent-campaign-engine.js"
+      - "src/36-whatsapp-cloud-api.js"
+      - "src/37-durable-delivery-queue.js"
+      - "src/web/index.html"
+      - "package.json"
+      - "scripts/termux-setup.sh"
+      - "scripts/termux-start.sh"
+      - "test/23-ui-design-tests.js"
+      - "test/24-termux-local-only-tests.js"
+      - "test/25-connected-account-workspace-tests.js"
+      - "test/26-consent-campaign-engine-tests.js"
+      - "test/27-cloud-delivery-tests.js"
+      - "test/termux-smoke.sh"
+      - ".github/workflows/android-apk.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - "src/server.js"
+      - "src/28-telegram-adapter.js"
+      - "src/35-consent-campaign-engine.js"
+      - "src/36-whatsapp-cloud-api.js"
+      - "src/37-durable-delivery-queue.js"
+      - "src/web/index.html"
+      - "package.json"
+      - "scripts/termux-setup.sh"
+      - "scripts/termux-start.sh"
+      - "test/24-termux-local-only-tests.js"
+      - "test/25-connected-account-workspace-tests.js"
+      - "test/26-consent-campaign-engine-tests.js"
+      - "test/27-cloud-delivery-tests.js"
+      - "test/termux-smoke.sh"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate server syntax and workspace contract
+        run: |
+          node --check src/server.js
+          node --check src/28-telegram-adapter.js
+          node test/23-ui-design-tests.js
+          node test/24-termux-local-only-tests.js
+          node test/25-connected-account-workspace-tests.js
+          node --check src/35-consent-campaign-engine.js
+          node test/26-consent-campaign-engine-tests.js
+          node --check src/36-whatsapp-cloud-api.js
+          node --check src/37-durable-delivery-queue.js
+          node test/27-cloud-delivery-tests.js
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - name: Install Android SDK platform
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Build debug APK
+        working-directory: android
+        run: gradle --no-daemon assembleDebug
+      - name: Upload installable debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: wa-workspace-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

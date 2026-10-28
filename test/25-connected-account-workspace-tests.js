@@ -1,0 +1,30 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const root = path.join(__dirname, '..');
+const server = fs.readFileSync(path.join(root, 'src/server.js'), 'utf8');
+const ui = fs.readFileSync(path.join(root, 'src/web/index.html'), 'utf8');
+const android = fs.readFileSync(path.join(root, 'android/app/src/main/java/com/galaxyuniversity/whatsappscrapper/MainActivity.kt'), 'utf8');
+
+assert.ok(server.includes("p === '/api/accounts/chats'"), 'live chats API must exist');
+assert.ok(server.includes("p === '/api/accounts/messages'"), 'chat history API must exist');
+assert.ok(server.includes("p === '/api/accounts/reply'"), 'manual reply API must exist');
+assert.ok(server.includes("const session = await requireReady(accountId)"), 'chat APIs must await a ready account');
+assert.strictEqual((server.match(/const session = await requireReady\(accountId\);/g) || []).length, 4, 'all four workspace APIs must await the ready session');
+assert.ok(server.includes("@c\\.us$"), 'reply API must be limited to individual chats');
+assert.ok(server.includes('chat.isGroup) throw new Error'), 'reply API must reject group chats');
+assert.ok(ui.includes('data-view="workspace"'), 'connected account workspace must be in navigation');
+assert.ok(ui.includes('id="workspace"'), 'connected account workspace view must exist');
+assert.ok(ui.includes('async function loadWorkspaceAccounts'), 'account cards must load from the API');
+assert.ok(ui.includes('async function openWorkspaceChat'), 'chat history view must exist');
+assert.ok(ui.includes('async function sendWorkspaceReply'), 'manual reply action must exist');
+assert.ok(ui.includes('id="mobileMenu"'), 'responsive mobile sidebar toggle must exist');
+assert.ok(android.includes('http://127.0.0.1:8787/'), 'APK must connect to the Termux localhost server');
+console.log('Connected account workspace checks passed');
+
+assert.ok(server.includes("p === '/api/accounts/group-participants'"), 'group participant lookup API must exist');
+assert.ok(server.includes('const isSavedContact = Boolean(contact?.isMyContact)'), 'phone numbers must be limited to saved contacts');
+assert.ok(server.includes("const phone = isSavedContact"), 'phone numbers must be blank for contacts not saved in the address book');
+assert.ok(ui.includes('id="memberLookupChat"'), 'group participant lookup UI must exist');
+assert.ok(ui.includes('function exportGroupParticipantsCsv'), 'group participants CSV export must exist');

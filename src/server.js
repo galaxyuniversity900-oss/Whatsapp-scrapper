@@ -26,6 +26,9 @@ const { AIProviderHub } = require('./29-ai-provider-hub');
 const { CapabilityFoundation } = require('./30-capability-foundation');
 const { InboxEngine } = require('./32-inbox-engine');
 const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
+const { ConsentCampaignEngine } = require('./35-consent-campaign-engine');
+const { WhatsAppCloudApi } = require('./36-whatsapp-cloud-api');
+const { DurableDeliveryQueue } = require('./37-durable-delivery-queue');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -57,6 +60,9 @@ const { createPlatform } = require('./26-platform-api');
 const platform = createPlatform(dataDir);
 const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platform);
 const veritasAudit = new VeritasCampaignAudit({ audit });
+const consentCampaign = new ConsentCampaignEngine(dataDir, { audit });
+const cloudApi = new WhatsAppCloudApi({ audit });
+const deliveryQueue = new DurableDeliveryQueue(path.join(dataDir, 'delivery-queue.json'), { audit });
 
 const sessions = new Map();
 const listeners = new Set();
@@ -127,6 +133,23 @@ function broadcast(event, data) {
   for (const res of listeners) {
     try { res.write(line); } catch { listeners.delete(res); }
   }
+}
+function readRawBody(req, limit = 2 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > limit) {
+        reject(new Error('Webhook body too large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
 }
 function parseBody(req) {
   return new Promise((resolve, reject) => {
@@ -379,7 +402,8 @@ async function sendCampaign(payload = {}) {
 
   const all = await state.readContacts();
   const limit = Math.min(10000, Math.max(1, Number(payload.limit || 100)));
-  const eligible = policy.filterEligible(all).slice(0, limit);
+  const preflight = consentCampaign.preflight({ campaignId: payload.campaignId || null, message: payload.template || '', contacts: all });
+  const eligible = preflight.recipients.filter(row => row.eligible).map(row => ({ contact: all[row.index], index: row.index })).filter(row => row.contact.status !== 'sent').slice(0, limit);
   const text = String(payload.template || '').trim();
   const mediaPaths = (Array.isArray(payload.mediaPaths) ? payload.mediaPaths : [])
     .filter(p => typeof p === 'string' && fs.existsSync(p));
@@ -673,6 +697,34 @@ async function route(req, res) {
   const p = url.pathname;
   applySecurityHeaders(req, res);
   if (p === '/healthz' && req.method === 'GET') return json(res, 200, { ok: true, status: 'healthy' });
+  if (p === '/webhooks/whatsapp-cloud' && req.method === 'GET') {
+    const challenge = cloudApi.verifyWebhookChallenge({
+      mode: url.searchParams.get('hub.mode'),
+      token: url.searchParams.get('hub.verify_token'),
+      challenge: url.searchParams.get('hub.challenge')
+    }, process.env.WHATSAPP_CLOUD_WEBHOOK_VERIFY_TOKEN || '');
+    if (challenge === null) return json(res, 403, { ok: false, error: 'Webhook verification failed' });
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(challenge);
+  }
+  if (p === '/webhooks/whatsapp-cloud' && req.method === 'POST') {
+    try {
+      const raw = await readRawBody(req);
+      if (!cloudApi.verifyWebhookSignature(raw, req.headers['x-hub-signature-256'])) return json(res, 401, { ok: false, error: 'Invalid webhook signature' });
+      let payload;
+      try { payload = JSON.parse(raw.toString('utf8')); } catch { return json(res, 400, { ok: false, error: 'Invalid webhook JSON' }); }
+      const events = cloudApi.parseWebhook(payload);
+      for (const event of events) {
+        if (event.type === 'message_status') deliveryQueue.applyProviderStatus(event.id, event.status, { errors: event.errors });
+        audit.append('whatsapp_cloud_webhook_event', { type: event.type, id: event.id, status: event.status || null, messageType: event.messageType || null });
+        broadcast('cloud:webhook', event);
+      }
+      return json(res, 200, { ok: true, received: events.length });
+    } catch (e) {
+      audit.append('whatsapp_cloud_webhook_error', { error: String(e.message || e).slice(0, 200) });
+      return json(res, 400, { ok: false, error: 'Webhook processing failed' });
+    }
+  }
   if (!requireAdminBasicAuth(req, res)) return;
   if (req.method === 'OPTIONS') {
     return res.end();
@@ -789,6 +841,54 @@ async function route(req, res) {
     }
     if (req.method === 'GET' && p === '/api/sessions') {
       return json(res, 200, [...sessions.values()].map(sessionPublic));
+    }
+    if (req.method === 'GET' && p === '/api/accounts/chats') {
+      const accountId = String(url.searchParams.get('accountId') || '');
+      const session = await requireReady(accountId);
+      const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') || 100)));
+      const chats = await session.client.getChats();
+      const rows = chats.map(chat => {
+        const last = chat.lastMessage || null;
+        return {
+          id: String(chat.id?._serialized || ''),
+          name: String(chat.name || chat.pushname || chat.id?.user || 'Unknown chat'),
+          isGroup: Boolean(chat.isGroup),
+          unreadCount: Number(chat.unreadCount || 0),
+          timestamp: Number(last?.timestamp || chat.timestamp || 0),
+          lastMessage: String(last?.body || (last?.type === 'image' ? '[Image]' : last?.type === 'ptt' ? '[Voice message]' : last?.type === 'video' ? '[Video]' : '')),
+          lastFromMe: Boolean(last?.fromMe)
+        };
+      }).filter(chat => chat.id).sort((a,b) => b.timestamp-a.timestamp).slice(0,limit);
+      return json(res, 200, { ok:true, accountId, chats: rows });
+    }
+    if (req.method === 'GET' && p === '/api/accounts/messages') {
+      const accountId = String(url.searchParams.get('accountId') || '');
+      const chatId = String(url.searchParams.get('chatId') || '');
+      if (!/^[0-9A-Za-z._-]+@(c|g)\.us$/.test(chatId)) throw new Error('Invalid chat ID');
+      const session = await requireReady(accountId);
+      const chat = await session.client.getChatById(chatId);
+      if (!chat) throw new Error('Chat not found');
+      const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 40)));
+      const messages = await chat.fetchMessages({ limit });
+      return json(res, 200, { ok:true, accountId, chat:{id:chatId,name:String(chat.name || chat.pushname || chatId),isGroup:Boolean(chat.isGroup)}, messages: messages.map(m => ({
+        id:String(m.id?._serialized || ''), fromMe:Boolean(m.fromMe), body:String(m.body || ''),
+        type:String(m.type || 'chat'), timestamp:Number(m.timestamp || 0),
+        author:String(m.author || ''), hasMedia:Boolean(m.hasMedia), ack:Number(m.ack ?? -1)
+      })) });
+    }
+    if (req.method === 'POST' && p === '/api/accounts/reply') {
+      const x = await parseBody(req);
+      const accountId = String(x.accountId || '');
+      const chatId = String(x.chatId || '');
+      const message = String(x.message || '').trim();
+      if (!/^[0-9A-Za-z._-]+@c\.us$/.test(chatId)) throw new Error('Reply is restricted to an individual chat; group sending is disabled here');
+      if (!message || message.length > 10000) throw new Error('Message must contain 1–10000 characters');
+      const session = await requireReady(accountId);
+      const chat = await session.client.getChatById(chatId);
+      if (!chat || chat.isGroup) throw new Error('Individual chat not found');
+      const result = await session.client.sendMessage(chatId, message);
+      audit.append('manual_chat_reply_sent', { accountId, chatId, messageId: result?.id?._serialized || null, length: message.length });
+      return json(res, 200, { ok:true, messageId: result?.id?._serialized || null });
     }
     if (req.method === 'GET' && p === '/api/accounts') {
       return json(res, 200, registry.list().map(a=>({...a,live:!!sessions.get(a.id),session:sessions.get(a.id)?sessionPublic(sessions.get(a.id)):null})));
@@ -971,6 +1071,91 @@ async function route(req, res) {
       });
     }
 
+    if (req.method === 'GET' && p === '/api/experimental/cloud/queue') {
+      return json(res, 200, { ok: true, status: deliveryQueue.status(), items: deliveryQueue.list({ limit: 100 }) });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/queue/enqueue') {
+      const x = await parseBody(req);
+      const eligibility = consentCampaign.isEligibleForPurpose(x.to, x.purpose);
+      if (!eligibility.eligible) return json(res, 403, { ok: false, error: 'Recipient is not eligible for this purpose.', reason: eligibility.reason });
+      if (!x.templateName || !x.purpose) return json(res, 400, { ok: false, error: 'templateName and purpose are required.' });
+      const item = deliveryQueue.enqueue({
+        idempotencyKey: x.idempotencyKey, provider: 'whatsapp-cloud-api',
+        recipientRef: String(x.to).replace(/\D/g, '').replace(/.(?=.{4})/g, '*'),
+        payload: { to: x.to, purpose: x.purpose, templateName: x.templateName, language: x.language || 'en_US', components: Array.isArray(x.components) ? x.components : [] }
+      });
+      return json(res, 202, { ok: true, item: { id: item.id, status: item.status, duplicate: item.duplicate, idempotencyKey: item.idempotencyKey } });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/queue/process') {
+      const x = await parseBody(req);
+      const result = await deliveryQueue.processDue(async item => {
+        const payload = item.payload || {};
+        const eligibility = consentCampaign.isEligibleForPurpose(payload.to, payload.purpose);
+        if (!eligibility.eligible) throw new Error('Recipient is no longer eligible: ' + eligibility.reason);
+        return cloudApi.sendTemplate({ to: payload.to, templateName: payload.templateName, language: payload.language, components: payload.components });
+      }, { concurrency: x.concurrency || 1, maxPerRun: x.maxPerRun || 20 });
+      return json(res, 200, { ok: true, ...result });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/queue/pause') {
+      return json(res, 200, { ok: true, ...deliveryQueue.pause() });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/queue/resume') {
+      try { return json(res, 200, { ok: true, ...deliveryQueue.resume() }); }
+      catch (e) { return json(res, 409, { ok: false, error: String(e.message || e) }); }
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/queue/stop') {
+      return json(res, 200, { ok: true, ...deliveryQueue.stop() });
+    }
+
+    if (req.method === 'GET' && p === '/api/experimental/cloud/status') {
+      return json(res, 200, { ok: true, ...cloudApi.status() });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/enable') {
+      const x = await parseBody(req);
+      return json(res, 200, { ok: true, ...cloudApi.enableSending(x.confirmation) });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/disable') {
+      return json(res, 200, { ok: true, ...cloudApi.disableSending() });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/send-template') {
+      const x = await parseBody(req);
+      const eligibility = consentCampaign.isEligibleForPurpose(x.to, x.purpose);
+      if (!eligibility.eligible) return json(res, 403, { ok: false, error: 'Recipient is not eligible for this purpose.', reason: eligibility.reason });
+      const result = await cloudApi.sendTemplate({ to: x.to, templateName: x.templateName, language: x.language, components: x.components });
+      return json(res, 200, { ok: true, result });
+    }
+
+    if (req.method === 'GET' && p === '/api/experimental/campaigns') {
+      return json(res, 200, { ok: true, campaigns: consentCampaign.listDrafts() });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/campaigns') {
+      const x = await parseBody(req);
+      const campaign = consentCampaign.createDraft(x);
+      return json(res, 201, { ok: true, campaign });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/campaigns/preflight') {
+      const x = await parseBody(req);
+      const contacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();
+      const result = consentCampaign.preflight({ campaignId: x.campaignId, message: x.message, contacts });
+      return json(res, 200, { ok: true, ...result });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/consent') {
+      const x = await parseBody(req);
+      const result = consentCampaign.recordConsent(x);
+      return json(res, 200, { ok: true, consent: result });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/suppressions') {
+      const x = await parseBody(req);
+      const result = consentCampaign.suppress(x.phone, x.reason);
+      policy.suppressPhone(x.phone, x.reason || 'manual opt-out');
+      return json(res, 200, { ok: true, suppression: result });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/suppressions/remove') {
+      const x = await parseBody(req);
+      const result = consentCampaign.unsuppress(x.phone, x.confirmation);
+      return json(res, 200, result);
+    }
+
     if (req.method === 'POST' && p === '/api/campaign/start') {
       const x = await parseBody(req);
       return json(res, 200, { ok: true, results: await sendCampaign(x) });
@@ -1120,6 +1305,31 @@ async function route(req, res) {
       });
       broadcast('group:extracted', { accountId: s.id, ...result });
       return json(res, 200, { ok: true, ...result });
+    }
+    if (req.method === 'GET' && p === '/api/accounts/group-participants') {
+      const accountId = String(url.searchParams.get('accountId') || '');
+      const chatId = String(url.searchParams.get('chatId') || '');
+      if (!/^[0-9A-Za-z._-]+@g\\.us$/.test(chatId)) throw new Error('Select a WhatsApp group chat');
+      const session = await requireReady(accountId);
+      const chat = await session.client.getChatById(chatId);
+      if (!chat || !chat.isGroup) throw new Error('Group chat not found');
+      const participants = Array.isArray(chat.participants) ? chat.participants : [];
+      const rows = await Promise.all(participants.slice(0, 5000).map(async participant => {
+        const serialized = String(participant?.id?._serialized || '');
+        let contact = null;
+        try { if (serialized) contact = await session.client.getContactById(serialized); } catch {}
+        const isSavedContact = Boolean(contact?.isMyContact);
+        const phone = isSavedContact
+          ? String(contact?.number || participant?.id?.user || '').replace(/[^0-9]/g, '')
+          : '';
+        const displayName = String(contact?.pushname || contact?.name || contact?.shortName || participant?.id?.user || '').trim();
+        return { name: displayName || 'Unknown', username: String(contact?.pushname || contact?.shortName || '').trim(),
+          phone, whatsappId: serialized, isAdmin: Boolean(participant?.isAdmin),
+          isSuperAdmin: Boolean(participant?.isSuperAdmin), groupId: chatId };
+      }));
+      const unique = [...new Map(rows.filter(row => row.whatsappId).map(row => [row.whatsappId, row])).values()];
+      audit.append('group_participants_viewed', { accountId, groupId: chatId, count: unique.length });
+      return json(res, 200, { ok: true, accountId, groupId: chatId, groupName: String(chat.name || ''), count: unique.length, rows: unique });
     }
     if (req.method === 'GET' && p === '/api/group-workspace/latest') {
       return json(res, 200, groupWorkspace.last());
