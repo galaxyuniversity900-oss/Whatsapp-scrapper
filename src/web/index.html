@@ -472,6 +472,14 @@ input[type=checkbox]{accent-color:#a7d46f}
  <div style="height:10px"></div>
  <div class="panel"><div class="head"><b>Official WhatsApp Cloud API</b><span id="expCloudStatus" class="status">Checking configuration…</span></div><div class="body">
   <p class="muted">Uses server environment variables WHATSAPP_CLOUD_TOKEN, WHATSAPP_CLOUD_PHONE_NUMBER_ID and WHATSAPP_CLOUD_APP_SECRET. Only approved templates are sent by this experimental adapter. Configure a verified Meta app and valid opt-in first.</p>
+  <div class="form">
+   <div class="field"><label>Recipient phone</label><input id="expCloudPhone" inputmode="tel" placeholder="+2010…"></div>
+   <div class="field"><label>Consent purpose</label><input id="expCloudPurpose" placeholder="must match consent ledger"></div>
+   <div class="field"><label>Approved template name</label><input id="expCloudTemplate" placeholder="approved_template"></div>
+   <div class="field"><label>Idempotency key</label><input id="expCloudIdempotency" placeholder="unique campaign-recipient key"></div>
+   <div class="field"><label>Language</label><input id="expCloudLanguage" value="en_US"></div>
+  </div>
+  <div class="toolbar" style="margin-top:8px"><button class="green" onclick="expCloudEnqueue()">Queue template for eligible recipient</button></div>
   <div class="toolbar">
    <button onclick="expCloudRefresh()">Refresh status</button>
    <button class="green" onclick="expCloudEnable()">Enable sending</button>
@@ -910,6 +918,12 @@ async function expSuppress(){
 window.addEventListener('load',()=>setTimeout(expLoadDrafts,800));
 
 
+async function expCloudEnqueue(){
+ try{
+  const result=await post('/api/experimental/cloud/queue/enqueue',{to:$('expCloudPhone').value,purpose:$('expCloudPurpose').value,templateName:$('expCloudTemplate').value,language:$('expCloudLanguage').value,idempotencyKey:$('expCloudIdempotency').value});
+  toast('Queue item: '+result.item.id);await expCloudRefresh();
+ }catch(e){toast(e.message)}
+}
 async function expCloudRefresh(){
  try{
   const [status,queue]=await Promise.all([api('/api/experimental/cloud/status'),api('/api/experimental/cloud/queue')]);
