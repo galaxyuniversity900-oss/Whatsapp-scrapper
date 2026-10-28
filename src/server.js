@@ -28,6 +28,7 @@ const { InboxEngine } = require('./32-inbox-engine');
 const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
 const { ConsentCampaignEngine } = require('./35-consent-campaign-engine');
 const { WhatsAppCloudApi } = require('./36-whatsapp-cloud-api');
+const { DurableDeliveryQueue } = require('./37-durable-delivery-queue');
 
 const ROOT = path.resolve(process.env.WA_DATA_DIR || path.join(os.homedir(), '.whatsapp-scrapper'));
 const dataDir = path.join(ROOT, 'data');
@@ -61,6 +62,7 @@ const inbox = new InboxEngine(path.join(dataDir, 'inbox.json'), collector, platf
 const veritasAudit = new VeritasCampaignAudit({ audit });
 const consentCampaign = new ConsentCampaignEngine(dataDir, { audit });
 const cloudApi = new WhatsAppCloudApi({ audit });
+const deliveryQueue = new DurableDeliveryQueue(path.join(dataDir, 'delivery-queue.json'), { audit });
 
 const sessions = new Map();
 const listeners = new Set();
@@ -1022,6 +1024,42 @@ async function route(req, res) {
         authenticated: ['authenticated', 'ready'].includes(s.status),
         canCampaign: s.status === 'ready' && waState === 'CONNECTED'
       });
+    }
+
+    if (req.method === 'GET' && p === '/api/experimental/cloud/queue') {
+      return json(res, 200, { ok: true, status: deliveryQueue.status(), items: deliveryQueue.list({ limit: 100 }) });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/queue/enqueue') {
+      const x = await parseBody(req);
+      const eligibility = consentCampaign.isEligibleForPurpose(x.to, x.purpose);
+      if (!eligibility.eligible) return json(res, 403, { ok: false, error: 'Recipient is not eligible for this purpose.', reason: eligibility.reason });
+      if (!x.templateName || !x.purpose) return json(res, 400, { ok: false, error: 'templateName and purpose are required.' });
+      const item = deliveryQueue.enqueue({
+        idempotencyKey: x.idempotencyKey, provider: 'whatsapp-cloud-api',
+        recipientRef: String(x.to).replace(/\\D/g, '').replace(/.(?=.{4})/g, '*'),
+        payload: { to: x.to, purpose: x.purpose, templateName: x.templateName, language: x.language || 'en_US', components: Array.isArray(x.components) ? x.components : [] }
+      });
+      return json(res, 202, { ok: true, item: { id: item.id, status: item.status, duplicate: item.duplicate, idempotencyKey: item.idempotencyKey } });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/queue/process') {
+      const x = await parseBody(req);
+      const result = await deliveryQueue.processDue(async item => {
+        const payload = item.payload || {};
+        const eligibility = consentCampaign.isEligibleForPurpose(payload.to, payload.purpose);
+        if (!eligibility.eligible) throw new Error('Recipient is no longer eligible: ' + eligibility.reason);
+        return cloudApi.sendTemplate({ to: payload.to, templateName: payload.templateName, language: payload.language, components: payload.components });
+      }, { concurrency: x.concurrency || 1, maxPerRun: x.maxPerRun || 20 });
+      return json(res, 200, { ok: true, ...result });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/queue/pause') {
+      return json(res, 200, { ok: true, ...deliveryQueue.pause() });
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/queue/resume') {
+      try { return json(res, 200, { ok: true, ...deliveryQueue.resume() }); }
+      catch (e) { return json(res, 409, { ok: false, error: String(e.message || e) }); }
+    }
+    if (req.method === 'POST' && p === '/api/experimental/cloud/queue/stop') {
+      return json(res, 200, { ok: true, ...deliveryQueue.stop() });
     }
 
     if (req.method === 'GET' && p === '/api/experimental/cloud/status') {
