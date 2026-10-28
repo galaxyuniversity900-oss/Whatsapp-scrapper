@@ -5,9 +5,24 @@ on:
     paths:
       - "android/**"
       - "src/server.js"
+      - "src/28-telegram-adapter.js"
       - "src/35-consent-campaign-engine.js"
       - "src/36-whatsapp-cloud-api.js"
       - "src/37-durable-delivery-queue.js"
+      - "package.json"
+      - "scripts/termux-setup.sh"
+      - "scripts/termux-start.sh"
+      - "test/24-termux-local-only-tests.js"
+      - "test/27-cloud-delivery-tests.js"
+      - "test/termux-smoke.sh"
+      - "src/36-whatsapp-cloud-api.js"
+      - "src/37-durable-delivery-queue.js"
+      - "src/28-telegram-adapter.js"
+      - "package.json"
+      - "scripts/termux-setup.sh"
+      - "scripts/termux-start.sh"
+      - "test/24-termux-local-only-tests.js"
+      - "test/termux-smoke.sh"
       - "test/27-cloud-delivery-tests.js"
       - "src/web/index.html"
       - "test/25-connected-account-workspace-tests.js"
@@ -36,6 +51,8 @@ jobs:
       - name: Validate server syntax and workspace contract
         run: |
           node --check src/server.js
+          node --check src/28-telegram-adapter.js
+          node test/24-termux-local-only-tests.js
           node test/25-connected-account-workspace-tests.js
           node --check src/35-consent-campaign-engine.js
           node test/26-consent-campaign-engine-tests.js
