@@ -20,7 +20,10 @@ jobs:
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: node --check src/server.js
       - run: node --check src/34-veritas-campaign-audit.js
+      - run: node --check src/35-browserless-session.js
       - run: node test/22-veritas-campaign-audit-tests.js
+      - name: Test Browserless session security and lifecycle
+        run: npm run test:browserless
       - name: Validate deployment files
         run: |
           test -s Dockerfile
