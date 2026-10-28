@@ -22,4 +22,5 @@ assert.match(icon, /<svg[\s>]/, 'workspace icon must be a valid SVG document');
 assert.match(html, /name="theme-color" content="#141914"/, 'browser theme-color must match install manifest');
 assert.match(html, /async function p5Get\(path\)\{try\{const j=await api\(path\)/, 'CRM requests must use the authenticated API helper');
 assert.match(html, /async function p5Backup\(\)\{try\{const j=await post\('\/api\/platform\/backup',\{\}\)/, 'backup requests must include API authorization');
+assert.match(html, /navigator\.serviceWorker\.register\('\/sw\.js'/, 'PWA service worker must be registered when supported');
 console.log('PASS UI design tokens, mobile layout, accessibility, no-CDN and runtime-contract checks');
