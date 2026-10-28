@@ -28,6 +28,8 @@ const { AIProviderHub } = require('./29-ai-provider-hub');
 const { CapabilityFoundation } = require('./30-capability-foundation');
 const { InboxEngine } = require('./32-inbox-engine');
 const { VeritasCampaignAudit } = require('./34-veritas-campaign-audit');
+const { UniversalConnectorHub } = require('./35-universal-connector-hub');
+const { ControlCenter } = require('./36-control-center');
 const { SmartCampaignPlanner } = require('./35-smart-campaign-planner');
 const { ConsentLedger } = require('./36-consent-ledger');
 
@@ -55,6 +57,8 @@ const contactDirectory = new ContactDirectory(path.join(dataDir, 'contacts.json'
 const secretStore = new SecretStore(path.join(dataDir, 'secrets.json'));
 const telegram = new TelegramAdapter({ dataDir: path.join(dataDir, 'telegram'), audit });
 const aiHub = new AIProviderHub({ dataDir: path.join(dataDir, 'ai'), masterKey: process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY });
+const connectors = new UniversalConnectorHub({ dataDir: path.join(dataDir, 'connectors'), masterKey: process.env.AI_MASTER_KEY || process.env.WA_MASTER_KEY });
+const controlCenter = new ControlCenter({ root: ROOT, dataDir, aiEnabled: aiHub.providers().some(x => x.enabled) });
 const aiCapabilities = new CapabilityFoundation({ hub: aiHub, audit });
 const { OperationsSuite } = require('./31-operations-suite');
 const operations = new OperationsSuite(dataDir, audit, policy);
@@ -898,6 +902,25 @@ async function route(req, res) {
     if (req.method === 'POST' && p === '/api/ai/health') { const x=await parseBody(req); return json(res,200,await aiCapabilities.health(String(x.provider||''))); }
     if (req.method === 'POST' && p === '/api/ai/execute') return json(res,200,await aiCapabilities.execute(await parseBody(req)));
     if (req.method === 'POST' && p === '/api/ai/fallback') return json(res,200,await aiCapabilities.fallback(await parseBody(req)));
+    if (req.method === 'GET' && p === '/api/connectors/catalog') return json(res, 200, connectors.catalog());
+    if (req.method === 'GET' && p === '/api/connectors') return json(res, 200, { ok: true, connectors: connectors.list() });
+    if (req.method === 'POST' && p === '/api/connectors') { const x = await parseBody(req); return json(res, 200, { ok: true, connector: connectors.upsert(x) }); }
+    if (req.method === 'DELETE' && p === '/api/connectors') return json(res, 200, connectors.remove(url.searchParams.get('id')));
+    if (req.method === 'POST' && p === '/api/connectors/health') { const x = await parseBody(req); return json(res, 200, await connectors.health(x.id)); }
+    if (req.method === 'POST' && p === '/api/connectors/request') { const x = await parseBody(req); return json(res, 200, await connectors.request(x.id, x)); }
+    if (req.method === 'GET' && p === '/api/connectors/mcp/tools') return json(res, 200, await connectors.mcpTools(url.searchParams.get('id')));
+    if (req.method === 'POST' && p === '/api/connectors/mcp/call') { const x = await parseBody(req); return json(res, 200, await connectors.callMcpTool(x.id, x.name, x.arguments || {})); }
+    if (req.method === 'GET' && p === '/api/control-center/health') return json(res, 200, controlCenter.diagnostics());
+    if (req.method === 'GET' && p === '/api/control-center/playbooks') return json(res, 200, { ok:true, playbooks:controlCenter.playbooks() });
+    if (req.method === 'POST' && p === '/api/control-center/mission') { const x = await parseBody(req); return json(res, 200, { ok:true, mission:controlCenter.mission(x.goal) }); }
+    if (req.method === 'POST' && p === '/api/control-center/data-quality') { const x = await parseBody(req); return json(res, 200, { ok:true, report:controlCenter.dataQuality(x.records || []) }); }
+    if (req.method === 'POST' && p === '/api/control-center/change-radar') { const x = await parseBody(req); return json(res, 200, { ok:true, report:controlCenter.changeRadar(x.before || [], x.after || []) }); }
+    if (req.method === 'POST' && p === '/api/control-center/opportunities') { const x = await parseBody(req); return json(res, 200, { ok:true, report:controlCenter.opportunities(x.records || []) }); }
+    if (req.method === 'POST' && p === '/api/control-center/simulate') { const x = await parseBody(req); return json(res, 200, { ok:true, report:controlCenter.simulate(x) }); }
+    if (req.method === 'POST' && p === '/api/control-center/feature-proposal') { const x = await parseBody(req); return json(res, 200, { ok:true, proposal:controlCenter.featureProposal(x) }); }
+    if (req.method === 'POST' && p === '/api/control-center/what-if') { const x = await parseBody(req); return json(res, 200, { ok:true, scenario:controlCenter.whatIf(x) }); }
+    if (req.method === 'GET' && p === '/api/control-center/failure-lab') return json(res, 200, controlCenter.failureLab());
+    if (req.method === 'POST' && p === '/api/ai/council') return json(res, 200, { ok:true, results:await aiCapabilities.compare(await parseBody(req)) });
     if (req.method === 'POST' && p === '/api/integrity/campaign-preflight') {
       const x = await parseBody(req);
       const contacts = Array.isArray(x.contacts) ? x.contacts : await state.readContacts();

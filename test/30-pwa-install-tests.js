@@ -1,0 +1,2 @@
+'use strict';
+const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const root=path.join(__dirname,'..','src','web');const html=fs.readFileSync(path.join(root,'index.html'),'utf8');const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));assert.equal(manifest.display,'standalone');assert.equal(manifest.scope,'/');assert.match(html,/beforeinstallprompt/);assert.match(html,/appinstalled/);assert.match(html,/installAppBtn/);console.log('PASS PWA install lifecycle and manifest checks');

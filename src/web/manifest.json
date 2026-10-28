@@ -1,13 +1,13 @@
 {
-  "name": "WA Workspace — Messaging Operations",
+  "name": "WhatsApp Scrapper — Operations Workspace",
   "short_name": "WA Workspace",
-  "description": "Local-first messaging operations workspace",
+  "description": "Local-first workspace for consent-based WhatsApp operations, campaign monitoring and data management.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#141914",
-  "theme_color": "#141914",
+  "background_color": "#111411",
+  "theme_color": "#111411",
   "icons": [
     {
       "src": "/icon.svg",
@@ -15,5 +15,10 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "prefer_related_applications": false
 }
