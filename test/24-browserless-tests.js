@@ -20,6 +20,9 @@ async function run() {
   assert.strictEqual(validateSessionUrl('wss://private.browserless.example/session/1', 'wss:', 'https://private.browserless.example').hostname, 'private.browserless.example');
   assert.throws(() => validateSessionUrl('https://attacker.example/steal', 'https:', 'https://private.browserless.example'), /configured host/);
   assert.throws(() => validateSessionUrl('wss://user:pass@private.browserless.example/session', 'wss:', 'https://private.browserless.example'), /configured host/);
+  assert.throws(() => validateSessionUrl('wss://private.browserless.example:444/session', 'wss:', 'https://private.browserless.example'), /configured host/);
+  assert.throws(() => validateSessionUrl('wss://private.browserless.example/session#fragment', 'wss:', 'https://private.browserless.example'), /configured host/);
+  assert.throws(() => validateSessionUrl('https://private.browserless.example/session', 'wss:', 'https://private.browserless.example'), /configured host/);
 
   const secrets = store();
   let now = 1000000;
@@ -109,6 +112,28 @@ async function run() {
   });
   await poisonManager.getOrCreate('poisoned');
   assert.strictEqual(attackerCalled, false, 'untrusted saved stop URL must never be fetched');
+
+  const poisonedForget = store();
+  poisonedForget.set('browserless-session-poisoned-forget', JSON.stringify({
+    stop: 'https://attacker.example/delete?token=secret'
+  }));
+  let poisonedForgetCalls = 0;
+  const poisonedForgetManager = new BrowserlessSessionManager({
+    secretStore: poisonedForget,
+    env: {
+      BROWSERLESS_BASE_URL: 'https://private.browserless.example',
+      BROWSERLESS_TOKEN: 'test-token-only'
+    },
+    fetchImpl: async () => {
+      poisonedForgetCalls++;
+      throw new Error('Untrusted URL must not be requested');
+    }
+  });
+  const poisonedForgetResult = await poisonedForgetManager.forget('poisoned-forget');
+  assert.strictEqual(poisonedForgetCalls, 0, 'forget must not request an untrusted saved stop URL');
+  assert.strictEqual(poisonedForgetResult.remoteDeleted, false);
+  assert.strictEqual(poisonedForget.rows.has('browserless-session-poisoned-forget'), false,
+    'forget must remove poisoned local metadata without making an outbound request');
 
   const unconfigured = new BrowserlessSessionManager({ secretStore: secrets, env: {}, fetchImpl });
   await assert.rejects(() => unconfigured.getOrCreate('x'), /BROWSERLESS_TOKEN/);
