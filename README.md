@@ -1,8 +1,8 @@
 # WhatsApp Scrapper — Professional 3.2 Data Suite
 
-A local Electron desktop workspace for consent-based WhatsApp campaigns.
+A Termux-first local messaging workspace for Android, with optional Electron desktop support and consent-based WhatsApp campaigns.
 
-> **Experimental messaging features:** [Professional Messaging Engineering Features (2026)](docs/EXPERIMENTAL_MESSAGING_ENGINEERING.md). Consent ledger, suppression list, campaign preflight, draft storage, an opt-in WhatsApp Cloud API template adapter, signed webhook verification, and a durable bounded-retry delivery queue are implemented on this branch. Telegram campaign orchestration and end-to-end production verification remain incomplete.
+> **Runtime priority:** Termux/local WhatsApp Web is the primary runtime. WhatsApp Cloud API is an optional emergency/fallback adapter only; the app must not select it automatically or require Meta credentials for normal Termux operation. See [Professional Messaging Engineering Features](docs/EXPERIMENTAL_MESSAGING_ENGINEERING.md). The consent ledger, suppression list, campaign preflight and draft storage are local. Telegram campaign orchestration and end-to-end production verification remain incomplete.
 
 ## Features
 - Multiple WhatsApp Web sessions using `whatsapp-web.js` + `LocalAuth`.
@@ -36,17 +36,17 @@ A local Electron desktop workspace for consent-based WhatsApp campaigns.
 - Channel subscriber discovery is supported only for subscribers visible to the connected account/library.
 - Realtime edit and revoke notifications in the UI.\n- Selectable Person / Group Intelligence: for a chosen number, analyze who added the number to groups, how many distinct groups the number appears in, how many messages the number sent, and how many reactions those messages received. Each metric can be enabled independently to reduce work.
 
-## Experimental Cloud API and delivery queue
+## Optional fallback only: WhatsApp Cloud API and delivery queue
 
-The local server exposes authenticated routes for Cloud API status, explicit enable/disable, queueing an approved template for a recipient with purpose-specific consent, processing due queue items, and pausing/resuming/stopping the queue. Signed provider webhooks are handled at `/webhooks/whatsapp-cloud`.
+**Do not use Cloud API for normal sending.** The primary workflow is the Termux-hosted local runtime using the connected WhatsApp Web session. Cloud API remains disabled by default and is reserved for an explicitly chosen fallback only. It is not required to install, launch, or use the core Termux workflow. The local server exposes authenticated Cloud API routes solely for this optional fallback; it must never be selected automatically.
 
-Configure these environment variables in the server runtime before enabling Cloud API sending:
+Only if deliberately switching to the fallback, configure these environment variables in the server runtime:
 - `WHATSAPP_CLOUD_TOKEN`
 - `WHATSAPP_CLOUD_PHONE_NUMBER_ID`
 - `WHATSAPP_CLOUD_APP_SECRET`
 - `WHATSAPP_CLOUD_WEBHOOK_VERIFY_TOKEN` (for webhook verification)
 
-The server binds to loopback (`127.0.0.1`). Receiving Meta webhooks therefore requires a correctly configured HTTPS reverse proxy/tunnel to the webhook route; do not expose the local server directly. Queue, consent and draft files are local JSON and are not encrypted at rest. Real provider delivery is not verified until tested with valid credentials, an approved template and a recipient who opted in.
+The Termux local workflow does not require a public webhook or Meta credentials. The optional Cloud API fallback binds through the same loopback server; receiving Meta webhooks would require a deliberately configured HTTPS reverse proxy/tunnel, which is not part of the default Termux setup. Do not expose the local server directly. Queue, consent and draft files are local JSON and are not encrypted at rest. Real provider delivery is not verified until tested with valid credentials, an approved template and a recipient who opted in.
 
 ## Run
 ```bash
