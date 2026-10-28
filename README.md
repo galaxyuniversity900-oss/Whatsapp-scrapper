@@ -2,6 +2,8 @@
 
 A local Electron desktop workspace for consent-based WhatsApp campaigns.
 
+> **Experimental roadmap:** [Professional Messaging Engineering Features (2026)](docs/EXPERIMENTAL_MESSAGING_ENGINEERING.md). This is a design specification, not a claim that every capability is implemented or verified.
+
 ## Features
 - Multiple WhatsApp Web sessions using `whatsapp-web.js` + `LocalAuth`.
 - QR authentication and session status.
