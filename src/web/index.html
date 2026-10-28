@@ -175,6 +175,27 @@ input[type=checkbox]{accent-color:#a7d46f}
 }
 @media(prefers-reduced-motion:reduce){.side{transition:none!important}}
 
+
+.workspaceAccounts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px}
+.workspaceAccountCard{border:1px solid var(--line);background:#131813;border-radius:6px;padding:12px;min-width:0}
+.workspaceAccountCard strong{display:block;font-size:14px;overflow-wrap:anywhere;margin-bottom:5px}
+.workspaceAccountCard .toolbar{margin-top:10px}
+.workspaceShell{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(0,1.5fr);gap:12px;align-items:stretch}
+.workspaceChatList,.workspaceConversation{min-width:0}
+.workspaceChats{display:grid;gap:5px;margin-top:10px;max-height:65dvh;overflow:auto}
+.workspaceChatButton{display:block;width:100%;text-align:left;background:#141a14;border:1px solid transparent;border-radius:5px;padding:11px;min-height:0}
+.workspaceChatButton.selected{border-color:#7da95a;background:#222c1f}
+.workspaceChatButton strong{display:block;font-size:12px;overflow-wrap:anywhere}
+.workspaceChatButton small{display:block;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
+.workspaceChatButton .unread{float:right;color:#192014;background:var(--green);border-radius:99px;padding:1px 6px;font-size:10px}
+.workspaceMessages{height:min(58dvh,600px);min-height:260px;overflow:auto;padding:13px;background:#101510;display:flex;flex-direction:column;gap:8px}
+.workspaceBubble{max-width:86%;padding:9px 11px;border:1px solid #303a30;background:#1c231c;border-radius:8px 8px 8px 2px;white-space:pre-wrap;overflow-wrap:anywhere}
+.workspaceBubble.mine{align-self:flex-end;background:#2a3825;border-color:#405638;border-radius:8px 8px 2px 8px}
+.workspaceBubble .meta{font-size:10px;color:#a3ad9f;margin-top:5px}
+.workspaceComposer{padding:12px;border-top:1px solid var(--line)}
+.workspaceComposer textarea{width:100%;resize:vertical;background:#101510;color:var(--txt);border:1px solid #3a4439;border-radius:5px;padding:10px}
+@media(max-width:760px){.workspaceShell{grid-template-columns:minmax(0,1fr)}.workspaceChats{max-height:38dvh}.workspaceMessages{height:42dvh;min-height:220px}.workspaceAccountCard .toolbar button{flex:1}}
+
 </style>
 </head>
 <body>
@@ -185,6 +206,7 @@ input[type=checkbox]{accent-color:#a7d46f}
   <button class="active" data-view="dashboard"><span class="dot"></span>Dashboard</button>
   <button data-view="campaign"><span class="dot"></span>Campaign Control</button>
   <button data-view="accounts"><span class="dot"></span>Accounts</button>
+  <button data-view="workspace"><span class="dot"></span>Connected Accounts · Chats</button>
   <button data-view="clients"><span class="dot"></span>Clients</button>
   <button data-view="directory"><span class="dot"></span>WhatsApp Directory</button>
   <button data-view="groups"><span class="dot"></span>Groups</button>
@@ -256,6 +278,31 @@ input[type=checkbox]{accent-color:#a7d46f}
  </div></div>
  <div style="height:10px"></div>
  <div class="panel"><div class="head"><b>Sessions</b></div><div class="body rows list" id="accountList"></div></div>
+</section>
+
+<section id="workspace" class="view">
+ <div class="panel">
+  <div class="head"><b>Connected accounts</b><div class="toolbar"><button onclick="loadWorkspaceAccounts()">Refresh accounts</button></div></div>
+  <div class="body"><div id="workspaceAccountCards" class="workspaceAccounts"><div class="empty">Loading account status…</div></div></div>
+ </div>
+ <div class="workspaceShell" style="margin-top:12px">
+  <div class="panel workspaceChatList">
+   <div class="head"><b>Chats</b><button onclick="loadWorkspaceChats()">Refresh</button></div>
+   <div class="body">
+    <div class="field"><label>Active account</label><select id="workspaceAccount" onchange="loadWorkspaceChats()"></select></div>
+    <div class="field" style="margin-top:8px"><label>Search chats</label><input id="workspaceSearch" placeholder="Name or latest message" oninput="filterWorkspaceChats()"></div>
+    <div id="workspaceChats" class="workspaceChats"><div class="empty">Select a connected account.</div></div>
+   </div>
+  </div>
+  <div class="panel workspaceConversation">
+   <div class="head"><b id="workspaceChatTitle">WhatsApp conversation</b><span id="workspaceChatState" class="status">No chat selected</span></div>
+   <div id="workspaceMessages" class="workspaceMessages"><div class="empty">Choose a chat to view its recent messages.</div></div>
+   <div class="workspaceComposer">
+    <textarea id="workspaceReply" rows="2" maxlength="10000" placeholder="Write a reply to this individual chat…" disabled></textarea>
+    <div class="toolbar" style="justify-content:space-between;margin-top:8px"><span class="muted small">Manual one-to-one replies only. Group sending is disabled in this view.</span><button id="workspaceSend" class="green" onclick="sendWorkspaceReply()" disabled>Send reply</button></div>
+   </div>
+  </div>
+ </div>
 </section>
 
 <section id="clients" class="view">
@@ -389,7 +436,7 @@ async function api(p,o={}){o.headers={...(o.headers||{}),'X-API-Key':API_TOKEN};
 function post(p,d){return api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(window.__t);window.__t=setTimeout(()=>t.classList.remove('show'),3500)}
 function log(m){S.logs.unshift(new Date().toLocaleTimeString()+'  '+m);S.logs=S.logs.slice(0,160);$('miniLog').textContent=S.logs.join('\n');}
-function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));if(v==='groups')loadGroups();if(v==='multiWorkspace')refreshMulti();if(v==='groupWorkspace')loadGroupWorkspace();if(v==='delivery')refreshDelivery();if(v==='activity')refreshAudit();if(v==='data')loadDataSummary()}
+function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));if(v==='workspace')loadWorkspaceAccounts();if(v==='groups')loadGroups();if(v==='multiWorkspace')refreshMulti();if(v==='groupWorkspace')loadGroupWorkspace();if(v==='delivery')refreshDelivery();if(v==='activity')refreshAudit();if(v==='data')loadDataSummary()}
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.view));
 function selectAccounts(){const ready=S.sessions.filter(x=>x.status==='ready');const opts=ready.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.id)+' · '+esc(x.browser||'')+'</option>').join('')||'<option value="">No ready account</option>';['campaignAccount','dirAccount','intelAccount','searchAccount','groupAccount'].forEach(id=>$(id).innerHTML=opts)}
 function renderSessions(){const rows=S.sessions;const html=rows.map(x=>'<div class="row"><div><b>'+esc(x.id)+'</b><br><span class="muted small">'+esc(x.browser||'')+' · '+esc(x.waState||'—')+'</span></div><span class="status '+(x.status==='ready'?'ready':x.status==='qr'?'qr':x.status==='auth_failure'?'error':'')+'">'+esc(x.status)+'</span><button onclick="logout('+JSON.stringify(x.id)+')">Logout</button></div>').join('')||'<div class="empty">No live sessions. Connect an account to create a real WhatsApp Web session.</div>';$('accountList').innerHTML=html;$('dashAccounts').innerHTML=rows.map(x=>'<div class="row"><b>'+esc(x.id)+'</b><span class="status '+(x.status==='ready'?'ready':'')+'">'+esc(x.status)+'</span></div>').join('')||'<div class="empty">No connected accounts</div>';selectAccounts();$('statAccounts').textContent=readyCount()}
@@ -676,6 +723,67 @@ window.addEventListener('load',()=>setTimeout(loadInbox,700));
  document.addEventListener('keydown',e=>{if(e.key==='Escape')setOpen(false)});
  window.addEventListener('resize',()=>{if(window.innerWidth>1000)setOpen(false)});
 })();
+
+let workspaceChatCache=[];
+let workspaceSelectedChat='';
+async function loadWorkspaceAccounts(){
+ try{
+  const [a,s]=await Promise.all([api('/api/accounts'),api('/api/sessions')]);
+  const accounts=a||[];
+  const ready=accounts.filter(x=>x.live&&x.session&&x.session.status==='ready');
+  $('workspaceAccountCards').innerHTML=accounts.map(x=>{
+   const status=x.live?(x.session?.status||'starting'):(x.enabled===false?'disabled':'offline');
+   const readyNow=x.live&&x.session?.status==='ready';
+   return '<div class="workspaceAccountCard"><strong>'+esc(x.id)+'</strong><span class="status '+(readyNow?'ready':status==='qr'?'qr':'')+'">'+esc(status)+'</span><div class="muted small" style="margin-top:6px">'+(x.session?.waState?'WhatsApp state: '+esc(x.session.waState):'Local session')+'</div><div class="toolbar"><button '+(!readyNow?'disabled':'')+' onclick="openWorkspaceAccount(\''+esc(x.id)+'\')">Open chats</button></div></div>';
+  }).join('')||'<div class="empty">No accounts saved yet. Open Accounts and connect a WhatsApp account.</div>';
+  const select=$('workspaceAccount'),previous=select.value;
+  select.innerHTML=ready.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.id)+' · Connected</option>').join('')||'<option value="">No ready account</option>';
+  if(ready.some(x=>x.id===previous))select.value=previous;
+  if(ready.length&&(!workspaceSelectedChat||!select.value)) await loadWorkspaceChats();
+  if(!ready.length){$('workspaceChats').innerHTML='<div class="empty">No ready account. Connect WhatsApp and finish QR login first.</div>';workspaceSelectedChat='';}
+ }catch(e){toast('Account view: '+e.message)}
+}
+async function openWorkspaceAccount(id){
+ $('workspaceAccount').value=id;workspaceSelectedChat='';go('workspace');await loadWorkspaceChats();
+}
+async function loadWorkspaceChats(){
+ const accountId=$('workspaceAccount').value;
+ if(!accountId){$('workspaceChats').innerHTML='<div class="empty">No connected account selected.</div>';return}
+ $('workspaceChats').innerHTML='<div class="empty">Loading live chats…</div>';
+ try{
+  const r=await api('/api/accounts/chats?accountId='+encodeURIComponent(accountId)+'&limit=150');
+  workspaceChatCache=r.chats||[];
+  filterWorkspaceChats();
+ }catch(e){$('workspaceChats').innerHTML='<div class="empty">'+esc(e.message)+'</div>';toast(e.message)}
+}
+function filterWorkspaceChats(){
+ const q=String($('workspaceSearch').value||'').toLowerCase();
+ const rows=workspaceChatCache.filter(x=>(x.name+' '+x.lastMessage).toLowerCase().includes(q));
+ $('workspaceChats').innerHTML=rows.map(x=>'<button class="workspaceChatButton '+(workspaceSelectedChat===x.id?'selected':'')+'" onclick="openWorkspaceChat(\''+esc(x.id)+'\')">'+(x.unreadCount?'<span class="unread">'+x.unreadCount+'</span>':'')+'<strong>'+esc(x.name)+'</strong><small>'+esc(x.lastMessage|| (x.isGroup?'Group conversation':'No recent text message'))+'</small><small>'+esc(x.timestamp?new Date(x.timestamp*1000).toLocaleString():'')+(x.isGroup?' · Group':'')+'</small></button>').join('')||'<div class="empty">No chats match this search.</div>';
+}
+async function openWorkspaceChat(chatId){
+ workspaceSelectedChat=chatId;filterWorkspaceChats();
+ $('workspaceMessages').innerHTML='<div class="empty">Loading conversation…</div>';
+ $('workspaceReply').disabled=true;$('workspaceSend').disabled=true;
+ try{
+  const r=await api('/api/accounts/messages?accountId='+encodeURIComponent($('workspaceAccount').value)+'&chatId='+encodeURIComponent(chatId)+'&limit=50');
+  $('workspaceChatTitle').textContent=r.chat?.name||chatId;
+  $('workspaceChatState').textContent=r.chat?.isGroup?'Group · read only':'Connected';
+  $('workspaceMessages').innerHTML=(r.messages||[]).map(m=>'<div class="workspaceBubble '+(m.fromMe?'mine':'')+'">'+esc(m.body||('['+m.type+']'))+(m.hasMedia?'<div class="meta">Attachment available in WhatsApp</div>':'')+'<div class="meta">'+esc(m.timestamp?new Date(m.timestamp*1000).toLocaleString():'')+(m.fromMe?' · You':'')+'</div></div>').join('')||'<div class="empty">No recent messages found.</div>';
+  $('workspaceMessages').scrollTop=$('workspaceMessages').scrollHeight;
+  const canReply=!r.chat?.isGroup;
+  $('workspaceReply').disabled=!canReply;$('workspaceSend').disabled=!canReply;
+ }catch(e){$('workspaceMessages').innerHTML='<div class="empty">'+esc(e.message)+'</div>';toast(e.message)}
+}
+async function sendWorkspaceReply(){
+ const message=$('workspaceReply').value.trim(),accountId=$('workspaceAccount').value,chatId=workspaceSelectedChat;
+ if(!accountId||!chatId||!message)return toast('Choose an individual chat and enter a message');
+ if(!confirm('Send this reply from account '+accountId+'?'))return;
+ $('workspaceSend').disabled=true;
+ try{await post('/api/accounts/reply',{accountId,chatId,message});$('workspaceReply').value='';toast('Reply sent');await openWorkspaceChat(chatId);await loadWorkspaceChats();}
+ catch(e){toast(e.message)}finally{$('workspaceSend').disabled=false}
+}
+
 </script>
 
 </body>
