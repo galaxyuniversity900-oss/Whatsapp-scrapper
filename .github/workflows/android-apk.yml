@@ -35,7 +35,7 @@ jobs:
   regression:
     name: Full application regression suite
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,9 +43,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-      - name: Install locked dependencies
-        run: npm ci
+      - name: Install dependencies (repository currently has no lockfile)
+        run: npm install --no-audit --no-fund
       - name: Check JavaScript syntax
         run: npm run lint
       - name: Run all regression tests
@@ -101,7 +100,7 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: gradle --no-daemon assembleDebug
-      - name: Verify APK package and version metadata
+      - name: Verify APK output exists
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
           ls -lh android/app/build/outputs/apk/debug/app-debug.apk
