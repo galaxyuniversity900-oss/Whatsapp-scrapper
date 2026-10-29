@@ -1,0 +1,27 @@
+# Android APK runtime modes
+
+The Android APK packages the existing `src/web/` interface into its assets and attempts to connect to the local Node.js service at `http://127.0.0.1:8787/` first.
+
+## Available modes
+
+1. **Local Termux mode:** start the existing service from the app's fallback screen or from Termux. WhatsApp Web automation depends on the Node.js backend and a compatible Chromium/Puppeteer runtime.
+2. **Bundled interface fallback:** if the local service cannot be reached, the APK opens the bundled web UI so the app does not stop at a blank screen. Browser-side presentation and browser storage may work, but endpoints under `/api/`, WhatsApp Web session automation, and other backend features are not available without a running backend. This fallback is not a full standalone replacement for Node.js.
+3. **Cloud mode:** choose **Connect cloud server** from the fallback screen and enter the HTTPS URL of a deployed instance of this same application. The URL is stored in Android app preferences and loaded in the WebView. The server must be deployed, reachable, and configured correctly.
+
+## Build
+
+The GitHub Actions workflow copies all files from `src/web/` to `android/app/src/main/assets/` before running `gradle assembleDebug`. It uploads the resulting debug APK as the `neww` artifact. Artifacts are temporary (14-day retention); they are not a permanent release.
+
+## Important limitations and security
+
+- Packaging HTML/CSS/JavaScript does not package or emulate the Node.js server, Chromium, or Puppeteer. A truly standalone APK with the complete WhatsApp Web automation stack would require a separately engineered Android-compatible backend/runtime and must be tested on physical devices.
+- The bundled interface keeps the existing application UI rather than replacing it with a smaller demo page, so existing features are not silently removed.
+- Do not put production API tokens in a static HTML file or treat browser `localStorage` as a secure secret vault. Use server-side secret storage for production credentials.
+- Verify the APK on a real Android device, including file import, local-storage persistence, cloud TLS/CORS/authentication, Termux service startup, and WhatsApp session behavior before calling the release production-ready.
+
+
+## Bundled UI API routing and CORS
+- The bundled `file://` UI rewrites only its existing `/api/*` fetches to a configured HTTPS backend first, then the local service at `http://127.0.0.1:8787`. It applies an 8-second request timeout and retries GET requests once; non-GET actions are not automatically replayed to avoid duplicate sends.
+- The Node server intentionally does not allow the opaque `Origin: null` by default. The Termux supervisor enables `WA_ALLOW_FILE_ORIGIN=1` for its loopback-only local service so the bundled Android UI can call it. For a cloud deployment, set that variable explicitly only if you need the bundled `file://` UI to call the service. This permits requests from opaque origins and therefore increases exposure to malicious local/file content; keep the service bound to `127.0.0.1`, do not expose this setting on an untrusted public service, and do not use wildcard CORS. API-token and configured admin authentication checks remain in place.
+- For a cloud backend, configure `WA_ALLOW_FILE_ORIGIN=1` on that deployment if the APK needs to use the bundled UI to call it. Prefer loading the deployed HTTPS web app directly when possible; that keeps same-origin API requests and avoids `file://` CORS.
+- The default local port is **8787**, not 3000, as defined by `src/server.js` and the Android activity.
