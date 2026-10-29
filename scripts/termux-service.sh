@@ -106,14 +106,17 @@ stop() {
 # A previous manual "node src/server.js" launch may not have a supervisor PID.
 # On restart, stop only matching Node processes whose working directory is this project.
 stop_orphan_server() {
-  local pid cwd cmd
-  command -v pgrep >/dev/null 2>&1 || return 0
-  for pid in $(pgrep -f '[n]ode .*src/server.js' 2>/dev/null || true); do
-    [ -r "/proc/$pid/cmdline" ] || continue
-    cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || true)"
-    [ "$cwd" = "$PROJECT_DIR" ] || continue
-    cmd="$(tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
+  local proc pid cwd cmd exe
+  # Scan /proc directly so this also works when pgrep is not installed.
+  for proc in /proc/[0-9]*; do
+    [ -r "$proc/cmdline" ] || continue
+    pid="${proc##*/}"
+    cmd="$(tr '\\000' ' ' < "$proc/cmdline" 2>/dev/null || true)"
+    exe="${cmd%% *}"
+    case "$exe" in */node|node) ;; *) continue ;; esac
     case "$cmd" in *src/server.js*) ;; *) continue ;; esac
+    cwd="$(readlink "$proc/cwd" 2>/dev/null || true)"
+    [ "$cwd" = "$PROJECT_DIR" ] || continue
     echo "Stopping unmanaged WhatsApp Scrapper server (pid $pid) before restart."
     kill -TERM "$pid" 2>/dev/null || true
   done
