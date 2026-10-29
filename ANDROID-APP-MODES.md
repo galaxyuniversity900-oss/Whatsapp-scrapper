@@ -18,3 +18,10 @@ The GitHub Actions workflow copies all files from `src/web/` to `android/app/src
 - The bundled interface keeps the existing application UI rather than replacing it with a smaller demo page, so existing features are not silently removed.
 - Do not put production API tokens in a static HTML file or treat browser `localStorage` as a secure secret vault. Use server-side secret storage for production credentials.
 - Verify the APK on a real Android device, including file import, local-storage persistence, cloud TLS/CORS/authentication, Termux service startup, and WhatsApp session behavior before calling the release production-ready.
+
+
+## Bundled UI API routing and CORS
+- The bundled `file://` UI rewrites only its existing `/api/*` fetches to a configured HTTPS backend first, then the local service at `http://127.0.0.1:8787`. It applies an 8-second request timeout and retries GET requests once; non-GET actions are not automatically replayed to avoid duplicate sends.
+- The Node server intentionally does not allow the opaque `Origin: null` by default. To permit the bundled Android UI to call that server, set `WA_ALLOW_FILE_ORIGIN=1` in the server process environment. Do not use a wildcard CORS policy as a substitute. The server still requires its API token and any configured admin authentication.
+- For a cloud backend, configure `WA_ALLOW_FILE_ORIGIN=1` on that deployment if the APK needs to use the bundled UI to call it. Prefer loading the deployed HTTPS web app directly when possible; that keeps same-origin API requests and avoids `file://` CORS.
+- The default local port is **8787**, not 3000, as defined by `src/server.js` and the Android activity.
