@@ -110,7 +110,7 @@ class MainActivity : Activity() {
 
                 override fun onPageFinished(view: WebView, url: String) {
                     super.onPageFinished(view, url)
-                    if (url.startsWith(localUrl) || url == bundledUrl) {
+                    if (url.startsWith(localUrl) || url == bundledUrl || cloudBaseUrl?.let { url.startsWith(it) } == true) {
                         pageLoaded = true
                         usingBundledUi = (url == bundledUrl)
                         fallback.visibility = View.GONE
