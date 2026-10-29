@@ -88,6 +88,8 @@ const API_TOKEN = loadApiToken();
 const configuredOrigins = new Set(String(process.env.WA_ALLOWED_ORIGINS || '').split(',').map(x => x.trim()).filter(Boolean));
 function allowedOrigin(origin) {
   if (!origin) return null;
+  // file:// WebViews send Origin: null. Enable only deliberately for the bundled Android UI.
+  if (origin === 'null' && process.env.WA_ALLOW_FILE_ORIGIN === '1') return 'null';
   if (configuredOrigins.has('*')) return origin;
   if (configuredOrigins.has(origin)) return origin;
   try {
@@ -748,10 +750,12 @@ async function route(req, res) {
   const p = url.pathname;
   applySecurityHeaders(req, res);
   if (p === '/healthz' && req.method === 'GET') return json(res, 200, { ok: true, status: 'healthy' });
-  if (!requireAdminBasicAuth(req, res)) return;
+  // CORS preflight requests do not carry the actual API credentials; authorize the real request below.
   if (req.method === 'OPTIONS') {
+    res.writeHead(204, { 'Content-Length': '0' });
     return res.end();
   }
+  if (!requireAdminBasicAuth(req, res)) return;
   if (p === '/api/security/token') {
     if (!allowedOrigin(req.headers.origin) && req.headers.origin) return rejectUnauthorized(req, res);
     return json(res, 200, { ok: true, token: API_TOKEN });
