@@ -450,6 +450,91 @@ button:active{transform:translateY(1px)}button:focus-visible,input:focus-visible
 <div id="networkStatus" role="status" aria-live="polite" style="display:none;position:fixed;left:12px;right:12px;top:66px;z-index:90;padding:10px 12px;background:#4a2d16;color:#fff0d5;border:1px solid #9c6738;box-shadow:0 8px 24px rgba(0,0,0,.3)">Connection is offline. The cached interface may open, but server actions require the local service.</div>
 <div id="toast" class="toast"></div>
 <script>
+/* Android bundled-UI runtime shim. Keep the existing application UI and functions intact. */
+(function initAndroidRuntimeShim(){
+  if (window.location.protocol !== 'file:') return;
+  const params = new URLSearchParams(window.location.search);
+  const trimBase = value => String(value || '').trim().replace(/\\/+$/, '');
+  let cloudBase = '';
+  let localBase = 'http://127.0.0.1:8787';
+  try {
+    cloudBase = trimBase(params.get('backend') || localStorage.getItem('WA_BACKEND_URL') || '');
+    localBase = trimBase(params.get('local') || localBase) || localBase;
+    if (cloudBase && /^https:\/\//i.test(cloudBase)) localStorage.setItem('WA_BACKEND_URL', cloudBase);
+  } catch (_) {
+    cloudBase = trimBase(params.get('backend') || '');
+    localBase = trimBase(params.get('local') || localBase) || localBase;
+  }
+  const candidates = [];
+  if (/^https:\/\//i.test(cloudBase)) candidates.push(cloudBase);
+  if (/^http:\/\//i.test(localBase) && !candidates.includes(localBase)) candidates.push(localBase);
+  let activeBackend = '';
+  const originalFetch = window.fetch.bind(window);
+  const status = (message, ok) => {
+    const node = document.getElementById('networkStatus');
+    if (!node) return;
+    node.textContent = message;
+    node.style.display = 'block';
+    node.style.top = '10px';
+    node.style.background = ok ? '#20351e' : '#4a2d16';
+    node.style.borderColor = ok ? '#63864c' : '#9c6738';
+  };
+  status('Bundled interface: checking local/cloud backend. WhatsApp Web automation requires the server runtime.', false);
+  window.getActiveBackendUrl = () => activeBackend || candidates[0] || '';
+  window.fetch = async function(input, init = {}) {
+    let requestUrl;
+    try {
+      requestUrl = new URL(typeof input === 'string' ? input : input.url, window.location.href);
+    } catch (_) {
+      return originalFetch(input, init);
+    }
+    if (!requestUrl.pathname.startsWith('/api/')) return originalFetch(input, init);
+    const pathAndQuery = requestUrl.pathname + requestUrl.search + requestUrl.hash;
+    const isTokenRequest = requestUrl.pathname === '/api/security/token';
+    const bases = activeBackend ? [activeBackend] : candidates;
+    if (!bases.length) {
+      status('No backend configured. Start the Termux server or connect a deployed HTTPS server.', false);
+      throw new Error('No backend configured. Start the local service or connect a cloud server.');
+    }
+    let lastError;
+    for (const base of bases) {
+      const attempts = String((init && init.method) || (input instanceof Request ? input.method : 'GET')).toUpperCase() === 'GET' ? 2 : 1;
+      for (let attempt = 0; attempt < attempts; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const externalSignal = init.signal || (input instanceof Request ? input.signal : null);
+        const abortFromCaller = () => controller.abort();
+        if (externalSignal) {
+          if (externalSignal.aborted) controller.abort();
+          else externalSignal.addEventListener('abort', abortFromCaller, { once: true });
+        }
+        try {
+          const target = base + pathAndQuery;
+          const requestInput = input instanceof Request ? new Request(target, input) : target;
+          const response = await originalFetch(requestInput, { ...init, signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (externalSignal) externalSignal.removeEventListener('abort', abortFromCaller);
+          activeBackend = base;
+          const cloud = /^https:\/\//i.test(base);
+          status((cloud ? 'Cloud server connected: ' : 'Local Termux server connected: ') + base, true);
+          return response;
+        } catch (error) {
+          clearTimeout(timeoutId);
+          if (externalSignal) externalSignal.removeEventListener('abort', abortFromCaller);
+          lastError = error;
+          if (attempt + 1 < attempts) continue;
+          if (activeBackend || !isTokenRequest) break;
+        }
+      }
+      if (activeBackend) break;
+      if (!isTokenRequest) break;
+    }
+    status('Backend unavailable. The interface is open, but server-backed actions require the local service or a reachable cloud server.', false);
+    throw new Error('Cannot reach the backend within 8 seconds. Start the Termux server or check the configured HTTPS server and its CORS settings. WhatsApp Web automation requires Node.js and Chromium/Puppeteer.');
+  };
+})();
+</script>
+<script>
 const $=id=>document.getElementById(id);
 let API_TOKEN='';
 async function initSecurity(){const r=await fetch('/api/security/token');const d=await r.json();if(!r.ok||!d.token)throw Error(d.error||'Security initialization failed');API_TOKEN=d.token;}
