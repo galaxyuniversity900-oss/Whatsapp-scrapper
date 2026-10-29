@@ -1,16 +1,20 @@
 package com.galaxyuniversity.whatsappscrapper
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.JavascriptInterface
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
@@ -22,62 +26,119 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var fallback: LinearLayout
     private var pageLoaded = false
-    private val localUrl = "http://127.0.0.1:8787/"
-    private val termuxPackage = "com.termux"
+    private var usingBundledUi = false
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
+    private val localUrl = "http://127.0.0.1:8787/"
+    private val bundledUrl = "file:///android_asset/index.html"
+    private val termuxPackage = "com.termux"
+    private val fileChooserRequestCode = 1001
+
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.rgb(17, 20, 17))
         }
+
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
             settings.loadsImagesAutomatically = true
-            settings.allowFileAccess = false
-            settings.allowContentAccess = false
+            settings.allowFileAccess = true
+            settings.allowContentAccess = true
             settings.allowFileAccessFromFileURLs = false
             settings.allowUniversalAccessFromFileURLs = false
-            webChromeClient = WebChromeClient()
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            settings.cacheMode = WebSettings.LOAD_DEFAULT
+            settings.setSupportZoom(false)
+            addJavascriptInterface(WebAppBridge(), "AndroidBridge")
+
+            webChromeClient = object : WebChromeClient() {
+                override fun onShowFileChooser(
+                    view: WebView?,
+                    callback: ValueCallback<Array<Uri>>?,
+                    params: FileChooserParams?
+                ): Boolean {
+                    filePathCallback?.onReceiveValue(null)
+                    filePathCallback = callback
+                    return try {
+                        val intent = params?.createIntent() ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                        }
+                        startActivityForResult(intent, fileChooserRequestCode)
+                        true
+                    } catch (_: Exception) {
+                        filePathCallback?.onReceiveValue(null)
+                        filePathCallback = null
+                        false
+                    }
+                }
+            }
+
             webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    val uri = request.url
+                    val url = uri.toString()
+                    if (uri.scheme == "file" || uri.host == "127.0.0.1" || uri.host == "localhost") return false
+                    if (uri.scheme == "https" || uri.scheme == "http" ||
+                        url.startsWith("whatsapp://") || url.startsWith("tg://")) {
+                        return openExternal(url)
+                    }
+                    return true
+                }
+
                 override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-                    if (url == localUrl || url.startsWith(localUrl)) {
+                    super.onPageStarted(view, url, favicon)
+                    if (url.startsWith(localUrl) || url == bundledUrl) {
                         pageLoaded = false
                         fallback.visibility = View.GONE
                         webView.visibility = View.VISIBLE
                     }
-                    super.onPageStarted(view, url, favicon)
                 }
 
                 override fun onPageFinished(view: WebView, url: String) {
                     super.onPageFinished(view, url)
-                    if (url == localUrl || url.startsWith(localUrl)) {
+                    if (url.startsWith(localUrl) || url == bundledUrl) {
                         pageLoaded = true
+                        usingBundledUi = (url == bundledUrl)
                         fallback.visibility = View.GONE
                         webView.visibility = View.VISIBLE
                     }
                 }
 
-                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                override fun onReceivedError(
+                    view: WebView,
+                    request: WebResourceRequest,
+                    error: WebResourceError
+                ) {
                     super.onReceivedError(view, request, error)
-                    if (request.isForMainFrame) showFallback()
+                    if (!request.isForMainFrame) return
+                    if (!usingBundledUi) {
+                        loadBundledUi()
+                    } else {
+                        showFallback()
+                    }
                 }
             }
         }
+
         fallback = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(28, 36, 28, 24)
             setBackgroundColor(Color.rgb(17, 20, 17))
             visibility = View.GONE
             addView(TextView(this@MainActivity).apply {
-                text = "WA Workspace needs its local service"
+                text = "WA Workspace"
                 textSize = 23f
                 setTextColor(Color.WHITE)
             })
             addView(TextView(this@MainActivity).apply {
-                text = "This APK is the Android interface, not a standalone Node.js/Chromium runtime. WhatsApp Web sessions and automation run in the existing Termux project. Start the service below, then the app will retry the local connection. Your Termux data is not deleted."
+                text = "The local service is unavailable and the bundled interface could not be opened. You can start the existing Termux service or retry. Project data is not deleted."
                 textSize = 15f
                 setTextColor(Color.LTGRAY)
                 setPadding(0, 14, 0, 20)
@@ -91,15 +152,22 @@ class MainActivity : Activity() {
                 setOnClickListener { openTermux() }
             })
             addView(Button(this@MainActivity).apply {
-                text = "Retry connection"
+                text = "Retry local server"
                 setOnClickListener { loadLocalServer() }
             })
+            addView(Button(this@MainActivity).apply {
+                text = "Open bundled interface"
+                setOnClickListener { loadBundledUi() }
+            })
         }
+
         root.addView(webView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         root.addView(fallback, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(root)
+
         if (savedInstanceState != null) {
-            webView.restoreState(savedInstanceState)
+            val restored = webView.restoreState(savedInstanceState)
+            if (restored == null) loadLocalServer()
         } else {
             loadLocalServer()
         }
@@ -115,14 +183,14 @@ class MainActivity : Activity() {
         }
         try {
             startService(intent)
-            Toast.makeText(this, "Start request sent. Waiting for the local service…", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Start request sent. Trying the local service…", Toast.LENGTH_LONG).show()
             pageLoaded = false
             retryServerConnection(0)
-        } catch (e: SecurityException) {
-            Toast.makeText(this, "Termux blocked external commands. Enable Allow external apps in Termux Settings, then try again.", Toast.LENGTH_LONG).show()
+        } catch (_: SecurityException) {
+            Toast.makeText(this, "Enable Allow external apps in Termux Settings, then try again.", Toast.LENGTH_LONG).show()
             openTermux()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Could not start the Termux command. Open Termux and start the project manually.", Toast.LENGTH_LONG).show()
+        } catch (_: Exception) {
+            Toast.makeText(this, "Could not start Termux command. Open Termux and start the project manually.", Toast.LENGTH_LONG).show()
             openTermux()
         }
     }
@@ -130,29 +198,32 @@ class MainActivity : Activity() {
     private fun retryServerConnection(attempt: Int) {
         if (pageLoaded) return
         if (attempt >= 10) {
-            showFallback()
-            Toast.makeText(this, "Service not reachable yet. Check Termux logs, then tap Retry.", Toast.LENGTH_LONG).show()
+            loadBundledUi()
+            Toast.makeText(this, "Local server did not respond. Opened the bundled interface; server-backed functions still need the service.", Toast.LENGTH_LONG).show()
             return
         }
         webView.postDelayed({
             if (!pageLoaded) {
-                loadLocalServer()
+                webView.loadUrl(localUrl)
                 retryServerConnection(attempt + 1)
             }
         }, 1500L)
     }
 
-    private fun openTermux() {
-        try {
-            val launch = packageManager.getLaunchIntentForPackage(termuxPackage)
-            if (launch != null) startActivity(launch)
-            else {
-                Toast.makeText(this, "Install Termux from its official F-Droid or GitHub distribution first.", Toast.LENGTH_LONG).show()
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/termux/termux-app/releases")))
-            }
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "Install Termux first.", Toast.LENGTH_LONG).show()
-        }
+    private fun loadLocalServer() {
+        pageLoaded = false
+        usingBundledUi = false
+        fallback.visibility = View.GONE
+        webView.visibility = View.VISIBLE
+        webView.loadUrl(localUrl)
+    }
+
+    private fun loadBundledUi() {
+        pageLoaded = false
+        usingBundledUi = true
+        fallback.visibility = View.GONE
+        webView.visibility = View.VISIBLE
+        webView.loadUrl(bundledUrl)
     }
 
     private fun showFallback() {
@@ -160,11 +231,51 @@ class MainActivity : Activity() {
         fallback.visibility = View.VISIBLE
     }
 
-    private fun loadLocalServer() {
-        pageLoaded = false
-        fallback.visibility = View.GONE
-        webView.visibility = View.VISIBLE
-        webView.loadUrl(localUrl)
+    private fun openTermux() {
+        try {
+            val launch = packageManager.getLaunchIntentForPackage(termuxPackage)
+            if (launch != null) startActivity(launch)
+            else {
+                Toast.makeText(this, "Install Termux from its official distribution first.", Toast.LENGTH_LONG).show()
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/termux/termux-app/releases")))
+            }
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "Install Termux first.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun openExternal(url: String): Boolean {
+        return try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != fileChooserRequestCode) return
+        val results = if (resultCode == RESULT_OK && data != null) {
+            WebChromeClient.FileChooserParams.parseResult(resultCode, data)
+        } else null
+        filePathCallback?.onReceiveValue(results)
+        filePathCallback = null
+    }
+
+    inner class WebAppBridge {
+        @JavascriptInterface
+        fun showToast(message: String) {
+            runOnUiThread { Toast.makeText(this@MainActivity, message.take(200), Toast.LENGTH_SHORT).show() }
+        }
+
+        @JavascriptInterface
+        fun openExternalUrl(url: String) {
+            val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return
+            if (uri.scheme == "https" || uri.scheme == "http" || uri.scheme == "whatsapp" || uri.scheme == "tg") {
+                runOnUiThread { openExternal(url) }
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -178,6 +289,8 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        filePathCallback?.onReceiveValue(null)
+        filePathCallback = null
         if (::webView.isInitialized) {
             (webView.parent as? ViewGroup)?.removeView(webView)
             webView.destroy()
