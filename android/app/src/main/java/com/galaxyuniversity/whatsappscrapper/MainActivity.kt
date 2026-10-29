@@ -101,7 +101,7 @@ class MainActivity : Activity() {
 
                 override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                     super.onPageStarted(view, url, favicon)
-                    if (url.startsWith(localUrl) || url == bundledUrl) {
+                    if (url.startsWith(localUrl) || url == bundledUrl || cloudBaseUrl?.let { url.startsWith(it) } == true) {
                         pageLoaded = false
                         fallback.visibility = View.GONE
                         webView.visibility = View.VISIBLE
