@@ -2,7 +2,15 @@
 # Prepare the existing project for local Termux operation; no Browserless/cloud browser is used.
 set -euo pipefail
 
-PROJECT_DIR="${WA_PROJECT_DIR:-$HOME/Whatsapp-scrapper}"
+if [ -n "${WA_PROJECT_DIR:-}" ]; then
+  PROJECT_DIR="$WA_PROJECT_DIR"
+elif [ -f "$HOME/Whatsapp-scrapper/src/server.js" ]; then
+  PROJECT_DIR="$HOME/Whatsapp-scrapper"
+elif [ -f "$HOME/Whatsapp-scrapper-source/Whatsapp-scrapper-main/src/server.js" ]; then
+  PROJECT_DIR="$HOME/Whatsapp-scrapper-source/Whatsapp-scrapper-main"
+else
+  PROJECT_DIR="$HOME/Whatsapp-scrapper"
+fi
 DATA_DIR="${WA_DATA_DIR:-$HOME/.whatsapp-scrapper}"
 
 if ! command -v pkg >/dev/null 2>&1; then
