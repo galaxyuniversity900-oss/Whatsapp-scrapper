@@ -2,6 +2,7 @@ package com.galaxyuniversity.whatsappscrapper
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
@@ -18,7 +19,9 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
+import android.text.InputType
 import android.widget.TextView
 import android.widget.Toast
 
@@ -28,6 +31,7 @@ class MainActivity : Activity() {
     private var pageLoaded = false
     private var usingBundledUi = false
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var cloudBaseUrl: String? = null
 
     private val localUrl = "http://127.0.0.1:8787/"
     private val bundledUrl = "file:///android_asset/index.html"
@@ -37,6 +41,8 @@ class MainActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        cloudBaseUrl = getSharedPreferences("wa_workspace", MODE_PRIVATE).getString("cloud_base_url", null)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -84,7 +90,8 @@ class MainActivity : Activity() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val uri = request.url
                     val url = uri.toString()
-                    if (uri.scheme == "file" || uri.host == "127.0.0.1" || uri.host == "localhost") return false
+                    val cloudHost = runCatching { Uri.parse(cloudBaseUrl).host }.getOrNull()
+                    if (uri.scheme == "file" || uri.host == "127.0.0.1" || uri.host == "localhost" || (cloudHost != null && uri.host == cloudHost)) return false
                     if (uri.scheme == "https" || uri.scheme == "http" ||
                         url.startsWith("whatsapp://") || url.startsWith("tg://")) {
                         return openExternal(url)
@@ -159,6 +166,10 @@ class MainActivity : Activity() {
                 text = "Open bundled interface"
                 setOnClickListener { loadBundledUi() }
             })
+            addView(Button(this@MainActivity).apply {
+                text = "Connect cloud server"
+                setOnClickListener { promptCloudServer() }
+            })
         }
 
         root.addView(webView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
@@ -216,6 +227,38 @@ class MainActivity : Activity() {
         fallback.visibility = View.GONE
         webView.visibility = View.VISIBLE
         webView.loadUrl(localUrl)
+    }
+
+    private fun promptCloudServer() {
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            hint = "https://your-service.example.com"
+            setText(cloudBaseUrl.orEmpty())
+            setSingleLine(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Connect cloud server")
+            .setMessage("Enter the HTTPS URL of your deployed WA Workspace server. The server must already be deployed and reachable.")
+            .setView(input)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Connect") { _, _ ->
+                val raw = input.text.toString().trim().trimEnd('/')
+                val uri = runCatching { Uri.parse(raw) }.getOrNull()
+                if (uri == null || uri.scheme != "https" || uri.host.isNullOrBlank()) {
+                    Toast.makeText(this, "Use a valid HTTPS server URL.", Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+                cloudBaseUrl = raw
+                getSharedPreferences("wa_workspace", MODE_PRIVATE).edit().putString("cloud_base_url", raw).apply()
+                pageLoaded = false
+                webView.loadUrl("$raw/")
+            }
+            .setNeutralButton("Clear saved server") { _, _ ->
+                cloudBaseUrl = null
+                getSharedPreferences("wa_workspace", MODE_PRIVATE).edit().remove("cloud_base_url").apply()
+                Toast.makeText(this, "Saved cloud server cleared.", Toast.LENGTH_SHORT).show()
+            }
+            .show()
     }
 
     private fun loadBundledUi() {
