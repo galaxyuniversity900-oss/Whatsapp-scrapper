@@ -1,51 +1,86 @@
-name: Android APK v1.2.4
+name: Android APK v1.2.5 — full verification
 
 on:
   push:
-    branches: [main, master, android-apk-version-1-2-0, android-runtime-repair-2026-10-29]
+    branches: [main, master, android-v1-2-5-full-verification-2026-10-29]
     paths:
       - "android/**"
-      - "src/web/**"
-      - "src/server.js"
+      - "src/**"
+      - "test/**"
+      - "scripts/**"
+      - "docs/**"
       - "package.json"
       - "package-lock.json"
-      - "scripts/**"
-      - "tests/**"
       - ".github/workflows/android-apk.yml"
   pull_request:
     paths:
       - "android/**"
-      - "src/web/**"
-      - "src/server.js"
+      - "src/**"
+      - "test/**"
+      - "scripts/**"
+      - "docs/**"
       - "package.json"
       - "package-lock.json"
-      - "scripts/**"
-      - "tests/**"
       - ".github/workflows/android-apk.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-debug-apk:
+  regression:
+    name: Full application regression suite
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Validate Node server syntax
-        run: node --check src/server.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies (repository currently has no lockfile)
+        run: npm install --no-audit --no-fund
+      - name: Check JavaScript syntax
+        run: npm run lint
+      - name: Run all regression tests
+        run: npm run test:all
       - name: Validate Termux shell scripts
         run: bash -n scripts/termux-service.sh scripts/termux-setup.sh
-      - name: Test Android bundled event stream routing
+      - name: Run Termux service smoke test
+        run: npm run termux:test
+      - name: Verify Android runtime-routing regression test
         run: node test/31-android-event-stream-tests.js
-      - name: Verify web entry point
-        run: test -s src/web/index.html
-      - name: Bundle web UI into Android assets
+      - name: Verify Android app version and permissions
+        run: |
+          grep -q 'versionCode = 8' android/app/build.gradle.kts
+          grep -q 'versionName = "1.2.5"' android/app/build.gradle.kts
+          grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
+          test -s src/web/index.html
+          test -s src/server.js
+
+  build-debug-apk:
+    name: Build Android APK
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate server and shell syntax
+        run: |
+          node --check src/server.js
+          bash -n scripts/termux-service.sh scripts/termux-setup.sh
+      - name: Bundle latest web UI into Android assets
         run: |
           mkdir -p android/app/src/main/assets
           cp -R src/web/. android/app/src/main/assets/
           test -s android/app/src/main/assets/index.html
+          node -e "const fs=require('fs'); const p='src/web/index.html'; const a='android/app/src/main/assets/index.html'; if(fs.readFileSync(p,'utf8')!==fs.readFileSync(a,'utf8')) process.exit(1)"
           echo "Bundled $(find android/app/src/main/assets -type f | wc -l) web asset files"
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -65,12 +100,16 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: gradle --no-daemon assembleDebug
-      - name: Rename APK to Whatsapp-Scrapper-v1.2.4.apk
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk Whatsapp-Scrapper-v1.2.4.apk
-      - name: Upload versioned APK
+      - name: Verify APK output exists
+        run: |
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Rename versioned APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Whatsapp-Scrapper-v1.2.5.apk
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Whatsapp-Scrapper-v1.2.4
-          path: Whatsapp-Scrapper-v1.2.4.apk
+          name: Whatsapp-Scrapper-v1.2.5
+          path: Whatsapp-Scrapper-v1.2.5.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30

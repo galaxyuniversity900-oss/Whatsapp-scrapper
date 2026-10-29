@@ -11,8 +11,8 @@ android {
         applicationId = "com.galaxyuniversity.waworkspace.v123"
         minSdk = 23
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.2.4"
+        versionCode = 8
+        versionName = "1.2.5"
     }
 
     compileOptions {
@@ -25,4 +25,4 @@ android {
     }
 }
 
-// Build trigger for the merged responsive sidebar, palette, and transition refresh on main.
+// v1.2.5: full Node regression suite + Android bundle/runtime-routing checks before APK build.
