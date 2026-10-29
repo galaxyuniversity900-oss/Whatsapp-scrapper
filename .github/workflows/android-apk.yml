@@ -1,4 +1,4 @@
-name: Android APK v1.2.3
+name: Android APK v1.2.4
 
 on:
   push:
@@ -65,12 +65,12 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: gradle --no-daemon assembleDebug
-      - name: Rename APK to Whatsapp-Scrapper-v1.2.3.apk
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk Whatsapp-Scrapper-v1.2.3.apk
+      - name: Rename APK to Whatsapp-Scrapper-v1.2.4.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Whatsapp-Scrapper-v1.2.4.apk
       - name: Upload versioned APK
         uses: actions/upload-artifact@v4
         with:
-          name: Whatsapp-Scrapper-v1.2.3
-          path: Whatsapp-Scrapper-v1.2.3.apk
+          name: Whatsapp-Scrapper-v1.2.4
+          path: Whatsapp-Scrapper-v1.2.4.apk
           if-no-files-found: error
           retention-days: 14
