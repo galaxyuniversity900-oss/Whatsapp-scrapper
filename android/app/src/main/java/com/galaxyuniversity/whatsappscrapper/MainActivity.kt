@@ -270,7 +270,10 @@ class MainActivity : Activity() {
         usingBundledUi = true
         fallback.visibility = View.GONE
         webView.visibility = View.VISIBLE
-        webView.loadUrl(bundledUrl)
+        val local = Uri.encode(localUrl.trimEnd('/'))
+        val cloud = cloudBaseUrl?.takeIf { it.startsWith("https://", ignoreCase = true) }?.let { "&backend=" + Uri.encode(it) } ?: ""
+        // Query parameters are available before the bundled page's first script runs.
+        webView.loadUrl("$bundledUrl?local=$local$cloud")
     }
 
     private fun showFallback() {
