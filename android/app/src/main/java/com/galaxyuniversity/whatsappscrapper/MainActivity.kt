@@ -172,6 +172,10 @@ class MainActivity : Activity() {
             })
         }
 
+        root.addView(Button(this).apply {
+            text = "Connect cloud server"
+            setOnClickListener { promptCloudServer() }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         root.addView(webView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         root.addView(fallback, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(root)
