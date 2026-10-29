@@ -20,8 +20,8 @@ assert.match(server, /if \(session\.lastQr\)/,
   'server must replay a pending QR to newly connected clients');
 assert.match(service, /WA_ALLOW_FILE_ORIGIN=\"\$\{WA_ALLOW_FILE_ORIGIN:-1\}\"/,
   'Termux supervisor must allow the bundled Android file origin');
-assert.match(service, /restart\\) stop && stop_orphan_server && start \\;/,
+assert.ok(service.includes('restart) stop && stop_orphan_server && start ;;'),
   'restart must not exit early and must handle an unmanaged local server');
-assert.match(activity, /exec bash scripts\\/termux-service\\.sh restart/,
+assert.ok(activity.includes('exec bash scripts/termux-service.sh restart'),
   'APK start action must restart the service to apply CORS settings');
 console.log('PASS Android bundled SSE URL, token, QR replay, Termux CORS, and restart checks');
