@@ -39,7 +39,7 @@ run_supervisor() {
   echo "[$(date -Iseconds)] supervisor started; project=$PROJECT_DIR port=$PORT" >> "$LOG_FILE"
   while [ ! -f "$STOP_FILE" ]; do
     echo "[$(date -Iseconds)] starting node src/server.js" >> "$LOG_FILE"
-    PORT="$PORT" HOST="$HOST" node src/server.js >> "$LOG_FILE" 2>&1
+    WA_ALLOW_FILE_ORIGIN="${WA_ALLOW_FILE_ORIGIN:-1}" PORT="$PORT" HOST="$HOST" node src/server.js >> "$LOG_FILE" 2>&1
     rc=$?
     [ -f "$STOP_FILE" ] && break
     echo "[$(date -Iseconds)] server exited rc=$rc; retrying in 5 seconds" >> "$LOG_FILE"
