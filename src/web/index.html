@@ -243,6 +243,13 @@ button:active{transform:translateY(1px)}button:focus-visible,input:focus-visible
 </style>
 <link rel="stylesheet" href="styles.css">
 
+<style>
+.termux-connect{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin:12px 0 8px;padding:12px 10px;min-height:44px;border:1px solid #71984d;border-radius:7px;background:linear-gradient(135deg,#263a22,#1b2919);color:#d8f0bd;font-weight:800;letter-spacing:.1px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.15);transition:transform .18s ease,border-color .18s ease,background .18s ease}
+.termux-connect:hover{border-color:#b8d879;background:#30472a;transform:translateY(-1px)}
+.termux-connect:disabled{opacity:.65;transform:none}
+.termux-connect.connected{border-color:#b8d879;background:#25351f;color:#d8f0bd}
+@media(max-width:1000px){.termux-connect{width:auto;min-width:180px;flex:0 0 auto;margin:4px 3px;padding:8px 12px;min-height:36px;font-size:11px}}
+</style>
 </head>
 <body>
 <div class="app">
@@ -261,6 +268,7 @@ button:active{transform:translateY(1px)}button:focus-visible,input:focus-visible
   <button data-view="data"><span class="dot"></span>Data & Export</button>
   <button data-view="activity"><span class="dot"></span>Activity & Audit</button>
  </nav>
+ <button id="connectTermuxBtn" class="termux-connect" type="button" onclick="connectToTermux()">⟷ Connect to Termux</button>
  <div class="sideInfo"><div>ENGINE <b id="engine">ONLINE</b></div><div>Platform <span id="platform">—</span></div><div>Node <span id="node">—</span></div><div>WhatsApp <span id="waState">—</span></div></div>
  <div class="theme-panel"><div class="theme-label">Interface palette</div><div class="theme-options" role="group" aria-label="Interface color palette"><button type="button" class="theme-option active" data-theme-choice="obsidian-jade" aria-label="Obsidian jade and brass" aria-pressed="true"><span class="theme-swatch jade"></span><span>Jade</span></button><button type="button" class="theme-option" data-theme-choice="graphite-copper" aria-label="Graphite and copper" aria-pressed="false"><span class="theme-swatch copper"></span><span>Copper</span></button><button type="button" class="theme-option" data-theme-choice="ivory-oxide" aria-label="Ivory and oxide" aria-pressed="false"><span class="theme-swatch oxide"></span><span>Ivory</span></button></div><p class="theme-help">Your palette is saved on this device.</p></div>
 </aside>
@@ -454,7 +462,29 @@ button:active{transform:translateY(1px)}button:focus-visible,input:focus-visible
 <script>
 /* Android bundled-UI runtime shim. Keep the existing application UI and functions intact. */
 (function initAndroidRuntimeShim(){
-  if (window.location.protocol !== 'file:') return;
+  const bundled = window.location.protocol === 'file:';
+  if (!bundled) {
+    window.connectToTermux = async function() {
+      const button = document.getElementById('connectTermuxBtn');
+      const statusNode = document.getElementById('networkStatus');
+      if (button) { button.disabled = true; button.textContent = 'Connecting to Termux…'; }
+      try {
+        const response = await fetch('/api/security/token', { cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok || !data.token) throw new Error(data.error || 'Termux server did not return a valid session token.');
+        if (statusNode) { statusNode.textContent = 'Connected to Termux: ' + window.location.origin; statusNode.style.display = 'block'; statusNode.style.top = '10px'; statusNode.style.background = '#20351e'; statusNode.style.borderColor = '#63864c'; }
+        if (button) { button.textContent = '✓ Connected to Termux'; button.classList.add('connected'); }
+        if (typeof toast === 'function') toast('Connected to the local Termux server.');
+        return true;
+      } catch (error) {
+        if (statusNode) { statusNode.textContent = 'Termux connection failed. Start the local server with: node src/server.js'; statusNode.style.display = 'block'; }
+        if (button) button.textContent = '↻ Connect to Termux';
+        if (typeof toast === 'function') toast(error.message || 'Cannot reach Termux.');
+        throw error;
+      } finally { if (button) button.disabled = false; }
+    };
+    return;
+  }
   const params = new URLSearchParams(window.location.search);
   const trimBase = value => String(value || '').trim().replace(/\\/+$/, '');
   let cloudBase = '';
@@ -481,7 +511,27 @@ button:active{transform:translateY(1px)}button:focus-visible,input:focus-visible
     node.style.background = ok ? '#20351e' : '#4a2d16';
     node.style.borderColor = ok ? '#63864c' : '#9c6738';
   };
-  status('Bundled interface: checking local/cloud backend. WhatsApp Web automation requires the server runtime.', false);
+  window.connectToTermux = async function() {
+    const button = document.getElementById('connectTermuxBtn');
+    if (button) { button.disabled = true; button.textContent = 'Connecting to Termux…'; }
+    try {
+      const response = await originalFetch(localBase + '/api/security/token', { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok || !data.token) throw new Error(data.error || 'Termux server did not return a valid session token.');
+      activeBackend = localBase;
+      status('Connected to Termux: ' + localBase, true);
+      if (button) { button.textContent = '✓ Connected to Termux'; button.classList.add('connected'); }
+      if (typeof toast === 'function') toast('Connected to the local Termux server.');
+      return true;
+    } catch (error) {
+      activeBackend = '';
+      status('Termux connection failed. Start the local server with: node src/server.js', false);
+      if (button) button.textContent = '↻ Connect to Termux';
+      if (typeof toast === 'function') toast(error.message || 'Cannot reach Termux.');
+      throw error;
+    } finally { if (button) button.disabled = false; }
+  };
+  status('Bundled interface: local Termux is the primary connection. Cloud is optional backup.', false);
   window.getActiveBackendUrl = () => activeBackend || candidates[0] || '';
   window.fetch = async function(input, init = {}) {
     let requestUrl;
@@ -495,8 +545,8 @@ button:active{transform:translateY(1px)}button:focus-visible,input:focus-visible
     const isTokenRequest = requestUrl.pathname === '/api/security/token';
     const bases = activeBackend ? [activeBackend] : candidates;
     if (!bases.length) {
-      status('No backend configured. Start the Termux server or connect a deployed HTTPS server.', false);
-      throw new Error('No backend configured. Start the local service or connect a cloud server.');
+      status('No backend configured. Start the Termux server; a cloud server is optional backup.', false);
+      throw new Error('No backend configured. Start the local Termux service; cloud is optional backup.');
     }
     let lastError;
     for (const base of bases) {
@@ -531,8 +581,8 @@ button:active{transform:translateY(1px)}button:focus-visible,input:focus-visible
       if (activeBackend) break;
       if (!isTokenRequest) break;
     }
-    status('Backend unavailable. The interface is open, but server-backed actions require the local service or a reachable cloud server.', false);
-    throw new Error('Cannot reach the backend within 8 seconds. Start the Termux server or check the configured HTTPS server and its CORS settings. WhatsApp Web automation requires Node.js and Chromium/Puppeteer.');
+    status('Backend unavailable. Start the local Termux service; cloud is optional backup.', false);
+    throw new Error('Cannot reach the backend within 8 seconds. Start the Termux server; cloud is optional backup. WhatsApp Web automation requires Node.js and Chromium/Puppeteer.');
   };
 })();
 </script>
