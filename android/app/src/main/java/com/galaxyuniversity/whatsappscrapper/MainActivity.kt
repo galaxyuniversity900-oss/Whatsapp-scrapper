@@ -192,7 +192,7 @@ class MainActivity : Activity() {
         val intent = Intent("com.termux.RUN_COMMAND").apply {
             setClassName(termuxPackage, "com.termux.app.RunCommandService")
             putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash")
-            putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-lc", "for d in \"\$HOME/Whatsapp-scrapper\" \"\$HOME/Whatsapp-scrapper-source/Whatsapp-scrapper-main\"; do if [ -f \"\$d/src/server.js\" ] && [ -f \"\$d/scripts/termux-service.sh\" ]; then export WA_PROJECT_DIR=\"\$d\" WA_ALLOW_FILE_ORIGIN=1; cd \"\$d\"; exec bash scripts/termux-service.sh start; fi; done; echo \"WhatsApp Scrapper project not found in expected Termux folders.\" >&2; exit 2"))
+            putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-lc", "for d in \"\$HOME/Whatsapp-scrapper\" \"\$HOME/Whatsapp-scrapper-source/Whatsapp-scrapper-main\"; do if [ -f \"\$d/src/server.js\" ] && [ -f \"\$d/scripts/termux-service.sh\" ]; then export WA_PROJECT_DIR=\"\$d\" WA_ALLOW_FILE_ORIGIN=1; cd \"\$d\"; exec bash scripts/termux-service.sh restart; fi; done; echo \"WhatsApp Scrapper project not found in expected Termux folders.\" >&2; exit 2"))
             putExtra("com.termux.RUN_COMMAND_WORKDIR", "/data/data/com.termux/files/home")
             putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
         }

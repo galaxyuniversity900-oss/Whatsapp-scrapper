@@ -88,7 +88,7 @@ stop() {
   if ! alive "$pid"; then
     rm -f "$PID_FILE" "$STOP_FILE"
     echo "Already stopped."
-    exit 0
+    return 0
   fi
   touch "$STOP_FILE"
   child="$(pgrep -P "$pid" 2>/dev/null | head -n 1 || true)"
@@ -100,13 +100,41 @@ stop() {
   if alive "$pid"; then kill -TERM "$pid" 2>/dev/null || true; fi
   rm -f "$PID_FILE" "$STOP_FILE"
   echo "Stop requested. Check logs if the service does not exit: $LOG_FILE"
+  return 0
+}
+
+# A previous manual "node src/server.js" launch may not have a supervisor PID.
+# On restart, stop only matching Node processes whose working directory is this project.
+stop_orphan_server() {
+  local proc pid cwd cmd exe
+  # Scan /proc directly so this also works when pgrep is not installed.
+  for proc in /proc/[0-9]*; do
+    [ -r "$proc/cmdline" ] || continue
+    pid="${proc##*/}"
+    cmd="$(tr '\000' ' ' < "$proc/cmdline" 2>/dev/null || true)"
+    exe="${cmd%% *}"
+    case "$exe" in */node|node) ;; *) continue ;; esac
+    case "$cmd" in *src/server.js*) ;; *) continue ;; esac
+    cwd="$(readlink "$proc/cwd" 2>/dev/null || true)"
+    [ "$cwd" = "$PROJECT_DIR" ] || continue
+    echo "Stopping unmanaged WhatsApp Scrapper server (pid $pid) before restart."
+    kill -TERM "$pid" 2>/dev/null || true
+  done
+  if command -v curl >/dev/null 2>&1; then
+    for _ in 1 2 3 4 5; do
+      curl -fsS --max-time 1 "http://$HOST:$PORT/healthz" >/dev/null 2>&1 || return 0
+      sleep 1
+    done
+    echo "A server is still responding on port $PORT; refusing to start a duplicate." >&2
+    return 1
+  fi
 }
 
 case "${1:-status}" in
   start) start ;;
   status) status ;;
   stop) stop ;;
-  restart) stop; start ;;
+  restart) stop && stop_orphan_server && start ;;
   logs) tail -n 100 -f "$LOG_FILE" ;;
   __run) run_supervisor ;;
   *) echo "Usage: bash scripts/termux-service.sh {start|status|stop|restart|logs}"; exit 64 ;;
