@@ -3,7 +3,15 @@
 # Usage: bash scripts/termux-service.sh start|status|stop|restart|logs
 set -u
 
-PROJECT_DIR="${WA_PROJECT_DIR:-$HOME/Whatsapp-scrapper}"
+if [ -n "${WA_PROJECT_DIR:-}" ]; then
+  PROJECT_DIR="$WA_PROJECT_DIR"
+elif [ -f "$HOME/Whatsapp-scrapper/src/server.js" ]; then
+  PROJECT_DIR="$HOME/Whatsapp-scrapper"
+elif [ -f "$HOME/Whatsapp-scrapper-source/Whatsapp-scrapper-main/src/server.js" ]; then
+  PROJECT_DIR="$HOME/Whatsapp-scrapper-source/Whatsapp-scrapper-main"
+else
+  PROJECT_DIR="$HOME/Whatsapp-scrapper"
+fi
 STATE_DIR="${WA_TERMUX_STATE_DIR:-$HOME/.whatsapp-scrapper-termux}"
 PID_FILE="$STATE_DIR/supervisor.pid"
 STOP_FILE="$STATE_DIR/stop.requested"

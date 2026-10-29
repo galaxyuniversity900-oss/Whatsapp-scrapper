@@ -781,6 +781,15 @@ async function route(req, res) {
     });
     res.write(': connected\n\n');
     listeners.add(res);
+    // Replay the current session state to clients that connect after QR generation.
+    for (const session of sessions.values()) {
+      try {
+        res.write('event: session:status\ndata: ' + JSON.stringify(sessionPublic(session)) + '\n\n');
+        if (session.lastQr) {
+          res.write('event: session:qr\ndata: ' + JSON.stringify({ id: session.id, qr: session.lastQr }) + '\n\n');
+        }
+      } catch {}
+    }
     req.on('close', () => listeners.delete(res));
     return;
   }
