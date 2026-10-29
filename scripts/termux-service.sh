@@ -111,7 +111,7 @@ stop_orphan_server() {
   for proc in /proc/[0-9]*; do
     [ -r "$proc/cmdline" ] || continue
     pid="${proc##*/}"
-    cmd="$(tr '\\000' ' ' < "$proc/cmdline" 2>/dev/null || true)"
+    cmd="$(tr '\000' ' ' < "$proc/cmdline" 2>/dev/null || true)"
     exe="${cmd%% *}"
     case "$exe" in */node|node) ;; *) continue ;; esac
     case "$cmd" in *src/server.js*) ;; *) continue ;; esac
