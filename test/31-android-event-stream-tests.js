@@ -13,7 +13,7 @@ assert.match(html, /new EventSource\(eventStreamUrl\)/,
   'SSE must use the resolved backend URL');
 assert.match(html, /eventStreamPath='\/events\?token='/,
   'SSE must retain API-token authorization');
-assert.match(server, /if \(p === '\/events' && req\.method === 'GET'\)/,
+assert.match(server, /if \(req\.method === 'GET' && p === '\/events'\)/,
   'server must expose the authenticated event stream');
 assert.match(server, /if \(session\.lastQr\)/,
   'server must replay a pending QR to newly connected clients');
