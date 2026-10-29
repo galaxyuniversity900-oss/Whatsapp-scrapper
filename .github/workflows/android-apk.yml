@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [main, android-apk-version-1-2-0]
+    branches: [main, android-apk-version-1-2-0, android-runtime-repair-2026-10-29]
     paths:
       - "android/**"
       - "src/web/**"
@@ -33,8 +33,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Validate server syntax
+      - name: Validate Node server syntax
         run: node --check src/server.js
+      - name: Validate Termux shell scripts
+        run: bash -n scripts/termux-service.sh scripts/termux-setup.sh
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
