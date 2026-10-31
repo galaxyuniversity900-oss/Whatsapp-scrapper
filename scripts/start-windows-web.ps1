@@ -23,7 +23,7 @@ if ($adminPassword.Length -lt 32) { throw "The saved administrator password file
 $env:NODE_ENV = 'production'
 $env:HOST = '127.0.0.1'
 $env:PORT = '8787'
-$env:WA_DATA_DIR = $dataRoot
+$env:WA_DATA_DIR = $stateRoot
 $env:WA_ADMIN_USER = 'admin'
 $env:WA_ADMIN_PASSWORD = $adminPassword
 
