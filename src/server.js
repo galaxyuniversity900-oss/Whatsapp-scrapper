@@ -773,6 +773,26 @@ async function route(req, res) {
     res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8' });
     return res.end(fs.readFileSync(path.join(__dirname, 'web', 'sw.js'), 'utf8'));
   }
+
+  // Serve only known web assets. Never map arbitrary URL paths to filesystem paths.
+  if (req.method === 'GET') {
+    const webAssets = {
+      '/app.js': ['app.js', 'application/javascript; charset=utf-8'],
+      '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
+      '/icon.svg': ['icon.svg', 'image/svg+xml']
+    };
+    const asset = webAssets[p];
+    if (asset) {
+      const assetPath = path.join(__dirname, 'web', asset[0]);
+      if (!fs.existsSync(assetPath)) return json(res, 404, { ok: false, error: 'Asset not found' });
+      res.writeHead(200, {
+        'Content-Type': asset[1],
+        'Cache-Control': 'public, max-age=3600',
+        'X-Content-Type-Options': 'nosniff'
+      });
+      return fs.createReadStream(assetPath).pipe(res);
+    }
+  }
   if (req.method === 'GET' && p === '/events') {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
