@@ -213,3 +213,28 @@ npm run server
 
 The local server defaults to `http://127.0.0.1:8787`. For local development, admin Basic Authentication is optional; production mode requires `WA_ADMIN_PASSWORD`.
 
+
+
+## Windows browser edition (5.7)
+
+The same operational dashboard can run as a local website in Edge, Chrome, or another modern browser without launching the Electron desktop shell.
+
+### Quick start
+
+1. Install **Node.js 20 or newer** on Windows.
+2. Extract or clone this repository and open its folder.
+3. Run `start-windows-web.cmd` (or `npm run start:web:windows`).
+4. The launcher installs production dependencies when needed, starts the local service, and opens `http://127.0.0.1:8787`.
+5. At the browser's administrator sign-in prompt, use username `admin` and the password displayed by the launcher. The password is generated once and stored in the current Windows user's LocalAppData folder, outside the repository.
+
+The local server binds to `127.0.0.1` only. It is not exposed to the LAN or public internet. Application data is stored separately under `%LOCALAPPDATA%\\WhatsAppScrapper\\data`, so updating the repository does not replace the local data directory. Press Ctrl+C in the launcher window to stop the service.
+
+### Online hosting
+
+The existing `Dockerfile` and `render.yaml` are the deployment path for a hosted web instance. Connect this GitHub repository to Render as a Blueprint and retain its persistent disk. GitHub Pages is not a suitable host for this application because it cannot run the Node.js API, connected-account sessions, or persistent data service.
+
+For an online deployment, use HTTPS, strong administrator credentials, persistent storage, and verify the actual provider/session behavior before connecting live accounts. Never commit passwords, API tokens, Telegram API hashes, or session strings.
+
+### Web asset routing
+
+The Node service serves the dashboard's JavaScript, stylesheet, PWA manifest, service worker, and SVG icon from a fixed allowlist. API routes and personal data are not added to the service worker cache. The Windows browser edition retains the existing administrator Basic Auth and API-token checks.
